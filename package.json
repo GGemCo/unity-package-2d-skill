@@ -1,0 +1,11 @@
+{
+  "name": "com.ggemco.2d.skill",
+  "displayName": "GGemCo 2D Skill",
+  "version": "0.0.1",
+  "unity": "2022.3",
+  "description": "Skill system for 2D game development. Includes a simple example BT designer.",
+  "dependencies": {
+  },
+  "samples": [
+  ]
+}

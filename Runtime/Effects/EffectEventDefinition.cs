@@ -1,0 +1,20 @@
+﻿// Assets/GGemCo/Skills/Runtime/Effects/EffectEventDefinition.cs
+using UnityEngine;
+
+namespace GGemCo2DSkill
+{
+    [CreateAssetMenu(menuName = "GGemCo/Skills/Events/Effect Event", fileName = "EffectEvent")]
+    public sealed class EffectEventDefinition : ScriptableObject
+    {
+        [Header("Effect")]
+        public GameObject prefab;
+        public float lifetimeSeconds = 2f;
+
+        [Header("Spawn Rule")]
+        public bool attachToTarget;
+        public Vector3 localOffset;
+
+        [Header("Overrides")]
+        public TargetingOverride targetingOverride; // 타겟/지점 중심을 이벤트별로 바꿀 수 있음
+    }
+}
