@@ -28,6 +28,10 @@ namespace GGemCo2DSkill
         private readonly List<GameObject> _targets = new(16);
 
         private SkillRun _current;
+        /// <summary>
+        /// 현재 스킬 실행(캐스팅/사용 포함)이 진행 중인지 여부.
+        /// </summary>
+        public bool IsBusy => _current != null;
 
         private void Awake()
         {
