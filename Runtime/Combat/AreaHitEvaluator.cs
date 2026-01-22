@@ -1,5 +1,6 @@
 ﻿// Assets/GGemCo/Skills/Runtime/Combat/AreaHitEvaluator.cs
 using System.Collections.Generic;
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -44,11 +45,11 @@ namespace GGemCo2DSkill
         {
             return a.shape switch
             {
-                SkillAreaShape.Circle => a.radius,
-                SkillAreaShape.Box => Mathf.Max(a.width, a.length) * 0.75f,
-                SkillAreaShape.Cone => a.length,
-                SkillAreaShape.Capsule => Mathf.Max(a.radius, a.length * 0.5f),
-                SkillAreaShape.Line => Mathf.Max(a.width, a.length),
+                ConfigCommonSkill.SkillAreaShape.Circle => a.radius,
+                ConfigCommonSkill.SkillAreaShape.Box => Mathf.Max(a.width, a.length) * 0.75f,
+                ConfigCommonSkill.SkillAreaShape.Cone => a.length,
+                ConfigCommonSkill.SkillAreaShape.Capsule => Mathf.Max(a.radius, a.length * 0.5f),
+                ConfigCommonSkill.SkillAreaShape.Line => Mathf.Max(a.width, a.length),
                 _ => a.radius
             };
         }
@@ -60,20 +61,20 @@ namespace GGemCo2DSkill
 
             switch (a.shape)
             {
-                case SkillAreaShape.Circle:
+                case ConfigCommonSkill.SkillAreaShape.Circle:
                 {
                     var d = point - center;
                     d.y = 0f;
                     return d.sqrMagnitude <= a.radius * a.radius;
                 }
-                case SkillAreaShape.Box:
+                case ConfigCommonSkill.SkillAreaShape.Box:
                 {
                     // forward 기준 로컬 박스
                     var rot = Quaternion.LookRotation(Flatten(forward), Vector3.up);
                     var local = Quaternion.Inverse(rot) * (point - center);
                     return Mathf.Abs(local.x) <= a.width * 0.5f && local.z >= 0f && local.z <= a.length;
                 }
-                case SkillAreaShape.Cone:
+                case ConfigCommonSkill.SkillAreaShape.Cone:
                 {
                     var v = point - center;
                     v.y = 0f;

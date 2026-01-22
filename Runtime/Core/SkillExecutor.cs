@@ -1,5 +1,6 @@
 ﻿// Assets/GGemCo/Skills/Runtime/Core/SkillExecutor.cs
 using System.Collections.Generic;
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -203,13 +204,13 @@ namespace GGemCo2DSkill
             {
                 switch (kf.type)
                 {
-                    case SkillEventType.Damage:
+                    case ConfigCommonSkill.SkillEventType.Damage:
                         _owner.HandleDamage(_skill, _ctx, kf.payload, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
                         break;
-                    case SkillEventType.SpawnEffect:
+                    case ConfigCommonSkill.SkillEventType.SpawnEffect:
                         _owner.HandleEffect(_skill, _ctx, kf.payload, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
                         break;
-                    case SkillEventType.ApplyStatus:
+                    case ConfigCommonSkill.SkillEventType.ApplyAffect:
                         _owner.HandleApplyStatus(_skill, _ctx, kf.payload, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
                         break;
                     default:
@@ -386,24 +387,24 @@ namespace GGemCo2DSkill
             // 모드별 center 결정
             switch (mode)
             {
-                case SkillTargetingMode.LockOnGuaranteedHit:
+                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
                     resolvedCenter = useSnapshot ? snapshotTargetPos : targetPosNow;
                     break;
 
-                case SkillTargetingMode.TargetCenteredArea:
+                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
                     resolvedCenter = useSnapshot ? snapshotTargetPos : targetPosNow;
                     break;
 
-                case SkillTargetingMode.FollowTargetArea:
+                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
                     if (follow && target != null) resolvedCenter = target.transform.position;
                     else resolvedCenter = useSnapshot ? snapshotTargetPos : targetPosNow;
                     break;
 
-                case SkillTargetingMode.GroundTarget:
+                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
                     resolvedCenter = useSnapshot ? snapshotGroundPoint : baseCtx.groundPoint;
                     break;
 
-                case SkillTargetingMode.ForwardDirectional:
+                case ConfigCommonSkill.SkillTargetingMode.ForwardDirectional:
                     resolvedCenter = useSnapshot ? snapshotCasterPos : casterPosNow;
                     break;
 

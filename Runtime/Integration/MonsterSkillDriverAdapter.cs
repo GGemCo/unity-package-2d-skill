@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using Config;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -41,7 +42,7 @@ namespace GGemCo2DSkill
                 return SkillUseResult.Rejected;
 
             // 타겟팅 최소 검증(스킬 설정에 따라 필요한 데이터가 없으면 거부)
-            if (def.targetingMode == SkillTargetingMode.LockOnGuaranteedHit && target.LockedTarget == null)
+            if (def.targetingMode == ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit && target.LockedTarget == null)
                 return SkillUseResult.Rejected;
 
             // SkillTargetContext 구성

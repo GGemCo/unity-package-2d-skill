@@ -1,5 +1,6 @@
 ﻿// Assets/GGemCo/Skills/Runtime/Targeting/SkillEventOverrides.cs
 using System;
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -8,7 +9,7 @@ namespace GGemCo2DSkill
     public struct TargetingOverride
     {
         public bool enabled;
-        public SkillTargetingMode mode;
+        public ConfigCommonSkill.SkillTargetingMode mode;
 
         [Tooltip("스킬 기본 range를 덮어쓰기. 0 이하이면 무시.")]
         public float rangeOverride;

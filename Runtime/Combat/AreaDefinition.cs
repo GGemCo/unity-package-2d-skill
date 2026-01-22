@@ -1,4 +1,6 @@
 ﻿// Assets/GGemCo/Skills/Runtime/Combat/AreaDefinition.cs
+
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -7,7 +9,7 @@ namespace GGemCo2DSkill
     public sealed class AreaDefinition : ScriptableObject
     {
         public string areaId = "Area_Default";
-        public SkillAreaShape shape = SkillAreaShape.Circle;
+        public ConfigCommonSkill.SkillAreaShape shape = ConfigCommonSkill.SkillAreaShape.Circle;
 
         [Min(0f)] public float radius = 2f;          // Circle/Capsule
         [Min(0f)] public float length = 3f;          // Capsule/Line/Cone

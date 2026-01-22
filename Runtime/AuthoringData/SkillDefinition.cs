@@ -1,6 +1,7 @@
 ﻿// Assets/GGemCo/Skills/Runtime/AuthoringData/SkillDefinition.cs
 using System;
 using System.Collections.Generic;
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -19,7 +20,7 @@ namespace GGemCo2DSkill
         public float castTimeSeconds = 0f; // 0이면 즉시 사용(캐스팅 생략 가능)
 
         [Header("Targeting")]
-        public SkillTargetingMode targetingMode = SkillTargetingMode.ForwardDirectional;
+        public ConfigCommonSkill.SkillTargetingMode targetingMode = ConfigCommonSkill.SkillTargetingMode.ForwardDirectional;
         public float range = 3f;
         public int maxTargets = 1;
         // SkillDefinition.cs 의 Targeting 섹션에 추가(기존 유지)
@@ -46,7 +47,7 @@ namespace GGemCo2DSkill
     public sealed class SkillEventKeyframe
     {
         [Min(0f)] public float time;
-        public SkillEventType type;
+        public ConfigCommonSkill.SkillEventType type;
 
         // “참조 기반 Payload” 방식(권장): 런타임에서 이 Object를 특정 정의 타입으로 캐스팅해 사용
         public UnityEngine.Object payload;

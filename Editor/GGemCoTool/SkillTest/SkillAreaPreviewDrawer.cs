@@ -1,4 +1,5 @@
-﻿using GGemCo2DSkill;
+﻿using Config;
+using GGemCo2DSkill;
 using UnityEditor;
 using UnityEngine;
 
@@ -54,11 +55,11 @@ namespace GGemCo2DSkillEditor
             var center = casterPos + area.localOffset;
             switch (area.shape)
             {
-                case SkillAreaShape.Circle:
+                case ConfigCommonSkill.SkillAreaShape.Circle:
                     Handles.DrawWireDisc(center, Vector3.forward, Mathf.Max(0.05f, area.radius));
                     break;
 
-                case SkillAreaShape.Box:
+                case ConfigCommonSkill.SkillAreaShape.Box:
                 {
                     var len = Mathf.Max(0.05f, area.length);
                     var w = Mathf.Max(0.05f, area.width);
@@ -72,7 +73,7 @@ namespace GGemCo2DSkillEditor
                     break;
                 }
 
-                case SkillAreaShape.Cone:
+                case ConfigCommonSkill.SkillAreaShape.Cone:
                 {
                     float radius = Mathf.Max(0.05f, area.length);
                     float angle = Mathf.Clamp(area.angle, 0f, 180f);
@@ -88,7 +89,7 @@ namespace GGemCo2DSkillEditor
                     break;
                 }
 
-                case SkillAreaShape.Line:
+                case ConfigCommonSkill.SkillAreaShape.Line:
                 {
                     var len = Mathf.Max(0.05f, area.length);
                     var w = Mathf.Max(0.05f, area.width);
@@ -100,7 +101,7 @@ namespace GGemCo2DSkillEditor
                     break;
                 }
 
-                case SkillAreaShape.Capsule:
+                case ConfigCommonSkill.SkillAreaShape.Capsule:
                 {
                     // 단순 표현: 중심선 + 양끝 원(2D)
                     var len = Mathf.Max(0.05f, area.length);

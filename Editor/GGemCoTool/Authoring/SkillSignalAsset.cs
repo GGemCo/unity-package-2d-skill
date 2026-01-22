@@ -1,5 +1,4 @@
-﻿// Assets/GGemCo/Skills/Runtime/AuthoringData/SkillSignalAsset.cs
-using GGemCo2DSkill;
+﻿using Config;
 using UnityEngine;
 using UnityEngine.Timeline;
 
@@ -12,7 +11,7 @@ namespace GGemCo2DSkillEditor
     [CreateAssetMenu(menuName = "GGemCo/Skills/Authoring/Skill Signal", fileName = "SkillSignal")]
     public sealed class SkillSignalAsset : SignalAsset
     {
-        public SkillEventType eventType;
+        public ConfigCommonSkill.SkillEventType eventType;
         public Object payload;
         public int order;
     }

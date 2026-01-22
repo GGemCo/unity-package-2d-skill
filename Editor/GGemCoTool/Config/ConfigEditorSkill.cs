@@ -36,10 +36,7 @@ namespace GGemCo2DSkillEditor
             Etc = 900,
         }
 
-        /// <summary>
-        /// Affect 툴 메뉴의 최상위 경로 접두사입니다.
-        /// </summary>
-        private const string NameToolGGemCoSkill = ConfigDefine.NameSDK+"ToolSkill/";
+       private const string NameToolGGemCoSkill = ConfigDefine.NameSDK+"ToolSkill/";
 
         // 기본 셋팅하기
 
@@ -104,9 +101,6 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         private const string NameToolEtc = NameToolGGemCoSkill + "기타/";
 
-        /// <summary>
-        /// 패키지 내 Affect 에디터에서 참조하는 기본 경로(패키지 루트)입니다.
-        /// </summary>
-        public const string PathPackageCore = "Packages/com.ggemco.2d.affect";
+        public const string PathPackageCore = "Packages/com.ggemco.2d.skill";
     }
 }
