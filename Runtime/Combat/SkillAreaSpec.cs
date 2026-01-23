@@ -13,6 +13,11 @@ namespace GGemCo2DSkill
     {
         public ConfigCommonSkill.SkillAreaShape shape;
 
+        /// <summary>
+        /// Capsule 형태일 때 캡슐 방향(2D). (Vertical/Horizontal)
+        /// </summary>
+        public CapsuleDirection2D capsuleDirection;
+
         [Min(0f)] public float radius;          // Circle/Capsule
         [Min(0f)] public float length;          // Box/Cone/Capsule/Line
         [Min(0f)] public float width;           // Box/Line
@@ -22,6 +27,7 @@ namespace GGemCo2DSkill
         public static SkillAreaSpec Default => new SkillAreaSpec
         {
             shape = ConfigCommonSkill.SkillAreaShape.Circle,
+            capsuleDirection = CapsuleDirection2D.Vertical,
             radius = 2f,
             length = 3f,
             width = 2f,

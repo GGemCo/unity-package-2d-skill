@@ -10,6 +10,7 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private float multiplier = 1.0f;
         [SerializeField] private int damageTypeUid = 0;
         [SerializeField] private ConfigCommonSkill.SkillAreaShape areaShape = ConfigCommonSkill.SkillAreaShape.Circle;
+        [SerializeField] private CapsuleDirection2D capsuleDirection = CapsuleDirection2D.Vertical;
         [SerializeField] private float radius = 2f;
         [SerializeField] private float length = 3f;
         [SerializeField] private float width = 2f;
@@ -21,6 +22,7 @@ namespace GGemCo2DSkillEditor
         public float Multiplier => multiplier;
         public int DamageTypeUid => damageTypeUid;
         public ConfigCommonSkill.SkillAreaShape AreaShape => areaShape;
+        public CapsuleDirection2D CapsuleDirection => capsuleDirection;
         public float Radius => radius;
         public float Length => length;
         public float Width => width;

@@ -107,6 +107,48 @@ namespace GGemCo2DSkill
                     float ang = Vector2.Angle(f2, v);
                     return ang <= a.angle * 0.5f;
                 }
+
+                case ConfigCommonSkill.SkillAreaShape.Line:
+                {
+                    // Line을 "폭이 있는 직선 구간"으로 해석합니다(=Box와 동일 판정).
+                    float ang = Mathf.Atan2(f2.y, f2.x) * Mathf.Rad2Deg;
+                    var rot = Quaternion.Euler(0f, 0f, ang);
+                    var local3 = Quaternion.Inverse(rot) * new Vector3(p2.x - c2.x, p2.y - c2.y, 0f);
+                    return Mathf.Abs(local3.x) <= a.width * 0.5f && local3.y >= 0f && local3.y <= a.length;
+                }
+
+                case ConfigCommonSkill.SkillAreaShape.Capsule:
+                {
+                    // 전방(local +Y) 방향 캡슐 판정(2D).
+                    // - 시작점 y=0, 끝점 y=length
+                    // - 양 끝은 반지름(radius) 원, 가운데는 직사각형(폭=2r).
+                    float ang = Mathf.Atan2(f2.y, f2.x) * Mathf.Rad2Deg;
+                    var rot = Quaternion.Euler(0f, 0f, ang);
+                    var local3 = Quaternion.Inverse(rot) * new Vector3(p2.x - c2.x, p2.y - c2.y, 0f);
+
+                    float r = Mathf.Max(0.0001f, a.radius);
+                    float len = Mathf.Max(0.0001f, a.length);
+
+                    // 캡슐 범위 밖(길이 기준) 빠른 컷
+                    if (local3.y < 0f || local3.y > len) return false;
+
+                    // 원 중심 구간
+                    float yA = Mathf.Min(r, len * 0.5f);
+                    float yB = Mathf.Max(len - r, len * 0.5f);
+
+                    // 길이가 2r 이하이면 사실상 원/타원에 가까우므로, 중앙 원으로 처리
+                    if (len <= 2f * r)
+                    {
+                        var d = new Vector2(local3.x, local3.y - len * 0.5f);
+                        return d.sqrMagnitude <= r * r;
+                    }
+
+                    // 세그먼트(0, yA) ~ (0, yB)에 대한 최소거리
+                    float clampedY = Mathf.Clamp(local3.y, yA, yB);
+                    float dx = local3.x;
+                    float dy = local3.y - clampedY;
+                    return (dx * dx + dy * dy) <= r * r;
+                }
                 default:
                     return false;
             }

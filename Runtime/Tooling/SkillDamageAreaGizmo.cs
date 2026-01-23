@@ -82,8 +82,9 @@ namespace GGemCo2DSkillEditor
         private static void DrawArea(in ActiveArea a)
         {
             // AreaHitEvaluator와 동일하게 localOffset을 중심에 적용합니다.
+            // Physics2D/2D 연산과 동일하게 XY 평면(=Z 고정) 기준으로 그립니다.
             Vector3 center = a.center + a.area.localOffset;
-            Vector3 fwd = Flatten(a.forward);
+            Vector2 fwd2 = Flatten2D(a.forward);
 
             switch (a.area.shape)
             {
@@ -93,14 +94,15 @@ namespace GGemCo2DSkillEditor
 
                 case ConfigCommonSkill.SkillAreaShape.Box:
                 {
-                    var rot = Quaternion.LookRotation(fwd, Vector3.up);
+                    var rot = Quaternion.Euler(0f, 0f, ToAngleDeg(fwd2) - 90f);
                     var prevMatrix = Gizmos.matrix;
                     Gizmos.matrix = Matrix4x4.TRS(center, rot, Vector3.one);
 
                     // IsInside 로직: x=width/2, z=0..length (전방 박스)
-                    // DrawWireCube는 중심 기준이므로 z방향으로 length/2 만큼 전방 이동시켜 표시합니다.
-                    var boxCenter = new Vector3(0f, 0f, a.area.length * 0.5f);
-                    var size = new Vector3(a.area.width, 0.02f, a.area.length);
+                    // Physics2D(XY) 기준으로는 local y축이 전방(0..length)입니다.
+                    // DrawWireCube는 중심 기준이므로 y방향으로 length/2 만큼 전방 이동시켜 표시합니다.
+                    var boxCenter = new Vector3(0f, a.area.length * 0.5f, 0f);
+                    var size = new Vector3(a.area.width, a.area.length, 0.02f);
                     Gizmos.DrawWireCube(boxCenter, size);
 
                     Gizmos.matrix = prevMatrix;
@@ -110,12 +112,12 @@ namespace GGemCo2DSkillEditor
                 case ConfigCommonSkill.SkillAreaShape.Cone:
                 {
                     float half = Mathf.Clamp(a.area.angle, 0f, 180f) * 0.5f;
-                    var left = Quaternion.AngleAxis(-half, Vector3.up) * fwd;
-                    var right = Quaternion.AngleAxis(half, Vector3.up) * fwd;
+                    var left = Rotate2D(fwd2, -half);
+                    var right = Rotate2D(fwd2, half);
 
                     Vector3 p0 = center;
-                    Vector3 pL = center + left.normalized * a.area.length;
-                    Vector3 pR = center + right.normalized * a.area.length;
+                    Vector3 pL = center + new Vector3(left.x, left.y, 0f) * a.area.length;
+                    Vector3 pR = center + new Vector3(right.x, right.y, 0f) * a.area.length;
 
                     Gizmos.DrawLine(p0, pL);
                     Gizmos.DrawLine(p0, pR);
@@ -127,20 +129,75 @@ namespace GGemCo2DSkillEditor
                     {
                         float t = s / (float)segments;
                         float ang = Mathf.Lerp(-half, half, t);
-                        Vector3 dir = Quaternion.AngleAxis(ang, Vector3.up) * fwd;
-                        Vector3 p = center + dir.normalized * a.area.length;
+                        var dir = Rotate2D(fwd2, ang);
+                        Vector3 p = center + new Vector3(dir.x, dir.y, 0f) * a.area.length;
                         Gizmos.DrawLine(prev, p);
                         prev = p;
                     }
                     break;
                 }
+
+                case ConfigCommonSkill.SkillAreaShape.Capsule:
+                {
+                    // Gizmos에는 wire capsule이 없으므로, 2개의 원 + 연결선으로 근사합니다.
+                    // 전방 축(local +Y) 기준 length를 따라 배치합니다.
+                    float r = Mathf.Max(0.01f, a.area.radius);
+                    float len = Mathf.Max(0.01f, a.area.length);
+
+                    var rot = Quaternion.Euler(0f, 0f, ToAngleDeg(fwd2) - 90f);
+                    var prevMatrix = Gizmos.matrix;
+                    Gizmos.matrix = Matrix4x4.TRS(center, rot, Vector3.one);
+
+                    // 캡슐 중심선 길이(양 끝 원 중심 간 거리)
+                    float core = Mathf.Max(0f, len - 2f * r);
+                    var cA = new Vector3(0f, r, 0f);
+                    var cB = new Vector3(0f, r + core, 0f);
+                    Gizmos.DrawWireSphere(cA, r);
+                    Gizmos.DrawWireSphere(cB, r);
+
+                    // 옆선 (좌/우)
+                    Gizmos.DrawLine(cA + new Vector3(-r, 0f, 0f), cB + new Vector3(-r, 0f, 0f));
+                    Gizmos.DrawLine(cA + new Vector3(r, 0f, 0f), cB + new Vector3(r, 0f, 0f));
+
+                    Gizmos.matrix = prevMatrix;
+                    break;
+                }
+
+                case ConfigCommonSkill.SkillAreaShape.Line:
+                {
+                    // Line을 "폭이 있는 직선 구간"으로 보고 Box와 동일한 방식으로 표시합니다.
+                    var rot = Quaternion.Euler(0f, 0f, ToAngleDeg(fwd2) - 90f);
+                    var prevMatrix = Gizmos.matrix;
+                    Gizmos.matrix = Matrix4x4.TRS(center, rot, Vector3.one);
+
+                    var boxCenter = new Vector3(0f, a.area.length * 0.5f, 0f);
+                    var size = new Vector3(a.area.width, a.area.length, 0.02f);
+                    Gizmos.DrawWireCube(boxCenter, size);
+
+                    Gizmos.matrix = prevMatrix;
+                    break;
+                }
             }
         }
 
-        private static Vector3 Flatten(Vector3 v)
+        private static Vector2 Flatten2D(Vector3 v)
         {
-            v.y = 0f;
-            return v.sqrMagnitude < 1e-6f ? Vector3.forward : v.normalized;
+            var r = new Vector2(v.x, v.y);
+            return r.sqrMagnitude < 1e-6f ? Vector2.up : r.normalized;
+        }
+
+        private static float ToAngleDeg(Vector2 dir)
+        {
+            // Vector2.up(0,1)을 90도로, Vector2.right(1,0)을 0도로 두는 표준 atan2 각도
+            return Mathf.Atan2(dir.y, dir.x) * Mathf.Rad2Deg;
+        }
+
+        private static Vector2 Rotate2D(Vector2 v, float degrees)
+        {
+            float rad = degrees * Mathf.Deg2Rad;
+            float s = Mathf.Sin(rad);
+            float c = Mathf.Cos(rad);
+            return new Vector2(v.x * c - v.y * s, v.x * s + v.y * c);
         }
     }
 }
