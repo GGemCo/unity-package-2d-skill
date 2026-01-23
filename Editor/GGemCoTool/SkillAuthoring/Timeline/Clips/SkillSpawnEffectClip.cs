@@ -9,13 +9,13 @@ namespace GGemCo2DSkillEditor
     {
         public enum AnchorType { Caster = 0, Target = 1, Ground = 2 }
 
-        [SerializeField] private GameObject prefab;
+        [SerializeField] private int effectUid;
         [SerializeField] private AnchorType anchor = AnchorType.Caster;
         [SerializeField] private Vector2 offset;
 
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.SpawnEffect;
 
-        public GameObject Prefab => prefab;
+        public int EffectUid => effectUid;
         public int Anchor => (int)anchor;
         public Vector2 Offset => offset;
     }

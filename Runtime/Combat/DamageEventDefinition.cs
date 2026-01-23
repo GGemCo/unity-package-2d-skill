@@ -1,4 +1,5 @@
 ﻿// Assets/GGemCo/Skills/Runtime/Combat/DamageEventDefinition.cs
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -9,6 +10,9 @@ namespace GGemCo2DSkill
         [Header("Damage")]
         public string damageModelId = "Default";
         public float multiplier = 1f;
+
+        [Header("Area")]
+        public SkillAreaSpec area = SkillAreaSpec.Default;
 
         [Header("Hit Policy")]
         public string hitGroupId = "HitGroup_0";

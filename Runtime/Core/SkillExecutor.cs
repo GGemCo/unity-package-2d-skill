@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Config;
+// using GGemCo2DAffect;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -19,16 +20,17 @@ namespace GGemCo2DSkill
         [Header("Dependencies")]
         [SerializeField] private AnimationClipLibrary clipLibrary;
         [SerializeField] private SkillAnimationPlayer animationPlayer;
-
         [Header("Hit Evaluator")]
         [SerializeField] private LayerMask hitMask = ~0;
-        [SerializeField] private AreaRegistry areaRegistry;
 
         // 외부 시스템(주입/참조)
         public IStatusEffectSystem StatusSystem { get; set; }
 
         private readonly EffectOrchestrator _effects = new();
         private IHitEvaluator _hitEvaluator;
+
+        // Core EffectManager(존재할 때만 사용)
+        private EffectManager _effectManager;
 
         private SkillRun _current;
         public bool IsBusy => _current != null;
@@ -37,6 +39,10 @@ namespace GGemCo2DSkill
         {
             if (animationPlayer == null) animationPlayer = GetComponent<SkillAnimationPlayer>();
             _hitEvaluator = new AreaHitEvaluator(hitMask);
+
+            // SceneGame이 존재하는 환경에서는 Core EffectManager를 사용한다.
+            if (SceneGame.Instance != null)
+                _effectManager = SceneGame.Instance.EffectManager;
         }
 
         private void Update()
@@ -109,9 +115,10 @@ namespace GGemCo2DSkill
             {
                 try
                 {
-                    // RuntimeSequenceKey가 비어있으면 즉시 종료(정책)
+                    // RuntimeSequenceKey는 Addressables Key 규칙(ConfigAddressableKeySkill)을 사용한다.
+                    // (에디터 테스트에서는 SkillRuntimeSequenceRepository.RegisterEditorOverride로 주입 가능)
                     // todo. 정리 필요
-                    var runtimeSequenceKey = $"GGemCo_Skill_RuntimeSequences_{_skill.Uid}";
+                    var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKey(_skill.Uid);
                     if (string.IsNullOrEmpty(runtimeSequenceKey))
                     {
                         IsDone = true;
@@ -251,7 +258,10 @@ namespace GGemCo2DSkill
             switch (e.Type)
             {
                 case ConfigCommonSkill.SkillEventType.Damage:
-                    HandleDamage(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+                    // Damage 클립 구간 동안(Start~End) Gizmo 표시가 가능하도록 duration을 전달합니다.
+                    // EndTime이 비정상(=StartTime)인 경우에도 최소 1프레임은 보이도록 보정합니다.
+                    float damageGizmoDuration = Mathf.Max(0.05f, e.EndTime - e.StartTime);
+                    HandleDamage(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint, damageGizmoDuration);
                     break;
                 case ConfigCommonSkill.SkillEventType.SpawnEffect:
                     HandleEffect(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
@@ -270,7 +280,8 @@ namespace GGemCo2DSkill
             UnityEngine.Object payloadObj,
             Vector3 snapshotCasterPos,
             Vector3 snapshotTargetPos,
-            Vector3 snapshotGroundPoint)
+            Vector3 snapshotGroundPoint,
+            float gizmoDurationSeconds)
         {
             if (payloadObj is not DamageEventDefinition def) return;
 
@@ -278,7 +289,6 @@ namespace GGemCo2DSkill
             var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
             float range = skill.Range > 0f ? skill.Range : 3f;
             int maxTargets = skill.MaxTargets > 0 ? skill.MaxTargets : 1;
-            string areaId = string.IsNullOrEmpty(skill.DefaultAreaId) ? "Area_Default" : skill.DefaultAreaId;
 
             // 이벤트 override 적용
             if (def.targetingOverride.enabled)
@@ -287,9 +297,6 @@ namespace GGemCo2DSkill
                 if (def.targetingOverride.rangeOverride > 0f) range = def.targetingOverride.rangeOverride;
                 if (def.targetingOverride.maxTargetsOverride > 0) maxTargets = def.targetingOverride.maxTargetsOverride;
             }
-
-            if (def.areaOverride.enabled && !string.IsNullOrEmpty(def.areaOverride.areaId))
-                areaId = def.areaOverride.areaId;
 
             // 타겟/중심점 결정
             Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
@@ -304,8 +311,9 @@ namespace GGemCo2DSkill
             }
 
             // 히트 평가
-            if (areaRegistry == null || _hitEvaluator == null) return;
-            if (!areaRegistry.TryGet(areaId, out var areaDef) || areaDef == null) return;
+            if (_hitEvaluator == null) return;
+            var areaSpec = def.area;
+            areaSpec.EnsureSaneDefaults();
 
             Vector3 center = casterPos;
             switch (mode)
@@ -324,16 +332,76 @@ namespace GGemCo2DSkill
                     break;
             }
 
+#if UNITY_EDITOR
+            // SkillDamageClip이 처리되는 동안만 데미지 영역을 Gizmo로 표시합니다.
+            // (에디터 PlayMode 테스트 및 씬 디버깅 용도)
+            if (ctx.caster != null)
+            {
+                var gizmo = ctx.caster.GetComponent<GGemCo2DSkillEditor.SkillDamageAreaGizmo>();
+                if (gizmo != null)
+                {
+                    gizmo.Show(center, ctx.forward, areaSpec, range, gizmoDurationSeconds);
+                }
+            }
+#endif
+
             var hits = new List<GameObject>(Mathf.Max(1, maxTargets));
-            _hitEvaluator.EvaluateTargets(center, ctx.forward, areaDef, range, maxTargets, ctx.caster, hits);
+            _hitEvaluator.EvaluateTargets(center, ctx.forward, areaSpec, range, maxTargets, ctx.caster, hits);
 
             // 데미지 적용(현재는 로그/샘플 처리: 실제 데미지 모델은 프로젝트에 맞게 연동)
-            // TODO: Core 전투 시스템과 연결(예: IDamageSystem, Stat/DamageType, 크리티컬 등)
+            // TODO: 정리 필요
+            var castCharacterBase = ctx.caster.GetComponent<CharacterBase>();
+            long totalDamage = 10;
             for (int i = 0; i < hits.Count; i++)
             {
                 var go = hits[i];
-
                 if (go == null) continue;
+                
+                // if (castCharacterBase.IsPlayer() && go.CompareTag(ConfigTags.GetValue(ConfigTags.Keys.Player))) continue;
+                // if (castCharacterBase.IsMonster() && go.CompareTag(ConfigTags.GetValue(ConfigTags.Keys.Monster))) continue;
+                //
+                CharacterHitArea characterHitArea = go.GetComponent<CharacterHitArea>();
+                if (characterHitArea == null) continue;
+                
+                // GcLogger.Log("Player attacked the monster after animation!");
+                CharacterBase target = characterHitArea.target;
+                
+                MetadataDamage metadataDamage = new MetadataDamage
+                {
+                    damage = totalDamage,
+                    attacker = gameObject,
+                    damageType = ConfigCommon.DamageType.Physic,
+                    affectUid = 0
+                };
+
+                // 몬스터와 마주보고 있으면 공격 
+                if (castCharacterBase.AreFacingEachOther(target.transform))
+                {
+                    target.TakeDamage(metadataDamage);
+                }
+                // 몬스터와 같은 곳을 바라보고 있으면,
+                else if (castCharacterBase.CurrentFacing == target.CurrentFacing)
+                {
+                    switch (castCharacterBase.CurrentFacing)
+                    {
+                        case CharacterConstants.FacingDirection8.Right:
+                        {
+                            if (target.transform.position.x >= transform.position.x)
+                            {
+                                target.TakeDamage(metadataDamage);
+                            }
+                            break;
+                        }
+                        case CharacterConstants.FacingDirection8.Left:
+                        {
+                            if (target.transform.position.x <= transform.position.x)
+                            {
+                                target.TakeDamage(metadataDamage);
+                            }
+                            break;
+                        }
+                    }
+                }
                 // 샘플: EffectOrchestrator에 이벤트 전달
                 // _effects.OnDamage(ctx.caster, go, def);
             }
@@ -348,8 +416,75 @@ namespace GGemCo2DSkill
             Vector3 snapshotGroundPoint)
         {
             if (payloadObj is not EffectEventDefinition def) return;
-            // todo. 정리 필요
-            // _effects.OnEffect(ctx.caster, ctx.lockedTarget, ctx.groundPoint, def, snapshotCasterPos, snapshotTargetPos,snapshotGroundPoint);
+
+            // ----------------------
+            // Spawn position resolve
+            // ----------------------
+            Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
+            {
+                casterPos = snapshotCasterPos;
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+            // 기본은 caster 기준. attachToTarget이면 target 기준.
+            Vector3 spawnPos = def.attachToTarget ? targetPos : casterPos;
+            if (!def.attachToTarget)
+            {
+                var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
+                if (def.targetingOverride.enabled)
+                    mode = def.targetingOverride.mode;
+
+                switch (mode)
+                {
+                    case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                        spawnPos = groundPoint;
+                        break;
+                    case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                    case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                        spawnPos = targetPos;
+                        break;
+                    default:
+                        // Forward / fallback
+                        var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                        float range = skill.Range > 0f ? skill.Range : 3f;
+                        spawnPos = casterPos + fwd * Mathf.Max(0.1f, range);
+                        break;
+                }
+            }
+
+            // localOffset은 월드 오프셋으로 처리(2D 프로젝트 기준: z는 그대로)
+            spawnPos += def.localOffset;
+
+            // ----------------------
+            // Effect create
+            // ----------------------
+            DefaultEffect effect = null;
+            var sceneGame = SceneGame.Instance;
+
+            // 1) Core EffectManager 기반 생성(권장)
+            if (sceneGame != null && sceneGame.EffectManager != null)
+            {
+                effect = sceneGame.EffectManager.CreateEffect(def.effectUid);
+            }
+
+            // 2) 폴백: 프리팹 직접 Instantiate
+            if (effect == null) return;
+
+            // lifetimeSeconds가 지정되면 Core DefaultEffect의 duration을 사용
+            if (def.lifetimeSeconds > 0f)
+                effect.SetDuration(def.lifetimeSeconds);
+
+            if (def.attachToTarget && ctx.lockedTarget != null)
+            {
+                effect.transform.SetParent(ctx.lockedTarget.transform, worldPositionStays: true);
+            }
+
+            effect.transform.position = spawnPos;
         }
 
         private void HandleApplyStatus(
@@ -360,11 +495,143 @@ namespace GGemCo2DSkill
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint)
         {
+            /*
             if (payloadObj is not ApplyStatusEventDefinition def) return;
-            if (StatusSystem == null) return;
 
-            // todo. 정리 필요.
-            // StatusSystem.Apply(ctx.caster, ctx.lockedTarget, def, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+            // Affect 패키지 기반 처리.
+            // - statusId.id: AffectUid(숫자 문자열)로 간주
+            // - stacks: ApplyAffect를 stacks 만큼 반복 호출
+            // - durationOverrideSeconds: AffectApplyContext.DurationOverride로 전달
+            // - chance01: 확률 체크
+
+            if (!TryParseAffectUid(def.statusId, out int affectUid))
+                return;
+
+            // 확률(0~1)
+            float chance = Mathf.Clamp01(def.chance01);
+            if (chance <= 0f) return;
+
+            // 적용 대상 선정(단일 타겟 또는 영역)
+            var targets = s_applyTargets;
+            targets.Clear();
+
+            // 스냅샷/중심점 결정
+            Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
+            {
+                casterPos = snapshotCasterPos;
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+                if (_hitEvaluator == null) return;
+
+                // AreaDefinition을 사용하지 않으므로, ApplyAffect의 범위는 기본 원형 범위를 사용한다.
+                // (range를 radius로 사용)
+                var areaSpec = new SkillAreaSpec
+                {
+                    shape = ConfigCommonSkill.SkillAreaShape.Circle,
+                    radius = Mathf.Max(0.1f, range),
+                    length = Mathf.Max(0.1f, range),
+                    width = Mathf.Max(0.1f, range),
+                    angle = 60f,
+                    localOffset = Vector3.zero
+                };
+
+                Vector3 center = casterPos;
+                switch (mode)
+                {
+                    case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                        center = groundPoint;
+                        break;
+                    case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                    case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                        center = targetPos;
+                        break;
+                    default:
+                        var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                        center = casterPos + fwd * Mathf.Max(0.1f, range);
+                        break;
+                }
+
+                _hitEvaluator.EvaluateTargets(center, ctx.forward, areaSpec, range, maxTargets, ctx.caster, targets);
+            }
+            else
+            {
+                // 단일 타겟: lockedTarget 우선
+                if (ctx.lockedTarget != null)
+                    targets.Add(ctx.lockedTarget);
+            }
+
+            if (targets.Count == 0) return;
+
+            var applyCtx = new AffectApplyContext
+            {
+                Source = ctx.caster,
+                DurationOverride = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : 0f
+            };
+
+            int stacks = Mathf.Max(1, def.stacks);
+
+            for (int i = 0; i < targets.Count; i++)
+            {
+                var targetGo = targets[i];
+                if (targetGo == null) continue;
+
+                // 확률 체크(대상별)
+                if (chance < 0.9999f && UnityEngine.Random.value > chance)
+                    continue;
+
+                if (!TryEnsureAffectComponent(targetGo, out var affectComponent))
+                    continue;
+
+                for (int s = 0; s < stacks; s++)
+                    affectComponent.ApplyAffect(affectUid, applyCtx);
+            }
+            */
         }
+
+        private static readonly List<GameObject> s_applyTargets = new(32);
+
+        private static bool TryParseAffectUid(StatusEffectId id, out int affectUid)
+        {
+            affectUid = 0;
+            if (string.IsNullOrWhiteSpace(id.id)) return false;
+            return int.TryParse(id.id, out affectUid) && affectUid > 0;
+        }
+/*
+        private static bool TryEnsureAffectComponent(GameObject target, out AffectComponent affectComponent)
+        {
+            affectComponent = null;
+            if (target == null) return false;
+
+            // AffectComponent가 없으면 추가(타겟 계약 IAffectTarget이 필요)
+            affectComponent = target.GetComponent<AffectComponent>();
+
+            // IAffectTarget 브리지(CoreAffectTargetAdapter)가 없으면 추가 시도
+            // (CharacterBase 기반 캐릭터만 지원)
+            if (target.GetComponent<IAffectTarget>() == null)
+            {
+                if (target.GetComponent<CharacterBase>() != null)
+                {
+                    if (target.GetComponent<CoreAffectTargetAdapter>() == null)
+                        target.AddComponent<CoreAffectTargetAdapter>();
+                }
+                else
+                {
+                    // 캐릭터가 아니면 현재는 지원하지 않음
+                    return false;
+                }
+            }
+
+            if (affectComponent == null)
+                affectComponent = target.AddComponent<AffectComponent>();
+
+            return affectComponent != null;
+        }
+*/
     }
 }

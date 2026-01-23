@@ -9,7 +9,7 @@ namespace GGemCo2DSkill
         void EvaluateTargets(
             Vector3 center,
             Vector3 forward,
-            AreaDefinition area,
+            SkillAreaSpec area,
             float range,
             int maxTargets,
             GameObject caster,

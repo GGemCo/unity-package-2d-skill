@@ -13,9 +13,39 @@ namespace GGemCo2DSkill
     {
         private static readonly Dictionary<string, AsyncOperationHandle<SkillRuntimeSequence>> _handles = new(StringComparer.Ordinal);
 
+#if UNITY_EDITOR
+        /// <summary>
+        /// Play Mode 스킬 테스트(에디터)에서 Addressables 로딩을 우회하기 위한 오버라이드 캐시.
+        /// </summary>
+        private static readonly Dictionary<string, SkillRuntimeSequence> _editorOverrides = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// 에디터 테스트용 시퀀스를 등록합니다.
+        /// - 동일 key가 이미 Addressables handle로 로드되어 있다면, 오버라이드가 우선됩니다.
+        /// </summary>
+        public static void RegisterEditorOverride(string key, SkillRuntimeSequence sequence)
+        {
+            if (string.IsNullOrEmpty(key)) return;
+            if (sequence == null)
+            {
+                _editorOverrides.Remove(key);
+                return;
+            }
+            _editorOverrides[key] = sequence;
+        }
+
+        public static void ClearEditorOverrides() => _editorOverrides.Clear();
+#endif
+
         public static async Task<SkillRuntimeSequence> LoadAsync(string key)
         {
             if (string.IsNullOrEmpty(key)) return null;
+
+#if UNITY_EDITOR
+            // 에디터 테스트 오버라이드 우선
+            if (_editorOverrides.TryGetValue(key, out var overrideSeq) && overrideSeq != null)
+                return overrideSeq;
+#endif
 
             if (_handles.TryGetValue(key, out var h) && h.IsValid())
             {
@@ -37,6 +67,10 @@ namespace GGemCo2DSkill
                 Addressables.Release(h);
             }
             _handles.Remove(key);
+
+#if UNITY_EDITOR
+            _editorOverrides.Remove(key);
+#endif
         }
 
         public static void ReleaseAll()
@@ -47,6 +81,10 @@ namespace GGemCo2DSkill
                 if (h.IsValid()) Addressables.Release(h);
             }
             _handles.Clear();
+
+#if UNITY_EDITOR
+            _editorOverrides.Clear();
+#endif
         }
     }
 }
