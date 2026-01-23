@@ -39,7 +39,8 @@ namespace GGemCo2DSkill
         public override bool ChangeInfoByUid(int iconUid, int iconCount = 0, int iconLevel = 0, bool iconIsLearn = false, int remainCoolTime = 0, long iconInstanceId = 0)
         {
             if (!base.ChangeInfoByUid(iconUid, iconCount, iconLevel, iconIsLearn, remainCoolTime, iconInstanceId)) return false;
-            var info = tableSkill.GetDataByUidLevel(iconUid, iconLevel);
+            // todo. 정리 필요. Level 정보
+            var info = tableSkill.GetDataByUid(iconUid);
             if (info == null)
             {
                 GcLogger.LogError("스킬 테이블에 없는 아이템 입니다.");
@@ -75,7 +76,9 @@ namespace GGemCo2DSkill
         }
         public override bool CheckRequireLevel()
         {
-            return SceneGame.Instance.player.GetComponent<Player>().IsRequireLevel(struckSkill.NeedPlayerLevel);
+            // todo. 정리 필요
+            // return SceneGame.Instance.player.GetComponent<Player>().IsRequireLevel(struckSkill.NeedPlayerLevel);
+            return true;
         }
         
         public void OnPointerEnter(PointerEventData eventData)

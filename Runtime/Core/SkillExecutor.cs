@@ -1,13 +1,17 @@
-﻿// Assets/GGemCo/Skills/Runtime/Core/SkillExecutor.cs
+using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Config;
+using GGemCo2DCore;
 using UnityEngine;
 
 namespace GGemCo2DSkill
 {
     /// <summary>
-    /// 런타임에서 Timeline 없이 SkillDefinition(SO)의 Baked EventSequence만 재생한다.
-    /// 애니메이션은 클립 이름 규칙 + Playables로 재생(Animator 파라미터 미사용).
+    /// 런타임 스킬 실행기(Authoring V2).
+    /// - SSOT: Core의 skill 테이블(Uid 기반)
+    /// - 연출 타이밍: Addressables로 로드한 <see cref="SkillRuntimeSequence"/>
+    /// - 애니메이션: 클립 이름 규칙 + Playables(Animator 파라미터 미사용)
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class SkillExecutor : MonoBehaviour
@@ -19,19 +23,14 @@ namespace GGemCo2DSkill
         [Header("Hit Evaluator")]
         [SerializeField] private LayerMask hitMask = ~0;
         [SerializeField] private AreaRegistry areaRegistry;
-        
+
         // 외부 시스템(주입/참조)
         public IStatusEffectSystem StatusSystem { get; set; }
 
         private readonly EffectOrchestrator _effects = new();
         private IHitEvaluator _hitEvaluator;
 
-        private readonly List<GameObject> _targets = new(16);
-
         private SkillRun _current;
-        /// <summary>
-        /// 현재 스킬 실행(캐스팅/사용 포함)이 진행 중인지 여부.
-        /// </summary>
         public bool IsBusy => _current != null;
 
         private void Awake()
@@ -43,14 +42,22 @@ namespace GGemCo2DSkill
         private void Update()
         {
             if (_current == null) return;
+
             _current.Tick(Time.deltaTime);
             if (_current.IsDone) _current = null;
         }
 
-        public bool TryUse(SkillDefinition skill, SkillTargetContext targetCtx)
+        /// <summary>
+        /// 스킬 사용을 시도합니다(테이블 Uid 기반).
+        /// </summary>
+        public bool TryUse(int skillUid, SkillTargetContext targetCtx)
         {
-            if (skill == null) return false;
-            if (_current != null) return false; // MVP: 동시에 하나만. (확장: 채널/우선순위)
+            if (_current != null) return false;
+
+            var table = TableLoaderManager.Instance != null ? TableLoaderManagerSkill.Instance.TableSkill : null;
+            if (table == null) return false;
+
+            if (!table.GetDatas().TryGetValue(skillUid, out var skill) || skill == null) return false;
 
             _current = new SkillRun(this, skill, targetCtx);
             _current.Start();
@@ -60,11 +67,12 @@ namespace GGemCo2DSkill
         private sealed class SkillRun
         {
             private readonly SkillExecutor _owner;
-            private readonly SkillDefinition _skill;
+            private readonly StruckTableSkill _skill;
             private readonly SkillTargetContext _ctx;
 
+            private SkillRuntimeSequence _sequence;
             private float _time;
-            private int _nextKeyframeIndex;
+            private int _nextEventIndex;
 
             // Casting
             private bool _didCastStart;
@@ -74,14 +82,16 @@ namespace GGemCo2DSkill
 
             private float _castElapsed;
             private SkillAnimationPlayer.LoopHandle _castLoopHandle;
-            
+
             private Vector3 _snapshotCasterPos;
             private Vector3 _snapshotTargetPos;
             private Vector3 _snapshotGroundPoint;
-            
+
+            private bool _isLoading;
+
             public bool IsDone { get; private set; }
 
-            public SkillRun(SkillExecutor owner, SkillDefinition skill, SkillTargetContext ctx)
+            public SkillRun(SkillExecutor owner, StruckTableSkill skill, SkillTargetContext ctx)
             {
                 _owner = owner;
                 _skill = skill;
@@ -90,68 +100,95 @@ namespace GGemCo2DSkill
 
             public void Start()
             {
-                _time = 0f;
-                _nextKeyframeIndex = 0;
-                _castElapsed = 0f;
-                _snapshotCasterPos = _ctx.caster != null ? _ctx.caster.transform.position : Vector3.zero;
-                _snapshotTargetPos = _ctx.lockedTarget != null ? _ctx.lockedTarget.transform.position : Vector3.zero;
-                _snapshotGroundPoint = _ctx.groundPoint;
-                
-                // 캐스팅이 있으면 캐스팅부터, 아니면 즉시 Use로
-                if (_skill.castTimeSeconds > 0f)
+                SnapshotContext();
+                _isLoading = true;
+                _ = LoadSequenceAsync();
+            }
+
+            private async Task LoadSequenceAsync()
+            {
+                try
                 {
-                    PlayCastStart();
+                    // RuntimeSequenceKey가 비어있으면 즉시 종료(정책)
+                    // todo. 정리 필요
+                    var runtimeSequenceKey = $"GGemCo_Skill_RuntimeSequences_{_skill.Uid}";
+                    if (string.IsNullOrEmpty(runtimeSequenceKey))
+                    {
+                        IsDone = true;
+                        return;
+                    }
+
+                    _sequence = await SkillRuntimeSequenceRepository.LoadAsync(runtimeSequenceKey);
+                    _nextEventIndex = 0;
+                    _time = 0f;
                 }
-                else
+                catch (Exception e)
                 {
-                    PlayUse();
+                    Debug.LogException(e);
+                    IsDone = true;
+                }
+                finally
+                {
+                    _isLoading = false;
                 }
             }
 
             public void Tick(float dt)
             {
                 if (IsDone) return;
+                if (_isLoading) return;
 
-                _time += dt;
+                // 1) 캐스팅 처리
+                float castTime = Mathf.Max(0f, _skill.CastTime);
 
-                // 캐스팅 진행
-                if (_skill.castTimeSeconds > 0f && !_didUse)
+                if (castTime > 0f && !_didUse)
                 {
                     _castElapsed += dt;
 
-                    if (!_didCastLoop && _castElapsed >= 0.01f)
-                        PlayCastLoop();
+                    if (!_didCastStart) PlayCastStart();
+                    if (!_didCastLoop) PlayCastLoop();
 
-                    if (_castElapsed >= _skill.castTimeSeconds)
+                    if (_castElapsed >= castTime)
                     {
                         PlayCastEnd();
                         PlayUse();
                     }
                 }
-
-                // 이벤트 시퀀스 재생 (Use가 시작된 시점부터 재생하고 싶다면, offset을 둘 수도 있음)
-                var seq = _skill.eventSequence;
-                if (seq != null && seq.keyframes != null)
+                else
                 {
-                    while (_nextKeyframeIndex < seq.keyframes.Count)
-                    {
-                        var kf = seq.keyframes[_nextKeyframeIndex];
-                        if (_time + 1e-6f < kf.time) break;
+                    if (!_didUse) PlayUse();
+                }
 
-                        ExecuteKeyframe(kf);
-                        _nextKeyframeIndex++;
+                // 2) 이벤트 시퀀스 재생(Use 시작부터 재생)
+                if (_sequence != null && _sequence.Events != null)
+                {
+                    _time += dt;
+
+                    while (_nextEventIndex < _sequence.Events.Length)
+                    {
+                        var ev = _sequence.Events[_nextEventIndex];
+                        if (_time + 1e-6f < ev.StartTime) break;
+
+                        _owner.ExecuteEvent(_skill, _ctx, _sequence, ev, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
+                        _nextEventIndex++;
                     }
 
-                    if (_time >= seq.totalDuration && _nextKeyframeIndex >= seq.keyframes.Count)
-                    {
+                    if (_time >= _sequence.Duration && _nextEventIndex >= _sequence.Events.Length)
                         IsDone = true;
-                    }
                 }
                 else
                 {
                     // 시퀀스가 없으면 Use 클립 길이 정도로 종료(간단 정책)
+                    _time += dt;
                     IsDone = _time >= 0.3f && _didUse;
                 }
+            }
+
+            private void SnapshotContext()
+            {
+                _snapshotCasterPos = _ctx.caster != null ? _ctx.caster.transform.position : Vector3.zero;
+                _snapshotTargetPos = _ctx.lockedTarget != null ? _ctx.lockedTarget.transform.position : _snapshotCasterPos;
+                _snapshotGroundPoint = _ctx.groundPoint;
             }
 
             private void PlayCastStart()
@@ -159,10 +196,8 @@ namespace GGemCo2DSkill
                 if (_didCastStart) return;
                 _didCastStart = true;
 
-                if (_owner.TryResolveClip(_skill.castStartClipName, out var clip))
-                {
-                    _owner.animationPlayer.PlayOneShot(clip, 0.05f);
-                }
+                if (!_owner.TryResolveClip(_skill.CastStartClip, out var clip)) return;
+                _owner.animationPlayer.PlayOneShot(clip, 1f);
             }
 
             private void PlayCastLoop()
@@ -170,10 +205,8 @@ namespace GGemCo2DSkill
                 if (_didCastLoop) return;
                 _didCastLoop = true;
 
-                if (_owner.TryResolveClip(_skill.castLoopClipName, out var clip))
-                {
-                    _castLoopHandle = _owner.animationPlayer.PlayLoop(clip, 0.05f);
-                }
+                if (!_owner.TryResolveClip(_skill.CastLoopClip, out var clip)) return;
+                _castLoopHandle = _owner.animationPlayer.PlayLoop(clip, 1f);
             }
 
             private void PlayCastEnd()
@@ -181,12 +214,9 @@ namespace GGemCo2DSkill
                 if (_didCastEnd) return;
                 _didCastEnd = true;
 
-                if (_castLoopHandle.IsValid) _castLoopHandle.Stop(0.05f);
-
-                if (_owner.TryResolveClip(_skill.castEndClipName, out var clip))
-                {
-                    _owner.animationPlayer.PlayOneShot(clip, 0.05f);
-                }
+                _castLoopHandle.Stop();
+                if (!_owner.TryResolveClip(_skill.CastEndClip, out var clip)) return;
+                _owner.animationPlayer.PlayOneShot(clip, 1f);
             }
 
             private void PlayUse()
@@ -194,227 +224,147 @@ namespace GGemCo2DSkill
                 if (_didUse) return;
                 _didUse = true;
 
-                if (_owner.TryResolveClip(_skill.useClipName, out var clip))
-                {
-                    _owner.animationPlayer.PlayOneShot(clip, 0.03f);
-                }
-            }
-
-            private void ExecuteKeyframe(SkillEventKeyframe kf)
-            {
-                switch (kf.type)
-                {
-                    case ConfigCommonSkill.SkillEventType.Damage:
-                        _owner.HandleDamage(_skill, _ctx, kf.payload, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
-                        break;
-                    case ConfigCommonSkill.SkillEventType.SpawnEffect:
-                        _owner.HandleEffect(_skill, _ctx, kf.payload, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
-                        break;
-                    case ConfigCommonSkill.SkillEventType.ApplyAffect:
-                        _owner.HandleApplyStatus(_skill, _ctx, kf.payload, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
-                        break;
-                    default:
-                        // 확장 이벤트는 여기에 라우팅
-                        break;
-                }
+                if (!_owner.TryResolveClip(_skill.UseClip, out var clip)) return;
+                _owner.animationPlayer.PlayOneShot(clip, 1f);
             }
         }
 
         private bool TryResolveClip(string clipName, out AnimationClip clip)
         {
             clip = null;
+            if (string.IsNullOrEmpty(clipName)) return false;
             if (clipLibrary == null) return false;
             return clipLibrary.TryGetClip(clipName, out clip);
         }
 
-        private void HandleDamage(SkillDefinition skill, SkillTargetContext ctx, UnityEngine.Object payload,
-            Vector3 snapshotCasterPos, Vector3 snapshotTargetPos, Vector3 snapshotGroundPoint)
-        {
-            var def = payload as DamageEventDefinition;
-            if (def == null) return;
-
-            ResolveEventTargeting(
-                skill, ctx, def.targetingOverride,
-                snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint,
-                out var resolvedCtx, out var resolvedRange, out var resolvedMaxTargets, out var center);
-
-            // Area 선택(스킬 기본 or 이벤트 오버라이드)
-            var areaId = (def.areaOverride.enabled && !string.IsNullOrWhiteSpace(def.areaOverride.areaId))
-                ? def.areaOverride.areaId
-                : skill.defaultAreaId;
-
-            if (areaRegistry == null || !areaRegistry.TryGet(areaId, out var areaDef) || areaDef == null)
-                return;
-
-            // scale 적용(복제 없이 런타임 가산)
-            float scale = (def.areaOverride.enabled && def.areaOverride.scale > 0f) ? def.areaOverride.scale : 1f;
-
-            // 단순 스케일: Circle radius / Box width,length / Cone length,angle 등(정교화 가능)
-            // 여기서는 runtime용 임시 스케일을 적용하기 위해 "가상 파라미터"로만 처리(복제 X)
-            // 필요 시 AreaDefinitionRuntimeView 구조체로 분리 권장.
-            var forward = resolvedCtx.forward;
-
-            // 후보 타겟 평가
-            _hitEvaluator.EvaluateTargets(
-                center,
-                forward,
-                MakeScaledArea(areaDef, scale),
-                resolvedRange,
-                resolvedMaxTargets,
-                resolvedCtx.caster,
-                _targets);
-
-            for (int i = 0; i < _targets.Count; i++)
-            {
-                var t = _targets[i];
-                if (t == null) continue;
-                Debug.Log(
-                    $"[Skill] Damage: skill={skill.skillId}, target={t.name}, model={def.damageModelId}, mul={def.multiplier}");
-            }
-        }
-
-        private static AreaDefinition MakeScaledArea(AreaDefinition src, float scale)
-        {
-            if (Mathf.Approximately(scale, 1f)) return src;
-
-            // 런타임에서 ScriptableObject를 변경하면 안 되므로 "임시 복제" 대신
-            // 평가 함수가 파라미터를 따로 받는 구조가 더 좋습니다.
-            // MVP 편의상 'hidden clone'을 만들지 않고, scale=1만 허용해도 됩니다.
-            // 여기서는 안전을 위해 scale을 무시하고 src 반환(권장: 추후 AreaRuntimeParam로 개선).
-            return src;
-        }
-
-        private void HandleEffect(SkillDefinition skill, SkillTargetContext ctx, UnityEngine.Object payload,
-            Vector3 snapshotCasterPos, Vector3 snapshotTargetPos, Vector3 snapshotGroundPoint)
-        {
-            var def = payload as EffectEventDefinition;
-            if (def == null) return;
-
-            ResolveEventTargeting(
-                skill, ctx, def.targetingOverride,
-                snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint,
-                out var resolvedCtx, out _, out _, out var center);
-
-            var caster = resolvedCtx.caster;
-            var target = resolvedCtx.lockedTarget;
-
-            // center 기준으로 스폰(attachToTarget이면 target에 부착)
-            _effects.Play(def, caster, target, center);
-        }
-
-        private void HandleApplyStatus(SkillDefinition skill, SkillTargetContext ctx, UnityEngine.Object payload,
-            Vector3 snapshotCasterPos, Vector3 snapshotTargetPos, Vector3 snapshotGroundPoint)
-        {
-            var def = payload as ApplyStatusEventDefinition;
-            if (def == null) return;
-
-            if (StatusSystem == null)
-            {
-                Debug.LogWarning("[Skill] StatusSystem is null. ApplyStatus ignored.");
-                return;
-            }
-
-            ResolveEventTargeting(
-                skill, ctx, def.targetingOverride,
-                snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint,
-                out var resolvedCtx, out var resolvedRange, out var resolvedMaxTargets, out var center);
-
-            // 단일 타겟(락온) 또는 범위 적용(오버라이드 enabled이면 areaOverride로 판단)
-            if (def.areaOverride.enabled)
-            {
-                var areaId = !string.IsNullOrWhiteSpace(def.areaOverride.areaId) ? def.areaOverride.areaId : skill.defaultAreaId;
-                if (areaRegistry == null || !areaRegistry.TryGet(areaId, out var areaDef) || areaDef == null)
-                    return;
-
-                _hitEvaluator.EvaluateTargets(
-                    center, resolvedCtx.forward, areaDef,
-                    resolvedRange, resolvedMaxTargets,
-                    resolvedCtx.caster, _targets);
-
-                for (int i = 0; i < _targets.Count; i++)
-                {
-                    var t = _targets[i];
-                    if (t == null) continue;
-                    StatusSystem.Apply(resolvedCtx.caster, t, def.statusId, def.stacks, def.durationOverrideSeconds, def.chance01);
-                }
-            }
-            else
-            {
-                // 기본: lockedTarget에만
-                var target = resolvedCtx.lockedTarget;
-                if (target != null)
-                    StatusSystem.Apply(resolvedCtx.caster, target, def.statusId, def.stacks, def.durationOverrideSeconds, def.chance01);
-            }
-        }
-
-        // SkillExecutor.cs 내부(메서드)
-        private void ResolveEventTargeting(
-            SkillDefinition skill,
-            SkillTargetContext baseCtx,
-            TargetingOverride ov,
+        private void ExecuteEvent(
+            StruckTableSkill skill,
+            SkillTargetContext ctx,
+            SkillRuntimeSequence sequence,
+            in SkillRuntimeEvent e,
             Vector3 snapshotCasterPos,
             Vector3 snapshotTargetPos,
-            Vector3 snapshotGroundPoint,
-            out SkillTargetContext resolvedCtx,
-            out float resolvedRange,
-            out int resolvedMaxTargets,
-            out Vector3 resolvedCenter)
+            Vector3 snapshotGroundPoint)
         {
-            resolvedCtx = baseCtx;
+            var payload = sequence != null ? sequence.GetPayload(e.PayloadIndex) : null;
 
-            // 기본값
-            var mode = skill.targetingMode;
-            resolvedRange = skill.range;
-            resolvedMaxTargets = skill.maxTargets;
-
-            if (ov.enabled)
+            switch (e.Type)
             {
-                mode = ov.mode;
-                if (ov.rangeOverride > 0f) resolvedRange = ov.rangeOverride;
-                if (ov.maxTargetsOverride > 0) resolvedMaxTargets = ov.maxTargetsOverride;
-            }
-
-            // 중심점 계산 정책
-            bool useSnapshot = ov.enabled && ov.useSnapshotCenter;
-            bool follow = ov.enabled && ov.followTarget;
-
-            var caster = baseCtx.caster;
-            var target = baseCtx.lockedTarget;
-
-            Vector3 casterPosNow = caster != null ? caster.transform.position : snapshotCasterPos;
-            Vector3 targetPosNow = target != null ? target.transform.position : snapshotTargetPos;
-
-            // 모드별 center 결정
-            switch (mode)
-            {
-                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
-                    resolvedCenter = useSnapshot ? snapshotTargetPos : targetPosNow;
+                case ConfigCommonSkill.SkillEventType.Damage:
+                    HandleDamage(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
-
-                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
-                    resolvedCenter = useSnapshot ? snapshotTargetPos : targetPosNow;
+                case ConfigCommonSkill.SkillEventType.SpawnEffect:
+                    HandleEffect(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
-
-                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
-                    if (follow && target != null) resolvedCenter = target.transform.position;
-                    else resolvedCenter = useSnapshot ? snapshotTargetPos : targetPosNow;
+                case ConfigCommonSkill.SkillEventType.ApplyAffect:
+                    HandleApplyStatus(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
-
-                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
-                    resolvedCenter = useSnapshot ? snapshotGroundPoint : baseCtx.groundPoint;
-                    break;
-
-                case ConfigCommonSkill.SkillTargetingMode.ForwardDirectional:
-                    resolvedCenter = useSnapshot ? snapshotCasterPos : casterPosNow;
-                    break;
-
                 default:
-                    resolvedCenter = useSnapshot ? snapshotCasterPos : casterPosNow;
                     break;
             }
-
-            // resolvedCtx에 mode를 직접 넣지는 않지만, 필요하면 SkillTargetContext 확장(추후) 가능
         }
 
+        private void HandleDamage(
+            StruckTableSkill skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            if (payloadObj is not DamageEventDefinition def) return;
+
+            // 기본값은 skill 테이블의 값(SSOT)
+            var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
+            float range = skill.Range > 0f ? skill.Range : 3f;
+            int maxTargets = skill.MaxTargets > 0 ? skill.MaxTargets : 1;
+            string areaId = string.IsNullOrEmpty(skill.DefaultAreaId) ? "Area_Default" : skill.DefaultAreaId;
+
+            // 이벤트 override 적용
+            if (def.targetingOverride.enabled)
+            {
+                mode = def.targetingOverride.mode;
+                if (def.targetingOverride.rangeOverride > 0f) range = def.targetingOverride.rangeOverride;
+                if (def.targetingOverride.maxTargetsOverride > 0) maxTargets = def.targetingOverride.maxTargetsOverride;
+            }
+
+            if (def.areaOverride.enabled && !string.IsNullOrEmpty(def.areaOverride.areaId))
+                areaId = def.areaOverride.areaId;
+
+            // 타겟/중심점 결정
+            Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
+            {
+                casterPos = snapshotCasterPos;
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+            // 히트 평가
+            if (areaRegistry == null || _hitEvaluator == null) return;
+            if (!areaRegistry.TryGet(areaId, out var areaDef) || areaDef == null) return;
+
+            Vector3 center = casterPos;
+            switch (mode)
+            {
+                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                    center = groundPoint;
+                    break;
+                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                    center = targetPos;
+                    break;
+                default:
+                    // Forward / Fallback
+                    var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                    center = casterPos + fwd * Mathf.Max(0.1f, range);
+                    break;
+            }
+
+            var hits = new List<GameObject>(Mathf.Max(1, maxTargets));
+            _hitEvaluator.EvaluateTargets(center, ctx.forward, areaDef, range, maxTargets, ctx.caster, hits);
+
+            // 데미지 적용(현재는 로그/샘플 처리: 실제 데미지 모델은 프로젝트에 맞게 연동)
+            // TODO: Core 전투 시스템과 연결(예: IDamageSystem, Stat/DamageType, 크리티컬 등)
+            for (int i = 0; i < hits.Count; i++)
+            {
+                var go = hits[i];
+
+                if (go == null) continue;
+                // 샘플: EffectOrchestrator에 이벤트 전달
+                // _effects.OnDamage(ctx.caster, go, def);
+            }
+        }
+
+        private void HandleEffect(
+            StruckTableSkill skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            if (payloadObj is not EffectEventDefinition def) return;
+            // todo. 정리 필요
+            // _effects.OnEffect(ctx.caster, ctx.lockedTarget, ctx.groundPoint, def, snapshotCasterPos, snapshotTargetPos,snapshotGroundPoint);
+        }
+
+        private void HandleApplyStatus(
+            StruckTableSkill skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            if (payloadObj is not ApplyStatusEventDefinition def) return;
+            if (StatusSystem == null) return;
+
+            // todo. 정리 필요.
+            // StatusSystem.Apply(ctx.caster, ctx.lockedTarget, def, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+        }
     }
 }

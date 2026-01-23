@@ -65,6 +65,8 @@ namespace GGemCo2DSkill
         /// </summary>
         public void UpdateInfos(StruckTableSkill pstruckTableSkill, SaveDataIcon psaveDataIcon)
         {
+            // todo. 정리 필요
+            /*
             _struckTableSkill = pstruckTableSkill;
             _saveDataIcon = psaveDataIcon;
             if (_struckTableSkill == null)
@@ -134,12 +136,15 @@ namespace GGemCo2DSkill
                 buttonLearn.gameObject.SetActive(true);
                 buttonLevelUp.gameObject.SetActive(false); 
             }
+            */
         }
         /// <summary>
         /// 레벨업
         /// </summary>
         private void OnClickLevelUp()
         {
+            // todo. 정리 필요
+            /*
             bool result = SceneGame.Instance.player.GetComponent<Player>().IsRequireLevel(_struckTableSkill.NeedPlayerLevel);
             if (!result) return;
             // 다음 레벨 있는지 체크, 아니면 최대 레벨
@@ -167,6 +172,7 @@ namespace GGemCo2DSkill
                 MinusNeedCurrency(infoNextLevel.NeedCurrencyType, infoNextLevel.NeedCurrencyValue);
             }
             _uiWindowSkill.SetIcons(result2);
+            */
         }
         /// <summary>
         /// 레벨, 재화 체크
@@ -208,6 +214,8 @@ namespace GGemCo2DSkill
         /// </summary>
         private void OnClickLearn()
         {
+            // todo. 정리 필요
+            /*
             // GcLogger.Log("click learn");
             bool result = CheckLevelCurrency(_struckTableSkill.NeedPlayerLevel, _struckTableSkill.NeedCurrencyType,
                 _struckTableSkill.NeedCurrencyValue);
@@ -219,12 +227,14 @@ namespace GGemCo2DSkill
                 MinusNeedCurrency(_struckTableSkill.NeedCurrencyType, _struckTableSkill.NeedCurrencyValue);
             }
             _uiWindowSkill.SetIcons(result2);
+            */
         }
 
         public void OnPointerEnter(PointerEventData eventData)
         {
-            _uiWindowSkillInfo.SetSkillUid(_struckTableSkill.Uid, _struckTableSkill.Level, new Vector2(1f, 1f), new Vector3(transform.position.x - _uiWindowSkill.containerIcon.cellSize.x / 2f,
-                transform.position.y + _uiWindowSkill.containerIcon.cellSize.y / 2f));
+            // todo. 정리 필요
+            // _uiWindowSkillInfo.SetSkillUid(_struckTableSkill.Uid, _struckTableSkill.Level, new Vector2(1f, 1f), new Vector3(transform.position.x - _uiWindowSkill.containerIcon.cellSize.x / 2f,
+            //     transform.position.y + _uiWindowSkill.containerIcon.cellSize.y / 2f));
         }
 
         public void OnPointerExit(PointerEventData eventData)

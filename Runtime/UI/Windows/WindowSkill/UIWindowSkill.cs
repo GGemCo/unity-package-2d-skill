@@ -27,7 +27,7 @@ namespace GGemCo2DSkill
             uid = UIWindowConstants.WindowUid.Skill;
             if (TableLoaderManager.Instance == null) return;
             TableSkill = TableLoaderManagerSkill.Instance.TableSkill;
-            maxCountIcon = TableSkill.GetSkills().Count;
+            maxCountIcon = TableSkill.GetDatas().Count;
             
             // 순서 중요: IconPoolManager에서 사용 (슬롯 빌드 전략 등록 후 base.Awake 호출)
             SlotIconBuildStrategyRegistry.Register(uid, window => new SlotIconBuildStrategySkill());
@@ -97,7 +97,8 @@ namespace GGemCo2DSkill
                 int skillCount = saveDataIcon.Count;
                 int skillLevel = saveDataIcon.Level;
                 bool skillIsLearned = saveDataIcon.IsLearned;
-                var info = TableSkill.GetDataByUidLevel(skillUid, skillLevel);
+                // todo. 정리 필요. 다음 Level 정보
+                var info = TableSkill.GetDataByUid(skillUid);
                 if (info == null) continue;
                 uiIcon.ChangeInfoByUid(skillUid, skillCount, skillLevel, skillIsLearned);
                 UIElementSkill uiElementSkill = UIElementSkills[index];

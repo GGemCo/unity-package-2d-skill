@@ -1,5 +1,4 @@
-﻿// Assets/GGemCo/Skills/Runtime/Targeting/SkillTargetContext.cs
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace GGemCo2DSkill
 {

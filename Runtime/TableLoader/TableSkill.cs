@@ -9,124 +9,75 @@ namespace GGemCo2DSkill
     /// </summary>
     public class StruckTableSkill
     {
-        public int Uid;
-        public string Name;
+        public int Uid { get; set; }
+        public string Name { get; set; }
+        public string Memo;
         public string IconFileName;
-        public int Level;
-        public int MaxLevel;
-        public int NeedPlayerLevel;
-        public CurrencyConstants.Type NeedCurrencyType;
-        public int NeedCurrencyValue;
-        public ConfigCommonSkill.Target Target;
-        public ConfigCommonSkill.TargetType TargetType;
-        public ConfigCommon.DamageType DamageType;
-        public int DamageValue;
-        public int DamageRange;
-        public int Distance;
-        public int EffectUid;
-        public float EffectScale;
-        public int ProjectileUid;
-        public int NeedMp;
-        public float TickTime;
-        public float Duration;
+
+        /// <summary>캐스팅 시간(초). 0이면 즉시 사용.</summary>
+        public float CastTime;
+        
         public float CoolTime;
-        public int AffectUid;
-        public int AffectRate;
+
+        /// <summary>타겟팅 모드(스킬 패키지의 SkillTargetingMode enum 값을 int로 저장).</summary>
+        public ConfigCommonSkill.SkillTargetingMode TargetingMode;
+
+        /// <summary>사거리</summary>
+        public float Range;
+
+        /// <summary>최대 타겟 수</summary>
+        public int MaxTargets;
+
+        /// <summary>기본 Area ID(테이블/레지스트리 기준).</summary>
+        public string DefaultAreaId;
+
+        /// <summary>애니메이션 클립 이름 규칙: 캐스팅 시작</summary>
+        public string CastStartClip;
+
+        /// <summary>애니메이션 클립 이름 규칙: 캐스팅 루프</summary>
+        public string CastLoopClip;
+
+        /// <summary>애니메이션 클립 이름 규칙: 캐스팅 종료</summary>
+        public string CastEndClip;
+
+        /// <summary>애니메이션 클립 이름 규칙: 사용</summary>
+        public string UseClip;
     }
+
     /// <summary>
     /// 스킬 테이블
     /// </summary>
     public class TableSkill : DefaultTable<StruckTableSkill>
     {
         public override string Key => ConfigAddressableTableSkill.Skill;
-        // 레벨 1인 것만 모아놓은 dictionary
-        private readonly Dictionary<int, StruckTableSkill> _skills = new Dictionary<int, StruckTableSkill>();
-        // 레벨 별로 모아놓은 dictionary
-        private readonly Dictionary<int, Dictionary<int, StruckTableSkill>> _skillsByLevel = new Dictionary<int, Dictionary<int, StruckTableSkill>>();
         
-        public Dictionary<int, StruckTableSkill> GetSkills()
-        {
-            return _skills;
-        }
-        protected override void OnLoadedData(StruckTableSkill data)
-        {
-            int uid = data.Uid;
-            int level = data.Level;
-
-            if (LocalizationManager.Instance != null)
-            {
-                data.Name = LocalizationManager.Instance.GetSkillNameByKey(uid.ToString());   
-            }
-            
-            if (!_skillsByLevel.ContainsKey(uid))
-            {
-                _skillsByLevel.TryAdd(uid, new Dictionary<int, StruckTableSkill>());
-            }
-            if (!_skillsByLevel[uid].ContainsKey(level))
-            {
-                _skillsByLevel[uid].TryAdd(level, new StruckTableSkill());
-            }
-
-            if (data.Duration > data.CoolTime)
-            {
-                GcLogger.LogWarning($"Uid: {uid}, Level: {level}, Nmae: {data.Name}. Duration: {data.Duration} > CoolTime: {data.CoolTime}. ");
-            }
-
-            _skillsByLevel[uid][level] = data;
-            if (!_skills.ContainsKey(uid))
-            {
-                _skills.TryAdd(uid, data);
-            }
-
-        }
-
         protected override StruckTableSkill BuildRow(Dictionary<string, string> data)
         {
+            int uid = MathHelper.ParseInt(data.GetValueOrDefault("Uid"));
+            // 로컬라이즈된 이름/설명
+            string name = data.GetValueOrDefault("Name");
+            if (LocalizationManager.Instance != null)
+            {
+                name = LocalizationManager.Instance.GetItemNameByKey(uid.ToString());
+            }
+            
             return new StruckTableSkill
             {
-                Uid = MathHelper.ParseInt(data["Uid"]),
-                Name = data["Name"],
+                Uid = uid,
+                Name = name,
+                Memo = data["Memo"],
                 IconFileName = data["IconFileName"],
-                Level = MathHelper.ParseInt(data["Level"]),
-                MaxLevel = MathHelper.ParseInt(data["MaxLevel"]),
-                NeedPlayerLevel = MathHelper.ParseInt(data["NeedPlayerLevel"]),
-                NeedCurrencyType = ConvertCurrencyType(data["NeedCurrencyType"]),
-                NeedCurrencyValue = MathHelper.ParseInt(data["NeedCurrencyValue"]),
-                Target = EnumHelper.ConvertEnum<ConfigCommonSkill.Target>(data["Target"]),
-                TargetType = EnumHelper.ConvertEnum<ConfigCommonSkill.TargetType>(data["TargetType"]),
-                DamageType = EnumHelper.ConvertEnum<ConfigCommon.DamageType>(data["DamageType"]),
-                DamageValue = MathHelper.ParseInt(data["DamageValue"]),
-                DamageRange = MathHelper.ParseInt(data["DamageRange"]),
-                Distance = MathHelper.ParseInt(data["Distance"]),
-                EffectUid = MathHelper.ParseInt(data["EffectUid"]),
-                EffectScale = MathHelper.ParseFloat(data["EffectScale"]),
-                ProjectileUid = MathHelper.ParseInt(data["ProjectileUid"]),
-                NeedMp = MathHelper.ParseInt(data["NeedMp"]),
-                TickTime = MathHelper.ParseFloat(data["TickTime"]),
-                Duration = MathHelper.ParseFloat(data["Duration"]),
+                CastTime = MathHelper.ParseFloat(data["CastTime"]),
                 CoolTime = MathHelper.ParseFloat(data["CoolTime"]),
-                AffectUid = MathHelper.ParseInt(data["AffectUid"]),
-                AffectRate = MathHelper.ParseInt(data["AffectRate"]),
+                TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),
+                Range = MathHelper.ParseFloat(data["Range"]),
+                MaxTargets = MathHelper.ParseInt(data["MaxTargets"]),
+                DefaultAreaId = data["DefaultAreaId"],
+                CastStartClip = data["CastStartClip"],
+                CastLoopClip = data["CastLoopClip"],
+                CastEndClip = data["CastEndClip"],
+                UseClip = data["UseClip"],
             };
-        }
-        public StruckTableSkill GetDataByUidLevel(int uid, int level)
-        {
-            if (uid > 0 && level > 0)
-            {
-                Dictionary<int, StruckTableSkill> struckTableSkill = _skillsByLevel.GetValueOrDefault(uid);
-                if (struckTableSkill != null)
-                {
-                    return struckTableSkill.GetValueOrDefault(level);
-                }
-            }
-            GcLogger.LogError("고유번호가 없거나 레벨 값이 없습니다.");
-            return null;
-        }
-
-        public override StruckTableSkill GetDataByUid(int uid)
-        {
-            GcLogger.LogError("사용할 수 없습니다.");
-            return null;
         }
     }
 }

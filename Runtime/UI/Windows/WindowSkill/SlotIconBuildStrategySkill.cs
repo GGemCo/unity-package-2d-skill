@@ -21,7 +21,7 @@ namespace GGemCo2DSkill
                 GcLogger.LogError("UIElementSkill 프리팹이 없습니다.");
                 return;
             }
-            var datas = uiWindowSkill.TableSkill.GetSkills();
+            var datas = uiWindowSkill.TableSkill.GetDatas();
             uiWindowSkill.maxCountIcon = datas.Count;
             if (datas.Count <= 0) return;
             

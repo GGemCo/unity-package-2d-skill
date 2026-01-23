@@ -52,7 +52,8 @@ namespace GGemCo2DSkill
         public void SetSkillUid(int skillUid, int skillLevel, Vector2 pivot, Vector2 position)
         {
             if (skillUid <= 0) return;
-            _struckTableSkill = _tableSkill.GetDataByUidLevel(skillUid, skillLevel);
+            // todo. 정리 필요. Level 정보
+            _struckTableSkill = _tableSkill.GetDataByUid(skillUid);
             if (_struckTableSkill is not { Uid: > 0 }) return;
             
             SetBasicInfo();
@@ -66,6 +67,8 @@ namespace GGemCo2DSkill
         /// </summary>
         private void SetBasicInfo()
         {
+            // todo. 정리 필요
+            /*
             if (_struckTableSkill == null) return;
             textName.text = string.Format(_localizationManager.GetUIWindowSkillInfoByKey("Text_Name"), _struckTableSkill.Name);
             textLevel.text = string.Format(_localizationManager.GetUIWindowSkillInfoByKey("Text_Level"), _struckTableSkill.Level);
@@ -87,6 +90,7 @@ namespace GGemCo2DSkill
             textDistance.gameObject.SetActive(_struckTableSkill.Distance > 0);
             textDuration.text = string.Format(_localizationManager.GetUIWindowSkillInfoByKey("Text_Duration"), _struckTableSkill.Duration);
             textDuration.gameObject.SetActive(_struckTableSkill.Duration > 0);
+            */
         }
 
         private string GetValueText(ConfigCommon.SuffixType suffixType, float value)
@@ -114,6 +118,8 @@ namespace GGemCo2DSkill
 
         private void SetAffectInfo()
         {
+            // todo. 정리 필요
+            /*
             if (textAffect == null) return;
 
             textAffect.gameObject.SetActive(false);
@@ -132,6 +138,7 @@ namespace GGemCo2DSkill
 
             textAffect.gameObject.SetActive(true);
             textAffect.text = desc; // 줄바꿈 유지
+            */
         }
         /// <summary>
         /// 위치 보정하기

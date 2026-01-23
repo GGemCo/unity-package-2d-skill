@@ -11,11 +11,16 @@ namespace GGemCo2DSkill
         {
             public static class Icon
             {
-                public static string Skill =>
-                    ConfigAddressablePath.Combine(
-                        ConfigAddressablePath.Images.Icon.RootIcon,
-                        "Skill");
+                public static string Skill => ConfigAddressablePath.Combine(ConfigAddressablePath.Images.Icon.RootIcon, "Skill");
             }
         }
+
+        public static class Skill
+        {
+            /// <summary>Assets/{SDK}/DataAddressable/Skill</summary>
+            private static string RootSkill => ConfigAddressablePath.Combine(ConfigAddressablePath.Root, "Skill");
+            public static string RuntimeSequences => ConfigAddressablePath.Combine(RootSkill, "RuntimeSequences");
+        }
+
     }
 }

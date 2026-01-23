@@ -52,7 +52,7 @@ namespace GGemCo2DSkillEditor
                 bool result = EditorUtility.DisplayDialog(TextDisplayDialogTitle, TextDisplayDialogMessage, "네", "아니요");
                 if (!result) return;
             }
-            Dictionary<int, StruckTableSkill> dictionary = TableLoaderManagerSkill.LoadTableSkill().GetSkills();
+            Dictionary<int, StruckTableSkill> dictionary = TableLoaderManagerSkill.LoadTableSkill().GetDatas();
             
             // AddressableSettings 가져오기 (없으면 생성)
             AddressableAssetSettings settings = AddressableAssetSettingsDefaultObject.Settings;
