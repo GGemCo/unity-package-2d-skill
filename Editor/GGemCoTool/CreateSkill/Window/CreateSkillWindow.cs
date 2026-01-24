@@ -20,21 +20,21 @@ namespace GGemCo2DSkillEditor
     /// - Marker 미사용, 이벤트 클립 기반
     /// - Bake 결과는 SkillRuntimeSequence(Addressables)로 저장
     /// </summary>
-    public sealed class SkillAuthoringWindow : EditorWindow
+    public sealed class CreateSkillWindow : EditorWindow
     {
         private const string Title = "Skill Authoring V2";
 
         // Skill.txt canonical column order (TableSkill 기준)
         private static readonly string[] SkillTableHeaders =
         {
-            "Uid","Name","Memo","IconFileName","CastTime","CoolTime","TargetingMode","Range","MaxTargets","DefaultAreaId",
+            "Uid","Name","Memo","IconFileName","CastTime","CoolTime","TargetingMode","Range","MaxTargets",
             "CastStartClip","CastLoopClip","CastEndClip","UseClip"
         };
 
-        [MenuItem("GGemCo/Skill/Development/Skill Authoring V2", false, (int)ConfigEditorSkill.ToolOrdering.Development + 10)]
+        [MenuItem(ConfigEditorSkill.NameToolSettingTestSkill, false, (int)ConfigEditorSkill.ToolOrdering.SettingTestSkill)]
         public static void Open()
         {
-            var w = GetWindow<SkillAuthoringWindow>();
+            var w = GetWindow<CreateSkillWindow>();
             w.titleContent = new GUIContent(Title);
             w.minSize = new Vector2(900, 260);
         }
@@ -334,7 +334,6 @@ namespace GGemCo2DSkillEditor
             });
             RegisterDirtyTracking(_fRange, (v) => _editingSkill.Range = v);
             RegisterDirtyTracking(_fMaxTargets, (v) => _editingSkill.MaxTargets = v);
-            RegisterDirtyTracking(_fDefaultAreaId, (v) => _editingSkill.DefaultAreaId = v);
             RegisterDirtyTracking(_fCastStartClip, (v) => _editingSkill.CastStartClip = v);
             RegisterDirtyTracking(_fCastLoopClip, (v) => _editingSkill.CastLoopClip = v);
             RegisterDirtyTracking(_fCastEndClip, (v) => _editingSkill.CastEndClip = v);
@@ -669,7 +668,7 @@ namespace GGemCo2DSkillEditor
         private static (SkillRuntimeEvent[] events, UnityEngine.Object[] payloads, float duration) ExtractTimelineEvents(TimelineAsset timeline)
         {
             // PlayMode 테스트(에디터 오버라이드)에서도 정식 Baker와 동일한 로직(EndTime/트랙 재귀/페이로드)을 사용한다.
-            return SkillTimelineBakerV2.BakeToMemory(timeline);
+            return SkillTimelineBaker.BakeToMemory(timeline);
         }
 
         private static UnityEngine.Object CreateRuntimePayloadFromLegacyClip(SkillEventClipBase evClip)
@@ -743,7 +742,6 @@ namespace GGemCo2DSkillEditor
                 _fTargetingMode.SetValueWithoutNotify(s != null ? (Enum)s.TargetingMode : ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit);
                 _fRange.SetValueWithoutNotify(s?.Range ?? 0f);
                 _fMaxTargets.SetValueWithoutNotify(s?.MaxTargets ?? 0);
-                _fDefaultAreaId.SetValueWithoutNotify(s?.DefaultAreaId ?? string.Empty);
                 _fCastStartClip.SetValueWithoutNotify(s?.CastStartClip ?? string.Empty);
                 _fCastLoopClip.SetValueWithoutNotify(s?.CastLoopClip ?? string.Empty);
                 _fCastEndClip.SetValueWithoutNotify(s?.CastEndClip ?? string.Empty);
@@ -760,7 +758,6 @@ namespace GGemCo2DSkillEditor
             _fTargetingMode.value = s != null ? (Enum)s.TargetingMode : ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit;
             _fRange.value = s?.Range ?? 0f;
             _fMaxTargets.value = s?.MaxTargets ?? 0;
-            _fDefaultAreaId.value = s?.DefaultAreaId ?? string.Empty;
             _fCastStartClip.value = s?.CastStartClip ?? string.Empty;
             _fCastLoopClip.value = s?.CastLoopClip ?? string.Empty;
             _fCastEndClip.value = s?.CastEndClip ?? string.Empty;
@@ -839,7 +836,6 @@ namespace GGemCo2DSkillEditor
             _selectedSkill.TargetingMode = _editingSkill.TargetingMode;
             _selectedSkill.Range = _editingSkill.Range;
             _selectedSkill.MaxTargets = _editingSkill.MaxTargets;
-            _selectedSkill.DefaultAreaId = _editingSkill.DefaultAreaId;
             _selectedSkill.CastStartClip = _editingSkill.CastStartClip;
             _selectedSkill.CastLoopClip = _editingSkill.CastLoopClip;
             _selectedSkill.CastEndClip = _editingSkill.CastEndClip;
@@ -862,7 +858,6 @@ namespace GGemCo2DSkillEditor
                 TargetingMode = row.TargetingMode,
                 Range = row.Range,
                 MaxTargets = row.MaxTargets,
-                DefaultAreaId = row.DefaultAreaId,
                 CastStartClip = row.CastStartClip,
                 CastLoopClip = row.CastLoopClip,
                 CastEndClip = row.CastEndClip,
@@ -910,7 +905,6 @@ namespace GGemCo2DSkillEditor
                     sb.Append(r.TargetingMode).Append('\t');
                     sb.Append(FormatFloat(r.Range)).Append('\t');
                     sb.Append(r.MaxTargets).Append('\t');
-                    sb.Append(r.DefaultAreaId ?? string.Empty).Append('\t');
                     sb.Append(r.CastStartClip ?? string.Empty).Append('\t');
                     sb.Append(r.CastLoopClip ?? string.Empty).Append('\t');
                     sb.Append(r.CastEndClip ?? string.Empty).Append('\t');
@@ -954,7 +948,6 @@ namespace GGemCo2DSkillEditor
             info.TargetingMode = row.TargetingMode;
             info.Range = row.Range;
             info.MaxTargets = row.MaxTargets;
-            info.DefaultAreaId = row.DefaultAreaId;
             info.CastStartClip = row.CastStartClip;
             info.CastLoopClip = row.CastLoopClip;
             info.CastEndClip = row.CastEndClip;
@@ -1045,7 +1038,7 @@ namespace GGemCo2DSkillEditor
             string assetPath = $"{folder}/SkillRuntimeSequence_{_selectedSkill.Uid}.asset";
             assetPath = assetPath.Replace('\\', '/');
 
-            var seq = SkillTimelineBakerV2.BakeOrUpdate(_selectedSkill.Uid, timeline, assetPath);
+            var seq = SkillTimelineBaker.BakeOrUpdate(_selectedSkill.Uid, timeline, assetPath);
 
             EnsureAddressableEntry(
                 assetPath: AssetDatabase.GetAssetPath(seq),

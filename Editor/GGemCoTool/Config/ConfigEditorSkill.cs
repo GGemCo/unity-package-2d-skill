@@ -92,7 +92,7 @@ namespace GGemCo2DSkillEditor
         /// </remarks>
         private const string NameToolTest = NameToolGGemCoSkill + "테스트툴/";
 
-        public const string NameToolTestSkill = NameToolTest + "스킬 테스트 툴";
+        public const string NameToolSettingTestSkill = NameToolTest + "스킬 테스트 툴";
 
         // etc
 

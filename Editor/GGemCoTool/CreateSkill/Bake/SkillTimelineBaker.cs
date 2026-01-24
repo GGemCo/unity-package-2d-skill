@@ -14,7 +14,7 @@ namespace GGemCo2DSkillEditor
     /// - SkillEventTrack의 이벤트 클립을 수집하여 <see cref="SkillRuntimeEvent"/>로 변환한다.
     /// - 이벤트 클립의 Payload(Definition ScriptableObject)는 RuntimeSequence 에셋의 Sub-Asset으로 생성/갱신한다.
     /// </summary>
-    public static class SkillTimelineBakerV2
+    public static class SkillTimelineBaker
     {
         /// <summary>
         /// Timeline을 메모리 상의 런타임 데이터로 변환한다.

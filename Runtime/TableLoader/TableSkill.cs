@@ -28,9 +28,6 @@ namespace GGemCo2DSkill
         /// <summary>최대 타겟 수</summary>
         public int MaxTargets;
 
-        /// <summary>기본 Area ID(테이블/레지스트리 기준).</summary>
-        public string DefaultAreaId;
-
         /// <summary>애니메이션 클립 이름 규칙: 캐스팅 시작</summary>
         public string CastStartClip;
 
@@ -72,7 +69,6 @@ namespace GGemCo2DSkill
                 TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),
                 Range = MathHelper.ParseFloat(data["Range"]),
                 MaxTargets = MathHelper.ParseInt(data["MaxTargets"]),
-                DefaultAreaId = data["DefaultAreaId"],
                 CastStartClip = data["CastStartClip"],
                 CastLoopClip = data["CastLoopClip"],
                 CastEndClip = data["CastEndClip"],
