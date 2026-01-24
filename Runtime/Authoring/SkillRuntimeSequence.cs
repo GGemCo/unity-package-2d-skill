@@ -6,7 +6,6 @@ namespace GGemCo2DSkill
     /// Timeline에서 Bake된 스킬 런타임 시퀀스.
     /// - Runtime은 Timeline에 의존하지 않고 이 에셋만 실행한다.
     /// </summary>
-    [CreateAssetMenu(menuName = "GGemCo/Skills/RuntimeSequence", fileName = "SkillRuntimeSequence")]
     public sealed class SkillRuntimeSequence : ScriptableObject
     {
         [SerializeField] private int skillUid;

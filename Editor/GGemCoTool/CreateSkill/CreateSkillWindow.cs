@@ -119,7 +119,7 @@ namespace GGemCo2DSkillEditor
                 var s = list[i];
                 ((Label)ve).text = s != null ? $"{s.Uid} - {s.Memo}" : "(null)";
             };
-            _skillList.onSelectionChange += items =>
+            _skillList.selectionChanged += items =>
             {
                 _selectedSkill = items.FirstOrDefault() as StruckTableSkill;
                 RefreshSelected();

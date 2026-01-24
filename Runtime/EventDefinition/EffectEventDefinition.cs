@@ -1,9 +1,7 @@
-﻿// Assets/GGemCo/Skills/Runtime/Effects/EffectEventDefinition.cs
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace GGemCo2DSkill
 {
-    [CreateAssetMenu(menuName = "GGemCo/Skills/Events/Effect Event", fileName = "EffectEvent")]
     public sealed class EffectEventDefinition : ScriptableObject
     {
         [Header("Effect")]

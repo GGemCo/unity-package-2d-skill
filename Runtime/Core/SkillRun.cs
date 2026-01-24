@@ -11,8 +11,8 @@ namespace GGemCo2DSkill
         private readonly StruckTableSkill _skill;
         private readonly SkillTargetContext _ctx;
 
-        private ICharacterAnimationController _animController;
-        private ICharacterActionController _actionController;
+        private readonly ICharacterAnimationController _animController;
+        private readonly ICharacterActionController _actionController;
 
         private SkillRuntimeSequence _sequence;
         private float _time;

@@ -3,7 +3,6 @@ using UnityEngine;
 
 namespace GGemCo2DSkill
 {
-    [CreateAssetMenu(menuName = "GGemCo/Skills/Events/Apply Status Event", fileName = "ApplyStatusEvent")]
     public sealed class ApplyStatusEventDefinition : ScriptableObject
     {
         [Header("Status")]

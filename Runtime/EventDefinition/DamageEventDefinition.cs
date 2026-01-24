@@ -1,10 +1,7 @@
-﻿// Assets/GGemCo/Skills/Runtime/Combat/DamageEventDefinition.cs
-using Config;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace GGemCo2DSkill
 {
-    [CreateAssetMenu(menuName = "GGemCo/Skills/Events/Damage Event", fileName = "DamageEvent")]
     public sealed class DamageEventDefinition : ScriptableObject
     {
         [Header("Damage")]
