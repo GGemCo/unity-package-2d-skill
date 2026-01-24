@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using GGemCo2DCore;
@@ -147,17 +147,11 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 스킬 테스트를 위해 필요한 컴포넌트들을 자동으로 추가합니다.
         /// - SkillExecutor
-        /// - SkillAnimationPlayer
         /// - MonsterSkillDriverAdapter
         /// </summary>
         private static void EnsureSkillTestComponents(GameObject caster)
         {
-            if (caster == null) return;
-
-            // Runtime Skill components
-            if (caster.GetComponent<GGemCo2DSkill.SkillAnimationPlayer>() == null)
-                caster.AddComponent<GGemCo2DSkill.SkillAnimationPlayer>();
-
+            if (caster == null) return;            // Runtime Skill components
             if (caster.GetComponent<GGemCo2DSkill.SkillExecutor>() == null)
                 caster.AddComponent<GGemCo2DSkill.SkillExecutor>();
 

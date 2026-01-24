@@ -17,32 +17,17 @@ namespace GGemCo2DSkill
     [DisallowMultipleComponent]
     public sealed class SkillExecutor : MonoBehaviour
     {
-        [Header("Dependencies")]
-        [SerializeField] private AnimationClipLibrary clipLibrary;
-        [SerializeField] private SkillAnimationPlayer animationPlayer;
         [Header("Hit Evaluator")]
         [SerializeField] private LayerMask hitMask = ~0;
 
-        // 외부 시스템(주입/참조)
-        public IStatusEffectSystem StatusSystem { get; set; }
-
-        private readonly EffectOrchestrator _effects = new();
         private IHitEvaluator _hitEvaluator;
-
-        // Core EffectManager(존재할 때만 사용)
-        private EffectManager _effectManager;
 
         private SkillRun _current;
         public bool IsBusy => _current != null;
 
         private void Awake()
         {
-            if (animationPlayer == null) animationPlayer = GetComponent<SkillAnimationPlayer>();
             _hitEvaluator = new AreaHitEvaluator(hitMask);
-
-            // SceneGame이 존재하는 환경에서는 Core EffectManager를 사용한다.
-            if (SceneGame.Instance != null)
-                _effectManager = SceneGame.Instance.EffectManager;
         }
 
         private void Update()
@@ -65,186 +50,14 @@ namespace GGemCo2DSkill
 
             if (!table.GetDatas().TryGetValue(skillUid, out var skill) || skill == null) return false;
 
-            _current = new SkillRun(this, skill, targetCtx);
+            _current = new SkillRun(this, skill, targetCtx,
+                ResolveAnimController(targetCtx.caster),
+                ResolveActionController(targetCtx.caster));
             _current.Start();
             return true;
         }
 
-        private sealed class SkillRun
-        {
-            private readonly SkillExecutor _owner;
-            private readonly StruckTableSkill _skill;
-            private readonly SkillTargetContext _ctx;
-
-            private SkillRuntimeSequence _sequence;
-            private float _time;
-            private int _nextEventIndex;
-
-            // Casting
-            private bool _didCastStart;
-            private bool _didCastLoop;
-            private bool _didCastEnd;
-            private bool _didUse;
-
-            private float _castElapsed;
-            private SkillAnimationPlayer.LoopHandle _castLoopHandle;
-
-            private Vector3 _snapshotCasterPos;
-            private Vector3 _snapshotTargetPos;
-            private Vector3 _snapshotGroundPoint;
-
-            private bool _isLoading;
-
-            public bool IsDone { get; private set; }
-
-            public SkillRun(SkillExecutor owner, StruckTableSkill skill, SkillTargetContext ctx)
-            {
-                _owner = owner;
-                _skill = skill;
-                _ctx = ctx;
-            }
-
-            public void Start()
-            {
-                SnapshotContext();
-                _isLoading = true;
-                _ = LoadSequenceAsync();
-            }
-
-            private async Task LoadSequenceAsync()
-            {
-                try
-                {
-                    // RuntimeSequenceKey는 Addressables Key 규칙(ConfigAddressableKeySkill)을 사용한다.
-                    // (에디터 테스트에서는 SkillRuntimeSequenceRepository.RegisterEditorOverride로 주입 가능)
-                    // todo. 정리 필요
-                    var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKey(_skill.Uid);
-                    if (string.IsNullOrEmpty(runtimeSequenceKey))
-                    {
-                        IsDone = true;
-                        return;
-                    }
-
-                    _sequence = await SkillRuntimeSequenceRepository.LoadAsync(runtimeSequenceKey);
-                    _nextEventIndex = 0;
-                    _time = 0f;
-                }
-                catch (Exception e)
-                {
-                    Debug.LogException(e);
-                    IsDone = true;
-                }
-                finally
-                {
-                    _isLoading = false;
-                }
-            }
-
-            public void Tick(float dt)
-            {
-                if (IsDone) return;
-                if (_isLoading) return;
-
-                // 1) 캐스팅 처리
-                float castTime = Mathf.Max(0f, _skill.CastTime);
-
-                if (castTime > 0f && !_didUse)
-                {
-                    _castElapsed += dt;
-
-                    if (!_didCastStart) PlayCastStart();
-                    if (!_didCastLoop) PlayCastLoop();
-
-                    if (_castElapsed >= castTime)
-                    {
-                        PlayCastEnd();
-                        PlayUse();
-                    }
-                }
-                else
-                {
-                    if (!_didUse) PlayUse();
-                }
-
-                // 2) 이벤트 시퀀스 재생(Use 시작부터 재생)
-                if (_sequence != null && _sequence.Events != null)
-                {
-                    _time += dt;
-
-                    while (_nextEventIndex < _sequence.Events.Length)
-                    {
-                        var ev = _sequence.Events[_nextEventIndex];
-                        if (_time + 1e-6f < ev.StartTime) break;
-
-                        _owner.ExecuteEvent(_skill, _ctx, _sequence, ev, _snapshotCasterPos, _snapshotTargetPos, _snapshotGroundPoint);
-                        _nextEventIndex++;
-                    }
-
-                    if (_time >= _sequence.Duration && _nextEventIndex >= _sequence.Events.Length)
-                        IsDone = true;
-                }
-                else
-                {
-                    // 시퀀스가 없으면 Use 클립 길이 정도로 종료(간단 정책)
-                    _time += dt;
-                    IsDone = _time >= 0.3f && _didUse;
-                }
-            }
-
-            private void SnapshotContext()
-            {
-                _snapshotCasterPos = _ctx.caster != null ? _ctx.caster.transform.position : Vector3.zero;
-                _snapshotTargetPos = _ctx.lockedTarget != null ? _ctx.lockedTarget.transform.position : _snapshotCasterPos;
-                _snapshotGroundPoint = _ctx.groundPoint;
-            }
-
-            private void PlayCastStart()
-            {
-                if (_didCastStart) return;
-                _didCastStart = true;
-
-                if (!_owner.TryResolveClip(_skill.CastStartClip, out var clip)) return;
-                _owner.animationPlayer.PlayOneShot(clip, 1f);
-            }
-
-            private void PlayCastLoop()
-            {
-                if (_didCastLoop) return;
-                _didCastLoop = true;
-
-                if (!_owner.TryResolveClip(_skill.CastLoopClip, out var clip)) return;
-                _castLoopHandle = _owner.animationPlayer.PlayLoop(clip, 1f);
-            }
-
-            private void PlayCastEnd()
-            {
-                if (_didCastEnd) return;
-                _didCastEnd = true;
-
-                _castLoopHandle.Stop();
-                if (!_owner.TryResolveClip(_skill.CastEndClip, out var clip)) return;
-                _owner.animationPlayer.PlayOneShot(clip, 1f);
-            }
-
-            private void PlayUse()
-            {
-                if (_didUse) return;
-                _didUse = true;
-
-                if (!_owner.TryResolveClip(_skill.UseClip, out var clip)) return;
-                _owner.animationPlayer.PlayOneShot(clip, 1f);
-            }
-        }
-
-        private bool TryResolveClip(string clipName, out AnimationClip clip)
-        {
-            clip = null;
-            if (string.IsNullOrEmpty(clipName)) return false;
-            if (clipLibrary == null) return false;
-            return clipLibrary.TryGetClip(clipName, out clip);
-        }
-
-        private void ExecuteEvent(
+        public void ExecuteEvent(
             StruckTableSkill skill,
             SkillTargetContext ctx,
             SkillRuntimeSequence sequence,
@@ -402,8 +215,6 @@ namespace GGemCo2DSkill
                         }
                     }
                 }
-                // 샘플: EffectOrchestrator에 이벤트 전달
-                // _effects.OnDamage(ctx.caster, go, def);
             }
         }
 
@@ -633,5 +444,30 @@ namespace GGemCo2DSkill
             return affectComponent != null;
         }
 */
+        private static ICharacterAnimationController ResolveAnimController(GameObject caster)
+        {
+            if (caster == null) return null;
+
+            if (caster.TryGetComponent<ICharacterAnimationController>(out var anim))
+                return anim;
+
+            anim = caster.GetComponentInChildren<ICharacterAnimationController>(includeInactive: true);
+            if (anim != null) return anim;
+
+            return caster.GetComponentInParent<ICharacterAnimationController>();
+        }
+
+        private static ICharacterActionController ResolveActionController(GameObject caster)
+        {
+            if (caster == null) return null;
+
+            if (caster.TryGetComponent<ICharacterActionController>(out var action))
+                return action;
+
+            action = caster.GetComponentInChildren<ICharacterActionController>(includeInactive: true);
+            if (action != null) return action;
+
+            return caster.GetComponentInParent<ICharacterActionController>();
+        }
     }
 }
