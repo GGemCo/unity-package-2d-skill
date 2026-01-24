@@ -36,10 +36,12 @@ namespace GGemCo2DSkillEditor
         {
             var w = GetWindow<CreateSkillWindow>();
             w.titleContent = new GUIContent(Title);
-            w.minSize = new Vector2(900, 260);
+            w.minSize = new Vector2(700, 260);
         }
 
-        private ListView _skillList;
+        // Skill selection (SearchableDropdownUtility)
+        private Button _btnSelectSkill;
+        private Label _labelSelectedSkill;
 
         // Editing UI
         private ScrollView _rightScroll;
@@ -108,30 +110,49 @@ namespace GGemCo2DSkillEditor
             top.Add(reload);
             rootVisualElement.Add(top);
 
-            var body = new VisualElement { style = { flexDirection = FlexDirection.Row, flexGrow = 1 } };
+            // Skill select bar (top)
+            var selectBar = new VisualElement
+            {
+                style =
+                {
+                    flexDirection = FlexDirection.Column,
+                    // alignItems = Align.Center,
+                    marginTop = 6,
+                    marginBottom = 6,
+                    flexGrow = 1,
+                }
+            };
+            // PlayMode 테스트 UI
+            _playModeHelp = new HelpBox(
+                "Play Mode에서만 동작합니다. '스킬 사용하기'는 현재 Input Field 값 + (선택 시) Timeline 이벤트를 사용해 실행합니다.\n" +
+                "- TimelineAsset이 지정되어 있으면, 런타임 시퀀스를 메모리에서 Bake하여 Addressables 로딩을 우회합니다.",
+                HelpBoxMessageType.Info);
+            selectBar.Add(_playModeHelp);
 
-            // Left list
-            _skillList = new ListView { selectionType = SelectionType.Single, style = { flexGrow = 1, minWidth = 360 } };
-            _skillList.makeItem = () => new Label();
-            _skillList.bindItem = (ve, i) =>
+            _btnSelectSkill = new Button(OpenSkillSearchDropdown)
             {
-                var list = (System.Collections.Generic.List<StruckTableSkill>)_skillList.itemsSource;
-                var s = list[i];
-                ((Label)ve).text = s != null ? $"{s.Uid} - {s.Memo}" : "(null)";
+                text = "스킬 선택",
+                style = { marginRight = 8 }
             };
-            _skillList.selectionChanged += items =>
+            selectBar.Add(_btnSelectSkill);
+
+            _labelSelectedSkill = new Label("선택된 스킬: (없음)")
             {
-                _selectedSkill = items.FirstOrDefault() as StruckTableSkill;
-                RefreshSelected();
+                style =
+                {
+                    unityFontStyleAndWeight = FontStyle.Bold,
+                    flexGrow = 1
+                }
             };
-            body.Add(_skillList);
+            selectBar.Add(_labelSelectedSkill);
+
+            rootVisualElement.Add(selectBar);
 
             _rightScroll = new ScrollView(ScrollViewMode.Vertical)
             {
                 style =
                 {
-                    flexGrow = 2,
-                    paddingLeft = 10,
+                    flexGrow = 1,
                 }
             };
 
@@ -169,13 +190,6 @@ namespace GGemCo2DSkillEditor
             _bakeButton = new Button(BakeRuntimeSequence) { text = "Bake RuntimeSequence + Register Addressables" };
             _editRoot.Add(_bakeButton);
 
-            // PlayMode 테스트 UI
-            _playModeHelp = new HelpBox(
-                "Play Mode에서만 동작합니다. '스킬 사용하기'는 현재 Input Field 값 + (선택 시) Timeline 이벤트를 사용해 실행합니다.\n" +
-                "- TimelineAsset이 지정되어 있으면, 런타임 시퀀스를 메모리에서 Bake하여 Addressables 로딩을 우회합니다.",
-                HelpBoxMessageType.Info);
-            _editRoot.Add(_playModeHelp);
-
             BuildPlayModeMonsterUI();
 
             _btnUseSkill = new Button(UseSkillInPlayMode) { text = "스킬 사용하기(PlayMode)" };
@@ -189,8 +203,7 @@ namespace GGemCo2DSkillEditor
                 HelpBoxMessageType.Info);
             _editRoot.Add(help);
 
-            body.Add(_rightScroll);
-            rootVisualElement.Add(body);
+            rootVisualElement.Add(_rightScroll);
 
             LoadSkills();
             RefreshSelected();
@@ -249,12 +262,75 @@ namespace GGemCo2DSkillEditor
 
             list.Sort((a, b) => a.Uid.CompareTo(b.Uid));
             _skillListSource = list;
-            _skillList.itemsSource = _skillListSource;
-            _skillList.Rebuild();
+
+            // 선택 유지(UID 기준)
+            if (_selectedSkill != null)
+            {
+                int keepUid = _selectedSkill.Uid;
+                _selectedSkill = _skillListSource.FirstOrDefault(s => s != null && s.Uid == keepUid);
+            }
+
+            UpdateSelectedSkillLabel();
+        }
+
+        private void OpenSkillSearchDropdown()
+        {
+            // 데이터가 아직 없으면 먼저 로드
+            if (_skillListSource == null || _skillListSource.Count == 0)
+                LoadSkills();
+
+            if (_skillListSource == null || _skillListSource.Count == 0)
+            {
+                ShowNotification(new GUIContent("skill 테이블이 비어있습니다."));
+                return;
+            }
+
+            var options = new System.Collections.Generic.List<SearchableDropdownUtility.Option<StruckTableSkill>>(_skillListSource.Count);
+            for (int i = 0; i < _skillListSource.Count; i++)
+            {
+                var s = _skillListSource[i];
+                if (s == null) continue;
+                // Key: UID, Value: 메모/이름
+                string key = s.Uid.ToString();
+                string value = string.IsNullOrEmpty(s.Memo) ? s.Name : s.Memo;
+                options.Add(new SearchableDropdownUtility.Option<StruckTableSkill>(key, value, s));
+            }
+
+            int selectedIndex = -1;
+            if (_selectedSkill != null)
+                selectedIndex = options.FindIndex(o => o.Data != null && o.Data.Uid == _selectedSkill.Uid);
+
+            var rect = SearchableDropdownUtility.GetScreenRect(this, _btnSelectSkill);
+            SearchableDropdownUtility.ShowUiToolkit(
+                owner: this,
+                activatorRectScreen: rect,
+                options: options,
+                selectedIndex: selectedIndex,
+                onSelected: (idx, opt) =>
+                {
+                    _selectedSkill = opt.Data;
+                    RefreshSelected();
+                },
+                maxVisibleItems: 12,
+                rowHeight: 20f,
+                popupWidth: 420f,
+                defaultSearchMode: SearchableDropdownUtility.SearchMode.Both);
+        }
+
+        private void UpdateSelectedSkillLabel()
+        {
+            if (_labelSelectedSkill == null)
+                return;
+
+            _labelSelectedSkill.text = _selectedSkill == null
+                ? "선택된 스킬: (없음)"
+                : $"선택된 스킬: {_selectedSkill.Uid} - {(string.IsNullOrEmpty(_selectedSkill.Memo) ? _selectedSkill.Name : _selectedSkill.Memo)}";
         }
 
         private void RefreshSelected()
         {
+            UpdateSelectedSkillLabel();
+
             if (_selectedSkill == null)
             {
                 _cachedSkillOriginal = null;
@@ -784,7 +860,6 @@ namespace GGemCo2DSkillEditor
 
             _editingDirty = false;
             UpdateEditButtonsState();
-            _skillList?.RefreshItems();
             ShowNotification(new GUIContent("테스트 적용 완료"));
         }
 
@@ -807,12 +882,10 @@ namespace GGemCo2DSkillEditor
             LoadSkills();
 
             // UID로 재선택
-            var idx = _skillListSource != null ? _skillListSource.FindIndex(s => s != null && s.Uid == keepUid) : -1;
-            if (idx >= 0)
-            {
-                _skillList.SetSelection(idx);
-                _skillList.ScrollToItem(idx);
-            }
+            _selectedSkill = _skillListSource != null
+                ? _skillListSource.FirstOrDefault(s => s != null && s.Uid == keepUid)
+                : null;
+            RefreshSelected();
 
             // 플레이 모드에서는 런타임 TableLoaderManagerSkill에도 적용
             UpdateInGameSkillTableInfo(_editingSkill);
