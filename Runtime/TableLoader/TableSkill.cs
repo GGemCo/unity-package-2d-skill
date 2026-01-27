@@ -13,6 +13,7 @@ namespace GGemCo2DSkill
         public string Name { get; set; }
         public string Memo;
         public string IconFileName;
+        public string SoFileName;
 
         /// <summary>캐스팅 시간(초). 0이면 즉시 사용.</summary>
         public float CastTime;
@@ -64,6 +65,7 @@ namespace GGemCo2DSkill
                 Name = name,
                 Memo = data["Memo"],
                 IconFileName = data["IconFileName"],
+                SoFileName = data["SoFileName"],
                 CastTime = MathHelper.ParseFloat(data["CastTime"]),
                 CoolTime = MathHelper.ParseFloat(data["CoolTime"]),
                 TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),

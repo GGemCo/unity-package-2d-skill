@@ -9,15 +9,15 @@ namespace GGemCo2DSkill
     /// <summary>
     /// SkillRuntimeSequence Addressables 로더/캐시.
     /// </summary>
-    public static class SkillRuntimeSequenceRepository
+    public static class AddressableLoaderSkillRuntimeSequence
     {
-        private static readonly Dictionary<string, AsyncOperationHandle<SkillRuntimeSequence>> _handles = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, AsyncOperationHandle<SkillRuntimeSequence>> Handles = new(StringComparer.Ordinal);
 
 #if UNITY_EDITOR
         /// <summary>
         /// Play Mode 스킬 테스트(에디터)에서 Addressables 로딩을 우회하기 위한 오버라이드 캐시.
         /// </summary>
-        private static readonly Dictionary<string, SkillRuntimeSequence> _editorOverrides = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, SkillRuntimeSequence> EditorOverrides = new(StringComparer.Ordinal);
 
         /// <summary>
         /// 에디터 테스트용 시퀀스를 등록합니다.
@@ -28,13 +28,13 @@ namespace GGemCo2DSkill
             if (string.IsNullOrEmpty(key)) return;
             if (sequence == null)
             {
-                _editorOverrides.Remove(key);
+                EditorOverrides.Remove(key);
                 return;
             }
-            _editorOverrides[key] = sequence;
+            EditorOverrides[key] = sequence;
         }
 
-        public static void ClearEditorOverrides() => _editorOverrides.Clear();
+        public static void ClearEditorOverrides() => EditorOverrides.Clear();
 #endif
 
         public static async Task<SkillRuntimeSequence> LoadAsync(string key)
@@ -43,17 +43,17 @@ namespace GGemCo2DSkill
 
 #if UNITY_EDITOR
             // 에디터 테스트 오버라이드 우선
-            if (_editorOverrides.TryGetValue(key, out var overrideSeq) && overrideSeq != null)
+            if (EditorOverrides.TryGetValue(key, out var overrideSeq) && overrideSeq != null)
                 return overrideSeq;
 #endif
 
-            if (_handles.TryGetValue(key, out var h) && h.IsValid())
+            if (Handles.TryGetValue(key, out var h) && h.IsValid())
             {
                 return await h.Task;
             }
 
             var handle = Addressables.LoadAssetAsync<SkillRuntimeSequence>(key);
-            _handles[key] = handle;
+            Handles[key] = handle;
 
             var asset = await handle.Task;
             return asset;
@@ -62,28 +62,28 @@ namespace GGemCo2DSkill
         public static void Release(string key)
         {
             if (string.IsNullOrEmpty(key)) return;
-            if (_handles.TryGetValue(key, out var h) && h.IsValid())
+            if (Handles.TryGetValue(key, out var h) && h.IsValid())
             {
                 Addressables.Release(h);
             }
-            _handles.Remove(key);
+            Handles.Remove(key);
 
 #if UNITY_EDITOR
-            _editorOverrides.Remove(key);
+            EditorOverrides.Remove(key);
 #endif
         }
 
         public static void ReleaseAll()
         {
-            foreach (var kv in _handles)
+            foreach (var kv in Handles)
             {
                 var h = kv.Value;
                 if (h.IsValid()) Addressables.Release(h);
             }
-            _handles.Clear();
+            Handles.Clear();
 
 #if UNITY_EDITOR
-            _editorOverrides.Clear();
+            EditorOverrides.Clear();
 #endif
         }
     }

@@ -733,7 +733,7 @@ namespace GGemCo2DSkillEditor
                 seq.EditorSetData(skillUid, dur, events, payloads);
 
                 string key = ConfigAddressableKeySkill.GetRuntimeSequenceKey(skillUid);
-                SkillRuntimeSequenceRepository.RegisterEditorOverride(key, seq);
+                AddressableLoaderSkillRuntimeSequence.RegisterEditorOverride(key, seq);
             }
             catch (Exception e)
             {

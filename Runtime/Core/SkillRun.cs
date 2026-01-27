@@ -69,7 +69,7 @@ namespace GGemCo2DSkill
                     return;
                 }
 
-                _sequence = await SkillRuntimeSequenceRepository.LoadAsync(runtimeSequenceKey);
+                _sequence = await AddressableLoaderSkillRuntimeSequence.LoadAsync(runtimeSequenceKey);
                 _nextEventIndex = 0;
                 _time = 0f;
             }
