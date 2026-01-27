@@ -7,11 +7,11 @@ namespace GGemCo2DSkill
 {
     /// <summary>
     /// Core의 IMonsterSkillDriver 호출을 Skill 런타임(SkillExecutor)으로 연결하는 어댑터.
-    /// - SSOT: Core skill 테이블의 Uid(int)
+    /// - SSOT: skill 테이블의 Uid(int)
     /// - 쿨다운: skillUid 기준으로 내부 관리
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriver
+    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver
     {
         [Header("References")]
         [SerializeField] private SkillExecutor executor;
@@ -38,7 +38,7 @@ namespace GGemCo2DSkill
                 return SkillUseResult.Rejected;
 
             // 테이블 조회
-            var table = TableLoaderManager.Instance != null ? TableLoaderManagerSkill.Instance.TableSkill : null;
+            var table = TableLoaderManagerSkill.Instance != null ? TableLoaderManagerSkill.Instance.TableSkill : null;
             if (table == null) return SkillUseResult.Rejected;
             if (!table.GetDatas().TryGetValue(skillUid, out var skill) || skill == null)
                 return SkillUseResult.Rejected;
@@ -62,6 +62,11 @@ namespace GGemCo2DSkill
             if (cd > 0f) _cooldownReadyAt[skillUid] = Time.time + cd;
 
             return SkillUseResult.Started;
+        }
+        public bool RequestCancelSkill(SkillCancelReason reason)
+        {
+            if (executor == null) return false;
+            return executor.TryCancel(reason);
         }
     }
 }

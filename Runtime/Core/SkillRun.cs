@@ -282,5 +282,19 @@ namespace GGemCo2DSkill
             // 예) 이펙트/타임라인 정리, 콜백 호출, SkillExecutor에게 완료 알림 등
             // _owner?.OnRunEnded(this);
         }
+        public void Cancel(SkillCancelReason reason)
+        {
+            if (IsDone) return;
+
+            // 이후 이벤트/캐스팅 진행 차단
+            IsDone = true;
+
+            // 스킬 애니메이션 중단(구현체가 대기 애니메이션 등으로 복귀)
+            _animController?.StopSkillAnimation();
+
+            // 상태 해제(UseSkill/CastingSkill 등)
+            EndRun();
+        }
+
     }
 }

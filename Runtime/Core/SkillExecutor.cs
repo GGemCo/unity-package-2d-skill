@@ -469,5 +469,13 @@ namespace GGemCo2DSkill
 
             return caster.GetComponentInParent<ICharacterActionController>();
         }
+        public bool TryCancel(SkillCancelReason reason)
+        {
+            if (_current == null) return false;
+
+            _current.Cancel(reason);
+            _current = null; // 즉시 종료(추가 Tick 방지)
+            return true;
+        }
     }
 }
