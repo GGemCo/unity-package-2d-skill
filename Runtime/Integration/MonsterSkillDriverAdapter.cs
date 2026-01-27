@@ -13,25 +13,25 @@ namespace GGemCo2DSkill
     [DisallowMultipleComponent]
     public sealed class MonsterSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver
     {
-        [Header("References")]
-        [SerializeField] private SkillExecutor executor;
+        private SkillExecutor _executor;
+        public void SetSkillExecutor(SkillExecutor value) => _executor = value;
 
         private readonly Dictionary<int, float> _cooldownReadyAt = new();
 
-        public bool IsSkillBusy => executor != null && executor.IsBusy;
+        public bool IsSkillBusy => _executor != null && _executor.IsBusy;
 
         private void Awake()
         {
-            if (executor == null) executor = GetComponent<SkillExecutor>();
+            if (_executor == null) _executor = GetComponent<SkillExecutor>();
         }
 
         public SkillUseResult TryUseSkill(int skillUid, in MonsterSkillTarget target)
         {
-            if (executor == null) return SkillUseResult.Rejected;
+            if (_executor == null) return SkillUseResult.Rejected;
             if (skillUid <= 0) return SkillUseResult.Rejected;
 
             // 진행 중이면 거부(동시 1개 정책)
-            if (executor.IsBusy) return SkillUseResult.Rejected;
+            if (_executor.IsBusy) return SkillUseResult.Rejected;
 
             // 쿨다운 검사(테이블의 CoolTime을 사용)
             if (_cooldownReadyAt.TryGetValue(skillUid, out float readyAt) && Time.time < readyAt)
@@ -55,7 +55,7 @@ namespace GGemCo2DSkill
                 forward: new Vector3(target.Forward.x, target.Forward.y, 0f)
             );
 
-            bool started = executor.TryUse(skillUid, ctx);
+            bool started = _executor.TryUse(skillUid, ctx);
             if (!started) return SkillUseResult.Rejected;
 
             float cd = Mathf.Max(0f, skill.CoolTime);
@@ -65,8 +65,8 @@ namespace GGemCo2DSkill
         }
         public bool RequestCancelSkill(SkillCancelReason reason)
         {
-            if (executor == null) return false;
-            return executor.TryCancel(reason);
+            if (_executor == null) return false;
+            return _executor.TryCancel(reason);
         }
     }
 }

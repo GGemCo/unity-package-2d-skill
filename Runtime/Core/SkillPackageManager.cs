@@ -28,6 +28,9 @@ namespace GGemCo2DSkill
                 Destroy(gameObject);
                 return;
             }
+            var bootstrapperSpawnCharacter = gameObject.GetComponent<BootstrapperSkillExecutor>();
+            if (bootstrapperSpawnCharacter == null) gameObject.AddComponent<BootstrapperSkillExecutor>();
+            
             GameObject managerContainer = GameObject.Find("Managers");
             if (GcLogger.IsNullGameObject(managerContainer, nameof(managerContainer))) return;
             SaveDataManagerSkill = SceneGame.Instance.CreateManager<SaveDataManagerSkill>(managerContainer);
