@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Config
+﻿namespace Config
 {
     public static class ConfigCommonSkill
     {
@@ -15,6 +13,7 @@ namespace Config
             StateToggle = 3,
             PlayAudio = 4,
             Camera = 5,
+            Lunge = 6,
             // 확장: Projectile, HitStop, CameraShake, Dash, AreaEnable...
         }
 

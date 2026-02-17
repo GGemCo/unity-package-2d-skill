@@ -800,7 +800,20 @@ namespace GGemCo2DSkillEditor
                     def.chance01 = 1f;
                     return def;
                 }
-                default:
+                case ConfigCommonSkill.SkillEventType.Lunge:
+{
+    if (evClip is not SkillLungeClip c) return null;
+
+    var def = ScriptableObject.CreateInstance<LungeEventDefinition>();
+    def.distance = Mathf.Max(0f, c.Distance);
+    def.durationOverrideSeconds = c.DurationOverrideSeconds;
+    def.easing = c.Easing;
+    def.stopAtEnd = c.StopAtEnd;
+    def.useMovePosition = c.UseMovePosition;
+    def.useSnapshotForward = c.UseSnapshotForward;
+    return def;
+}
+default:
                     return null;
             }
         }

@@ -82,9 +82,45 @@ namespace GGemCo2DSkill
                 case ConfigCommonSkill.SkillEventType.ApplyAffect:
                     HandleApplyStatus(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
+                case ConfigCommonSkill.SkillEventType.Lunge:
+                    float lungeDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
+                    HandleLunge(ctx, payload, lungeDuration);
+                    break;
                 default:
                     break;
             }
+        }
+
+        
+        private void HandleLunge(
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            float eventDurationSeconds)
+        {
+            if (payloadObj is not LungeEventDefinition def) return;
+            if (ctx.caster == null) return;
+
+            // 모션 컨트롤러는 캐릭터(플레이어/몬스터) 공용 컴포넌트에서 제공한다.
+            var motion = ctx.caster.GetComponentInParent<ICharacterMotionController>();
+            if (motion == null) return;
+
+            float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds;
+            if (duration <= 0f) return;
+
+            // 2D 기준 방향 보정
+            Vector3 fwd3 = def.useSnapshotForward ? ctx.forward : (ctx.forward);
+            Vector2 dir2 = new Vector2(fwd3.x, fwd3.y);
+
+            // ctx.forward가 기본값(Vector3.forward)인 경우(2D) localScale.x 기반으로 보정
+            if (dir2.sqrMagnitude < 1e-6f || Mathf.Abs(fwd3.z) > 0.5f)
+            {
+                float sign = Mathf.Sign(ctx.caster.transform.localScale.x);
+                if (Mathf.Approximately(sign, 0f)) sign = 1f;
+                dir2 = new Vector2(sign, 0f);
+            }
+
+            var req = new LungeRequest(dir2, duration, def.distance, def.easing, def.stopAtEnd, def.useMovePosition);
+            motion.TryStartLunge(in req);
         }
 
         private void HandleDamage(

@@ -13,6 +13,7 @@ namespace GGemCo2DSkill
 
         private readonly ICharacterAnimationController _animController;
         private readonly ICharacterActionController _actionController;
+        private readonly ICharacterMotionController _motionController;
 
         private SkillRuntimeSequence _sequence;
         private float _time;
@@ -43,6 +44,7 @@ namespace GGemCo2DSkill
             _ctx = ctx;
             _animController = animController;
             _actionController = actionController;
+            _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
         }
 
         public void Start()
@@ -291,6 +293,9 @@ namespace GGemCo2DSkill
 
             // 스킬 애니메이션 중단(구현체가 대기 애니메이션 등으로 복귀)
             _animController?.StopSkillAnimation();
+
+            // 모션 이동(러시/대시 등) 중단
+            _motionController?.CancelLunge((int)reason);
 
             // 상태 해제(UseSkill/CastingSkill 등)
             EndRun();

@@ -229,6 +229,20 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+
+                case SkillLungeClip lunge:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<LungeEventDefinition>();
+                        def.distance = Mathf.Max(0f, lunge.Distance);
+                        def.durationOverrideSeconds = lunge.DurationOverrideSeconds;
+                        def.easing = lunge.Easing;
+                        def.stopAtEnd = lunge.StopAtEnd;
+                        def.useMovePosition = lunge.UseMovePosition;
+                        def.useSnapshotForward = lunge.UseSnapshotForward;
+                        return def;
+                    };
+
                 default:
                     return null;
             }
