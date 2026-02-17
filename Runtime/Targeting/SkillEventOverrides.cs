@@ -1,5 +1,4 @@
-﻿// Assets/GGemCo/Skills/Runtime/Targeting/SkillEventOverrides.cs
-using System;
+﻿using System;
 using Config;
 using UnityEngine;
 

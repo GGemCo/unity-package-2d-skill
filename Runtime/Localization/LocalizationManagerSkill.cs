@@ -1,14 +1,9 @@
 using System.Collections;
-using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine.AddressableAssets;
 using UnityEngine.Localization.Settings;
 using UnityEngine.Localization.Tables;
 using UnityEngine.ResourceManagement.AsyncOperations;
-#if UNITY_EDITOR
-using UnityEditor;
-using UnityEditor.SceneManagement;
-#endif
 
 namespace GGemCo2DSkill
 {

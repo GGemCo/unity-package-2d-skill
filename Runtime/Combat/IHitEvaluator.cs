@@ -1,5 +1,4 @@
-﻿// Assets/GGemCo/Skills/Runtime/Combat/IHitEvaluator.cs
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace GGemCo2DSkill
