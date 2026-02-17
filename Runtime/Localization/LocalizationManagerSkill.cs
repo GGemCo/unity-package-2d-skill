@@ -19,8 +19,6 @@ namespace GGemCo2DSkill
         /// </summary>
         public static LocalizationManagerSkill Instance { get; private set; }
 
-        private readonly Dictionary<string, bool> _userTableExistsMap = new();
-
         /// <summary>
         /// 싱글톤 인스턴스를 설정하고, 씬 전환 시에도 유지되도록 합니다.
         /// </summary>
@@ -50,7 +48,7 @@ namespace GGemCo2DSkill
                 string userTableName = $"{baseTable}_User";
 
                 // 선택된 로케일에 대해 사용자 테이블을 비동기로 조회합니다.
-                AsyncOperationHandle<StringTable> handle = stringDatabase.GetTableAsync(userTableName, LocalizationSettings.SelectedLocale);
+                AsyncOperationHandle<StringTable> handle = StringDatabase.GetTableAsync(userTableName, LocalizationSettings.SelectedLocale);
                 yield return handle;
 
                 bool exists = false;
@@ -74,7 +72,7 @@ namespace GGemCo2DSkill
                 }
 
                 // baseTable을 키로 캐시합니다. (userTableName이 아니라 baseTable 기준으로 관리)
-                _userTableExistsMap[baseTable] = exists;
+                UserTableExistsMap[baseTable] = exists;
 
                 // Addressables 기반 핸들인 경우 리소스 참조를 해제합니다.
                 if (handle.IsValid())
