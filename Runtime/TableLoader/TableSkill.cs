@@ -56,7 +56,7 @@ namespace GGemCo2DSkill
             string name = data.GetValueOrDefault("Name");
             if (LocalizationManager.Instance != null)
             {
-                name = LocalizationManager.Instance.GetItemNameByKey(uid.ToString());
+                name = LocalizationManager.Instance.GetSkillNameByKey(uid.ToString());
             }
             
             return new StruckTableSkill
