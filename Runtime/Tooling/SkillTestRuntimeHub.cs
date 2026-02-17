@@ -161,6 +161,23 @@ namespace GGemCo2DSkillEditor
             // Editor Gizmo: Damage 클립 구간 동안 데미지 영역을 표시
             if (caster.GetComponent<SkillDamageAreaGizmo>() == null)
                 caster.AddComponent<SkillDamageAreaGizmo>();
+
+            // 스킬 테스트 툴에서는 몬스터 AI(레거시 Brain/BT)가 스킬 테스트 흐름에 간섭하지 않도록 중지합니다.
+            // - Core의 BrainTicker를 끄면, 등록된 Brain(레거시/BT 포함) 평가가 모두 중단됩니다.
+            var brainTicker = caster.GetComponent<MonsterBrainTicker>();
+            if (brainTicker != null)
+                brainTicker.enabled = false;
+
+            // BT 패키지가 설치되어 있는 경우(런타임에 AddComponent 되는 구조), 타입 참조 없이 안전하게 비활성화합니다.
+            // (Skill 패키지는 BT 패키지를 직접 참조하지 않습니다.)
+            foreach (var mb in caster.GetComponents<MonoBehaviour>())
+            {
+                if (mb == null) continue;
+                if (mb.GetType().Name == "MonsterBtRunner")
+                {
+                    mb.enabled = false;
+                }
+            }
         }
 
         public void DespawnMonster(GameObject monster)
