@@ -31,6 +31,28 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private Vector2 forward = Vector2.right;
 
         private readonly List<GameObject> _spawned = new();
+
+        // 스폰 시점(또는 수동 캡처 시점)의 위치/물리 스냅샷(원복용)
+        private readonly Dictionary<int, SkillTestTargetSnapshot> _snapshots = new();
+
+        [Header("Reset")]
+        [Tooltip("스킬 실행이 종료되면, 선택 몬스터를 스폰 당시 위치로 자동 복원합니다.")]
+        [SerializeField] private bool autoResetSelectedMonsterAfterSkill = true;
+        public bool AutoResetSelectedMonsterAfterSkill
+        {
+            get => autoResetSelectedMonsterAfterSkill;
+            set
+            {
+                autoResetSelectedMonsterAfterSkill = value;
+                // 이미 선택된 몬스터가 있으면 즉시 반영
+                if (SelectedMonster != null)
+                {
+                    var resetter = SelectedMonster.GetComponent<SkillTestAutoResetter>();
+                    if (resetter != null) resetter.SetAutoReset(value);
+                }
+            }
+        }
+
         public IReadOnlyList<GameObject> Spawned => _spawned;
 
         public GameObject SelectedMonster { get; private set; }
@@ -129,6 +151,10 @@ namespace GGemCo2DSkillEditor
             EnsureSkillTestComponents(monster);
 
             monster.transform.position = pos;
+
+            CaptureSnapshot(monster);
+            BindAutoResetter(monster);
+
             _spawned.Add(monster);
             SelectedMonster = monster;
 
@@ -180,9 +206,69 @@ namespace GGemCo2DSkillEditor
             }
         }
 
+        
+
+        /// <summary>
+        /// 선택 몬스터(또는 지정 대상)의 "원래 위치" 스냅샷을 저장합니다.
+        /// - 스폰 직후 기본 호출되며, 필요 시 툴에서 수동 캡처도 가능합니다.
+        /// </summary>
+        public void CaptureSnapshot(GameObject monster)
+        {
+            if (monster == null) return;
+
+            int id = monster.GetInstanceID();
+            if (!_snapshots.TryGetValue(id, out var snap) || snap == null)
+            {
+                snap = new SkillTestTargetSnapshot();
+                _snapshots[id] = snap;
+            }
+
+            snap.Capture(monster);
+        }
+
+        /// <summary>
+        /// 선택 몬스터를 스폰 당시(또는 마지막 캡처 당시) 위치로 되돌립니다.
+        /// </summary>
+        public bool ResetSelectedMonsterToSnapshot()
+        {
+            if (SelectedMonster == null) return false;
+            return ResetMonsterToSnapshot(SelectedMonster);
+        }
+
+        /// <summary>
+        /// 지정 몬스터를 스냅샷으로 복원합니다.
+        /// </summary>
+        public bool ResetMonsterToSnapshot(GameObject monster)
+        {
+            if (monster == null) return false;
+
+            int id = monster.GetInstanceID();
+            if (!_snapshots.TryGetValue(id, out var snap) || snap == null)
+                return false;
+
+            snap.Apply(monster);
+            return true;
+        }
+
+        private void BindAutoResetter(GameObject monster)
+        {
+            if (monster == null) return;
+
+            // Auto resetter는 SkillExecutor의 Busy->Idle 전환을 감지하여 스냅샷 복원을 수행합니다.
+            var resetter = monster.GetComponent<SkillTestAutoResetter>();
+            if (resetter == null) resetter = monster.AddComponent<SkillTestAutoResetter>();
+
+            resetter.SetAutoReset(autoResetSelectedMonsterAfterSkill);
+
+            int id = monster.GetInstanceID();
+            if (_snapshots.TryGetValue(id, out var snap) && snap != null)
+                resetter.BindSnapshot(snap);
+        }
+        
         public void DespawnMonster(GameObject monster)
         {
             if (monster == null) return;
+            _snapshots.Remove(monster.GetInstanceID());
             _spawned.Remove(monster);
 
             if (SceneGame.Instance != null && SceneGame.Instance.CharacterManager != null)
@@ -203,6 +289,7 @@ namespace GGemCo2DSkillEditor
             if (monster == null) return;
             if (!_spawned.Contains(monster)) _spawned.Add(monster);
             SelectedMonster = monster;
+            BindAutoResetter(monster);
         }
     }
 }

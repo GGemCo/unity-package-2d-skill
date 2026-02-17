@@ -69,6 +69,10 @@ namespace GGemCo2DSkillEditor
         // PlayMode Test
         private DropdownField _monsterDropdown;
         private Button _btnSpawnMonster;
+        private Toggle _toggleAutoResetMonster;
+        private Button _btnCaptureMonsterOrigin;
+        private Button _btnResetMonsterOrigin;
+
         private readonly System.Collections.Generic.List<string> _monsterNames = new();
         private readonly System.Collections.Generic.List<int> _monsterUids = new();
         private int _selectedMonsterIndex;
@@ -240,6 +244,23 @@ namespace GGemCo2DSkillEditor
 
             _btnSpawnMonster = new Button(SpawnSelectedMonsterInPlayMode) { text = "선택 몬스터 소환" };
             box.Add(_btnSpawnMonster);
+            _toggleAutoResetMonster = new Toggle("Auto Reset (몬스터 위치 원복)") { value = true };
+            _toggleAutoResetMonster.RegisterValueChangedCallback(evt =>
+            {
+                if (!Application.isPlaying) return;
+                var hub = SkillTestRuntimeHub.Instance != null
+                    ? SkillTestRuntimeHub.Instance
+                    : UnityEngine.Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+                if (hub != null) hub.AutoResetSelectedMonsterAfterSkill = evt.newValue;
+            });
+            box.Add(_toggleAutoResetMonster);
+
+            _btnCaptureMonsterOrigin = new Button(CaptureSelectedMonsterOriginInPlayMode) { text = "현재 위치를 원본으로 저장" };
+            box.Add(_btnCaptureMonsterOrigin);
+
+            _btnResetMonsterOrigin = new Button(ResetSelectedMonsterOriginInPlayMode) { text = "원본 위치로 되돌리기" };
+            box.Add(_btnResetMonsterOrigin);
+
 
             _editRoot.Add(box);
 
@@ -660,6 +681,7 @@ namespace GGemCo2DSkillEditor
             try
             {
                 await hub.SpawnMonster(uid);
+                hub.AutoResetSelectedMonsterAfterSkill = _toggleAutoResetMonster != null && _toggleAutoResetMonster.value;
                 ShowNotification(new GUIContent($"몬스터 소환: {uid}"));
             }
             catch (Exception e)
@@ -669,6 +691,61 @@ namespace GGemCo2DSkillEditor
             }
         }
 
+        
+        private void CaptureSelectedMonsterOriginInPlayMode()
+        {
+            if (!Application.isPlaying)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            var hub = SkillTestRuntimeHub.Instance != null
+                ? SkillTestRuntimeHub.Instance
+                : UnityEngine.Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+
+            if (hub == null)
+            {
+                EditorUtility.DisplayDialog(Title, "SkillTestRuntimeHub를 찾지 못했습니다.", "OK");
+                return;
+            }
+
+            if (hub.SelectedMonster == null)
+            {
+                EditorUtility.DisplayDialog(Title, "선택된 몬스터가 없습니다. 먼저 '선택 몬스터 소환'을 실행하세요.", "OK");
+                return;
+            }
+
+            hub.CaptureSnapshot(hub.SelectedMonster);
+            ShowNotification(new GUIContent("원본 위치 저장"));
+        }
+
+        private void ResetSelectedMonsterOriginInPlayMode()
+        {
+            if (!Application.isPlaying)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            var hub = SkillTestRuntimeHub.Instance != null
+                ? SkillTestRuntimeHub.Instance
+                : UnityEngine.Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+
+            if (hub == null)
+            {
+                EditorUtility.DisplayDialog(Title, "SkillTestRuntimeHub를 찾지 못했습니다.", "OK");
+                return;
+            }
+
+            if (!hub.ResetSelectedMonsterToSnapshot())
+            {
+                EditorUtility.DisplayDialog(Title, "원본 스냅샷이 없거나, 몬스터가 선택되지 않았습니다.", "OK");
+                return;
+            }
+
+            ShowNotification(new GUIContent("원본 위치로 복원"));
+        }
         private void RefreshMonsterDropdown()
         {
             _monsterNames.Clear();
