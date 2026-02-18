@@ -243,6 +243,23 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillProjectileClip proj:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<ProjectileEventDefinition>();
+                        def.projectileUid = proj.ProjectileUid;
+                        def.damageType = proj.DamageType;
+                        def.damage = proj.Damage;
+                        def.speedMultiplier = proj.SpeedMultiplier;
+                        def.scaleMultiplier = proj.ScaleMultiplier;
+                        def.visualType = proj.VisualType;
+                        def.visualSprite = proj.VisualSprite;
+                        def.visualAnimatorController = proj.VisualAnimatorController;
+                        def.visualEffectUidOverride = proj.VisualEffectUidOverride;
+                        def.targetingOverride = proj.TargetingOverride;
+                        return def;
+                    };
+
                 default:
                     return null;
             }

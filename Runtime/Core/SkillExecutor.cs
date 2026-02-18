@@ -84,6 +84,9 @@ namespace GGemCo2DSkill
                     float lungeDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
                     HandleLunge(ctx, payload, lungeDuration);
                     break;
+                case ConfigCommonSkill.SkillEventType.Projectile:
+                    HandleProjectile(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+                    break;
                 default:
                     break;
             }
@@ -121,7 +124,102 @@ namespace GGemCo2DSkill
             motion.TryStartLunge(in req);
         }
 
-        private void HandleDamage(
+        
+        private void HandleProjectile(
+            StruckTableSkill skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            if (payloadObj is not ProjectileEventDefinition def) return;
+            if (ctx.caster == null) return;
+
+            var casterChar = ctx.caster.GetComponent<CharacterBase>();
+            if (casterChar == null) return;
+
+            // ----------------------
+            // Center/Target resolve (Effect와 동일한 정책)
+            // ----------------------
+            Vector3 casterPos = ctx.caster.transform.position;
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
+            {
+                casterPos = snapshotCasterPos;
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+            var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
+            if (def.targetingOverride.enabled)
+                mode = def.targetingOverride.mode;
+
+            // 기본: Fixed 타겟이 있으면 전달하고, 좌표 기반이면 Override 좌표로 전달한다.
+            CharacterBase targetChar = null;
+            if (ctx.lockedTarget != null)
+                targetChar = ctx.lockedTarget.GetComponent<CharacterBase>();
+
+            bool usePosOverride = false;
+            Vector2 posOverride = default;
+
+            switch (mode)
+            {
+                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                    usePosOverride = true;
+                    posOverride = new Vector2(groundPoint.x, groundPoint.y);
+                    break;
+
+                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
+                    // 타겟이 없으면 좌표 기반으로 폴백
+                    if (targetChar != null)
+                    {
+                        // Fixed 타입이면 Core에서 Target을 사용, Area 타입이면 Target 주변 샘플링을 사용할 수 있다.
+                        usePosOverride = false;
+                    }
+                    else
+                    {
+                        usePosOverride = true;
+                        posOverride = new Vector2(targetPos.x, targetPos.y);
+                    }
+                    break;
+
+                default:
+                    // Forward / fallback
+                    var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                    float range = skill.Range > 0f ? skill.Range : 3f;
+                    if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
+                        range = def.targetingOverride.rangeOverride;
+
+                    var p = casterPos + fwd * Mathf.Max(0.1f, range);
+                    usePosOverride = true;
+                    posOverride = new Vector2(p.x, p.y);
+                    break;
+            }
+
+            var meta = new MetadataProjectile(
+                uid: def.projectileUid,
+                damageType: def.damageType,
+                damage: def.damage,
+                target: targetChar,
+                owner: casterChar,
+                speedMultiplier: def.speedMultiplier,
+                scaleMultiplier: def.scaleMultiplier,
+                visualType: def.visualType,
+                visualSprite: def.visualSprite,
+                visualAnimatorController: def.visualAnimatorController,
+                visualEffectUidOverride: def.visualEffectUidOverride,
+                useTargetPositionOverride: usePosOverride,
+                targetPositionOverride: posOverride);
+
+            casterChar.LaunchProjectile(meta);
+        }
+
+private void HandleDamage(
             StruckTableSkill skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,

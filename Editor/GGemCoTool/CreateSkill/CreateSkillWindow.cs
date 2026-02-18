@@ -890,6 +890,24 @@ namespace GGemCo2DSkillEditor
                     def.useSnapshotForward = c.UseSnapshotForward;
                     return def;
                 }
+                case ConfigCommonSkill.SkillEventType.Projectile:
+                {
+                    if (evClip is not SkillProjectileClip c) return null;
+
+                    var def = ScriptableObject.CreateInstance<ProjectileEventDefinition>();
+                    def.projectileUid = c.ProjectileUid;
+                    def.damageType = c.DamageType;
+                    def.damage = c.Damage;
+                    def.speedMultiplier = c.SpeedMultiplier;
+                    def.scaleMultiplier = c.ScaleMultiplier;
+                    def.visualType = c.VisualType;
+                    def.visualSprite = c.VisualSprite;
+                    def.visualAnimatorController = c.VisualAnimatorController;
+                    def.visualEffectUidOverride = c.VisualEffectUidOverride;
+                    def.targetingOverride = c.TargetingOverride;
+                    return def;
+                }
+
                 default:
                     return null;
             }

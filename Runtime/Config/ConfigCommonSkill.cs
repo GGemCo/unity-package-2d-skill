@@ -14,8 +14,8 @@
             PlayAudio = 4,
             Camera = 5,
             Lunge = 6,
-            // 확장: Projectile, HitStop, CameraShake, Dash, AreaEnable...
-        }
+            Projectile = 7,
+            }
 
         public enum SkillTargetingMode
         {
