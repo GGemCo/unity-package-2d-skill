@@ -1,5 +1,6 @@
 using System;
 using Config;
+using GGemCo2DSkill;
 using UnityEngine;
 
 namespace GGemCo2DSkillEditor
@@ -17,6 +18,9 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private float angle = 60f;
         [SerializeField] private Vector2 offset = Vector2.zero;
 
+        [Header("OnHit Affect (Target)")]
+        [SerializeField] private OnHitAffectEntry[] onHitAffects;
+
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.Damage;
 
         public float Multiplier => multiplier;
@@ -28,5 +32,7 @@ namespace GGemCo2DSkillEditor
         public float Width => width;
         public float Angle => angle;
         public Vector2 Offset => offset;
+
+        public OnHitAffectEntry[] OnHitAffects => onHitAffects;
     }
 }

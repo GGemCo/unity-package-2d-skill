@@ -16,6 +16,9 @@ namespace GGemCo2DSkill
         public bool allowMultiHit = false;
         public float multiHitIntervalSeconds = 0.1f;
 
+        [Header("OnHit Affect")]
+        public OnHitAffectEntry[] onHitAffects;
+
         [Header("Overrides")]
         public TargetingOverride targetingOverride;
         public AreaOverride areaOverride;
