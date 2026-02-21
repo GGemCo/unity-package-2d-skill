@@ -219,7 +219,7 @@ namespace GGemCo2DSkill
             casterChar.LaunchProjectile(meta);
         }
 
-private void HandleDamage(
+        private void HandleDamage(
             StruckTableSkill skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -294,7 +294,6 @@ private void HandleDamage(
             _hitEvaluator.EvaluateTargets(center, ctx.forward, areaSpec, range, maxTargets, ctx.caster, hits);
 
             // 데미지 적용(현재는 로그/샘플 처리: 실제 데미지 모델은 프로젝트에 맞게 연동)
-            // TODO: 정리 필요
             var castCharacterBase = ctx.caster.GetComponent<CharacterBase>();
             long totalDamage = 10;
             for (int i = 0; i < hits.Count; i++)
@@ -302,10 +301,7 @@ private void HandleDamage(
                 var go = hits[i];
                 if (go == null) continue;
                 
-                // if (castCharacterBase.IsPlayer() && go.CompareTag(ConfigTags.GetValue(ConfigTags.Keys.Player))) continue;
-                // if (castCharacterBase.IsMonster() && go.CompareTag(ConfigTags.GetValue(ConfigTags.Keys.Monster))) continue;
-                //
-                CharacterHitArea characterHitArea = go.GetComponent<CharacterHitArea>();
+                CharacterHitArea characterHitArea = go.GetComponentInChildren<CharacterHitArea>();
                 if (characterHitArea == null) continue;
                 
                 // GcLogger.Log("Player attacked the monster after animation!");
@@ -320,7 +316,7 @@ private void HandleDamage(
                 };
 
                 // 몬스터와 마주보고 있으면 공격 
-                if (castCharacterBase.AreFacingEachOther(target.transform))
+                if (castCharacterBase.AreFacingEachOther(target))
                 {
                     target.TakeDamage(metadataDamage);
                 }
