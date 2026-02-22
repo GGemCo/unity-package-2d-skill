@@ -118,9 +118,35 @@ namespace GGemCo2DSkill
                 if (Mathf.Approximately(sign, 0f)) sign = 1f;
                 dir2 = new Vector2(sign, 0f);
             }
+            // 뒤로 이동(백스텝/뒤점프 회피)
+            if (def.invertForward)
+            {
+                dir2 = -dir2;
+            }
 
-            var req = new LungeRequest(dir2, duration, def.distance, def.easing, def.stopAtEnd, def.useMovePosition);
-            motion.TryStartLunge(in req);
+            // 2D 횡스크롤 기준으로 수평 이동을 기본으로 합니다.
+            if (Mathf.Abs(dir2.x) < 1e-4f)
+            {
+                dir2 = new Vector2(Mathf.Sign(ctx.caster.transform.localScale.x), 0f);
+            }
+            dir2 = new Vector2(Mathf.Sign(dir2.x), 0f);
+
+            var kind = def.useArcMotion && def.arcHeight > 0f ? MotionKind.Arc : MotionKind.Linear;
+
+            var req = new MotionRequest(
+                MotionChannel.Skill,
+                kind,
+                dir2,
+                duration,
+                def.distance,
+                def.easing,
+                arcHeight: def.useArcMotion ? def.arcHeight : 0f,
+                holdSecondsAfter: 0f,
+                stopAtEnd: def.stopAtEnd,
+                useMovePosition: def.useMovePosition,
+                allowReplace: def.allowReplace);
+
+            motion.TryStartMotion(in req);
         }
 
         

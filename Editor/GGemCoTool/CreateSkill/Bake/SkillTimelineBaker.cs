@@ -240,9 +240,17 @@ namespace GGemCo2DSkillEditor
                         def.distance = Mathf.Max(0f, lunge.Distance);
                         def.durationOverrideSeconds = lunge.DurationOverrideSeconds;
                         def.easing = lunge.Easing;
+
+                        def.invertForward = lunge.InvertForward;
+
+                        def.useArcMotion = lunge.UseArcMotion;
+                        def.arcHeight = Mathf.Max(0f, lunge.ArcHeight);
+
                         def.stopAtEnd = lunge.StopAtEnd;
                         def.useMovePosition = lunge.UseMovePosition;
                         def.useSnapshotForward = lunge.UseSnapshotForward;
+
+                        def.allowReplace = lunge.AllowReplace;
                         return def;
                     };
 

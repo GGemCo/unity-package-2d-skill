@@ -55,7 +55,7 @@ namespace GGemCo2DSkillEditor
 
             // 진행 중인 모션 이동이 있다면 중단(전진/대시/러시 등)
             var motion = target.GetComponentInParent<ICharacterMotionController>();
-            motion?.CancelLunge(reason: 999); // 테스트 리셋
+            motion?.CancelMotion(MotionChannel.Skill, 999); // 테스트 리셋
 
             // 물리 중단 후 좌표 복원
             var rb2d = target.GetComponent<Rigidbody2D>();

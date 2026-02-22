@@ -295,7 +295,7 @@ namespace GGemCo2DSkill
             _animController?.StopSkillAnimation();
 
             // 모션 이동(러시/대시 등) 중단
-            _motionController?.CancelLunge((int)reason);
+            _motionController?.CancelMotion(MotionChannel.Skill, 999);
 
             // 상태 해제(UseSkill/CastingSkill 등)
             EndRun();

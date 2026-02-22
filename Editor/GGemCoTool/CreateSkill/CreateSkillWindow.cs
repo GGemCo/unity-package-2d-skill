@@ -886,9 +886,17 @@ namespace GGemCo2DSkillEditor
                     def.distance = Mathf.Max(0f, c.Distance);
                     def.durationOverrideSeconds = c.DurationOverrideSeconds;
                     def.easing = c.Easing;
+
+                    def.invertForward = c.InvertForward;
+
+                    def.useArcMotion = c.UseArcMotion;
+                    def.arcHeight = Mathf.Max(0f, c.ArcHeight);
+
                     def.stopAtEnd = c.StopAtEnd;
                     def.useMovePosition = c.UseMovePosition;
                     def.useSnapshotForward = c.UseSnapshotForward;
+
+                    def.allowReplace = c.AllowReplace;
                     return def;
                 }
                 case ConfigCommonSkill.SkillEventType.Projectile:
