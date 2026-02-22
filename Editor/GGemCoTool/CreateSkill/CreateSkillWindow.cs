@@ -292,6 +292,7 @@ namespace GGemCo2DSkillEditor
             }
 
             UpdateSelectedSkillLabel();
+            RefreshMonsterDropdown();
         }
 
         private void OpenSkillSearchDropdown()
