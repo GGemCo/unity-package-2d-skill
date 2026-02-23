@@ -83,8 +83,6 @@ namespace GGemCo2DSkillEditor
         private HelpBox _playModeHelp;
 
         private ObjectField _timelineField;
-        private Button _resolveTimelineByKey;
-        private Button _registerTimelineKey;
 
         private Button _bakeButton;
 
@@ -185,13 +183,6 @@ namespace GGemCo2DSkillEditor
             editButtons.Add(_btnApplyTest);
             editButtons.Add(_btnSaveTable);
             _editRoot.Add(editButtons);
-
-            var row = new VisualElement { style = { flexDirection = FlexDirection.Row } };
-            _resolveTimelineByKey = new Button(ResolveTimelineByKey) { text = "Resolve Timeline by Key", style = { marginRight = 6 } };
-            _registerTimelineKey = new Button(RegisterTimelineKey) { text = "Register Timeline(Key)", style = { marginRight = 6 } };
-            row.Add(_resolveTimelineByKey);
-            row.Add(_registerTimelineKey);
-            _editRoot.Add(row);
 
             _bakeButton = new Button(BakeRuntimeSequence) { text = "Bake RuntimeSequence + Register Addressables" };
             _editRoot.Add(_bakeButton);
@@ -479,8 +470,6 @@ namespace GGemCo2DSkillEditor
         private void SetEditUIEnabled(bool enabled)
         {
             _timelineField.SetEnabled(enabled);
-            _resolveTimelineByKey.SetEnabled(enabled);
-            _registerTimelineKey.SetEnabled(enabled);
             _bakeButton.SetEnabled(enabled);
 
             _fName.SetEnabled(enabled);
@@ -1148,67 +1137,6 @@ namespace GGemCo2DSkillEditor
             info.CastEndClip = row.CastEndClip;
             info.UseClip = row.UseClip;
         }
-
-        private void ResolveTimelineByKey()
-        {
-            if (_selectedSkill == null) return;
-            // todo. 정리 필요
-            var timelineKey = $"GGemCo_Skill_Timeline_{_selectedSkill.Uid}";
-            if (string.IsNullOrEmpty(timelineKey))
-            {
-                Debug.LogWarning("[SkillAuthoringV2] TimelineKey가 비어 있습니다.");
-                return;
-            }
-
-            var settings = AddressableAssetSettingsDefaultObject.Settings;
-            if (settings == null)
-            {
-                Debug.LogWarning("[SkillAuthoringV2] AddressableAssetSettings가 없습니다.");
-                return;
-            }
-
-            // address로 찾기
-            var entry = settings.groups
-                .SelectMany(g => g.entries)
-                .FirstOrDefault(e => string.Equals(e.address, timelineKey, StringComparison.Ordinal));
-            if (entry == null)
-            {
-                Debug.LogWarning($"[SkillAuthoringV2] Addressables에서 TimelineKey를 찾을 수 없습니다. key={timelineKey}");
-                return;
-            }
-
-            var asset = AssetDatabase.LoadAssetAtPath<TimelineAsset>(entry.AssetPath);
-            _timelineField.value = asset;
-        }
-
-        // todo. 정리 필요
-        private void RegisterTimelineKey()
-        {
-            if (_selectedSkill == null) return;
-            var timelineKey = $"GGemCo_Skill_Timeline_{_selectedSkill.Uid}";
-            if (string.IsNullOrEmpty(timelineKey))
-            {
-                Debug.LogWarning("[SkillAuthoringV2] TimelineKey가 비어 있습니다.");
-                return;
-            }
-
-            var timeline = _timelineField.value as TimelineAsset;
-            if (timeline == null)
-            {
-                Debug.LogWarning("[SkillAuthoringV2] TimelineAsset을 지정하세요.");
-                return;
-            }
-
-            // EnsureAddressableEntry(
-            //     assetPath: AssetDatabase.GetAssetPath(timeline),
-            //     addressKey: _selectedSkill.TimelineKey,
-            //     groupName: ConfigAddressableGroupNameSkill.SkillTimeline,
-            //     label: ConfigAddressableLabelSkill.SkillTimeline
-            // );
-
-            Debug.Log($"[SkillAuthoringV2] Timeline 등록 완료: {timelineKey}");
-        }
-
         private void BakeRuntimeSequence()
         {
             if (_selectedSkill == null) return;
