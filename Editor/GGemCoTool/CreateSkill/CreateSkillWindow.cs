@@ -2,6 +2,7 @@ using System;
 using System.IO;
 using System.Linq;
 using Config;
+using GGemCo2DCore;
 using GGemCo2DSkill;
 using GGemCo2DCoreEditor;
 using UnityEditor;
@@ -11,6 +12,7 @@ using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.Timeline;
 using UnityEngine.UIElements;
+using TableLoaderManager = GGemCo2DCore.TableLoaderManager;
 
 namespace GGemCo2DSkillEditor
 {
@@ -679,9 +681,12 @@ namespace GGemCo2DSkillEditor
                 return;
             }
 
+            StruckTableMonster struckTableMonster = TableLoaderManager.Instance.GetMonsterData(uid);
+            StruckTableAnimation struckTableAnimation = TableLoaderManager.Instance.GetAnimationData(struckTableMonster.AnimationUid);
+
             try
             {
-                await hub.SpawnMonster(uid);
+                await hub.SpawnMonster(uid, struckTableMonster, struckTableAnimation);
                 hub.AutoResetSelectedMonsterAfterSkill = _toggleAutoResetMonster != null && _toggleAutoResetMonster.value;
                 ShowNotification(new GUIContent($"몬스터 소환: {uid}"));
             }

@@ -34,6 +34,7 @@ namespace GGemCo2DSkillEditor
 
         // 스폰 시점(또는 수동 캡처 시점)의 위치/물리 스냅샷(원복용)
         private readonly Dictionary<int, SkillTestTargetSnapshot> _snapshots = new();
+        private readonly Vector2 _monsterSpawnPosition = new Vector2(150, 0);
 
         [Header("Reset")]
         [Tooltip("스킬 실행이 종료되면, 선택 몬스터를 스폰 당시 위치로 자동 복원합니다.")]
@@ -128,8 +129,22 @@ namespace GGemCo2DSkillEditor
             if (dir.sqrMagnitude < 1e-6f) return;
             forward = dir.normalized;
         }
+        private Task WaitNextFrameAsync()
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            StartCoroutine(CoWait());
+            return tcs.Task;
 
-        public async Task<GameObject> SpawnMonster(int monsterUid)
+            System.Collections.IEnumerator CoWait()
+            {
+                yield return null; // 다음 프레임
+                tcs.TrySetResult(true);
+            }
+        }
+
+        public async Task<GameObject> SpawnMonster(int monsterUid, StruckTableMonster struckTableMonster,
+            StruckTableAnimation struckTableAnimation,
+            bool captureAfterStart = true)
         {
             if (SceneGame.Instance == null || SceneGame.Instance.mapManager == null)
                 return null;
@@ -137,35 +152,54 @@ namespace GGemCo2DSkillEditor
             var pos = defaultSpawnPoint + (Vector3)(Random.insideUnitCircle * spawnRadius);
             if (defaultSpawnPoint == Vector3.zero)
             {
-                pos = SceneGame.Instance.player.transform.position + new Vector3(50, 0, 0);
+                pos = SceneGame.Instance.player.transform.position +
+                      new Vector3(_monsterSpawnPosition.x, _monsterSpawnPosition.y, 0);
             }
 
             // 1) 프리팹 로드 완료까지 대기
             //    ※ 아래 타입 인자는 실제 LoadCharacterByMonsterUid 반환/Result 타입에 맞춰 조정하세요.
             await SceneGame.Instance.AddressableLoaderPrefabCharacter.LoadCharacterByMonsterUid(monsterUid);
 
+            // 타겟(Player) 기준 forward 갱신
+            if (lockedTarget == null) TryBindPlayerAsTarget();
+            if (lockedTarget != null)
+            {
+                var d = lockedTarget.position - pos;
+                SetForward(new Vector2(d.x, d.y));
+                groundPoint = lockedTarget.position;
+            }
+
             // 2) 로드 완료 후 생성/배치/선택 로직 수행
-            var monster = SceneGame.Instance.CharacterManager.CreateMonster(monsterUid);
+            bool flip = false;
+            var dir = CharacterConstants.ToFacingDirection8(forward);
+            if ((struckTableAnimation.DefaultFacingDirection8 == CharacterConstants.FacingDirection8.Right &&
+                 dir is CharacterConstants.FacingDirection8.Left or CharacterConstants.FacingDirection8.DownLeft
+                     or CharacterConstants.FacingDirection8.UpLeft) ||
+                (struckTableAnimation.DefaultFacingDirection8 == CharacterConstants.FacingDirection8.Left &&
+                 dir is CharacterConstants.FacingDirection8.Right or CharacterConstants.FacingDirection8.DownRight
+                     or CharacterConstants.FacingDirection8.UpRight))
+            {
+                flip = true;
+            }
+
+            int mapUid = SceneGame.Instance.mapManager.GetCurrentMapUid();
+            CharacterRegenData monsterData = new CharacterRegenData(monsterUid, pos, flip, mapUid, true);
+            var monster = SceneGame.Instance.CharacterManager.CreateMonster(monsterUid, monsterData);
             if (monster == null) return null;
 
             EnsureSkillTestComponents(monster);
 
             monster.transform.position = pos;
 
+            // Start 이후 상태를 캡처하려면 한 프레임 지연
+            if (captureAfterStart)
+                await WaitNextFrameAsync();
+
             CaptureSnapshot(monster);
             BindAutoResetter(monster);
 
             _spawned.Add(monster);
             SelectedMonster = monster;
-
-            // 타겟(Player) 기준 forward 갱신
-            if (lockedTarget == null) TryBindPlayerAsTarget();
-            if (lockedTarget != null)
-            {
-                var d = lockedTarget.position - monster.transform.position;
-                SetForward(new Vector2(d.x, d.y));
-                groundPoint = lockedTarget.position;
-            }
 
             return monster;
         }
