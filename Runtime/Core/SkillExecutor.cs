@@ -27,6 +27,29 @@ namespace GGemCo2DSkill
             _hitEvaluator = new AreaHitEvaluator(hitMask);
         }
 
+
+
+        private static Vector3 ResolveForward2D(GameObject caster, Vector3 forward)
+        {
+            // 2D 기준: forward가 비어있거나(0), 기본값(Vector3.forward)처럼 Z축 위주로 들어오는 경우를 보정합니다.
+            var f2 = new Vector2(forward.x, forward.y);
+            if (f2.sqrMagnitude < 1e-6f || Mathf.Abs(forward.z) > 0.5f)
+            {
+                float sign = 1f;
+                if (caster != null)
+                {
+                    sign = Mathf.Sign(caster.transform.localScale.x);
+                    if (Mathf.Approximately(sign, 0f)) sign = 1f;
+                }
+
+                return new Vector3(sign, 0f, 0f);
+            }
+
+            // Z는 사용하지 않습니다(2D).
+            f2.Normalize();
+            return new Vector3(f2.x, f2.y, 0f);
+        }
+
         private void Update()
         {
             if (_current == null) return;
@@ -280,6 +303,9 @@ namespace GGemCo2DSkill
                 groundPoint = snapshotGroundPoint;
             }
 
+            // 캐릭터 Flip/방향을 반영한 2D forward 보정
+            var resolvedForward = ResolveForward2D(ctx.caster, ctx.forward);
+
             // 히트 평가
             if (_hitEvaluator == null) return;
             var areaSpec = def.area;
@@ -297,7 +323,7 @@ namespace GGemCo2DSkill
                     break;
                 default:
                     // Forward / Fallback
-                    var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                    var fwd = resolvedForward.sqrMagnitude < 1e-6f ? Vector3.right : resolvedForward.normalized;
                     center = casterPos + fwd * Mathf.Max(0.1f, range);
                     break;
             }
@@ -310,16 +336,17 @@ namespace GGemCo2DSkill
                 var gizmo = ctx.caster.GetComponent<GGemCo2DSkillEditor.SkillDamageAreaGizmo>();
                 if (gizmo != null)
                 {
-                    gizmo.Show(center, ctx.forward, areaSpec, range, gizmoDurationSeconds);
+                    gizmo.Show(center, resolvedForward, areaSpec, range, gizmoDurationSeconds, ctx.caster);
                 }
             }
 #endif
 
             var hits = new List<GameObject>(Mathf.Max(1, maxTargets));
-            _hitEvaluator.EvaluateTargets(center, ctx.forward, areaSpec, range, maxTargets, ctx.caster, hits);
+            _hitEvaluator.EvaluateTargets(center, resolvedForward, areaSpec, range, maxTargets, ctx.caster, hits);
 
             // 데미지 적용(현재는 로그/샘플 처리: 실제 데미지 모델은 프로젝트에 맞게 연동)
             var castCharacterBase = ctx.caster.GetComponent<CharacterBase>();
+            // todo. 데미지 계산 공식 적용 해야 함
             long totalDamage = 10;
             for (int i = 0; i < hits.Count; i++)
             {

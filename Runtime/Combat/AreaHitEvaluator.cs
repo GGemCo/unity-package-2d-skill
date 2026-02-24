@@ -33,7 +33,7 @@ namespace GGemCo2DSkill
 
             // 1) 데미지 영역 Probe Collider 갱신
             Collider2D probe = _probeCache.GetOrCreate(area.shape);
-            _probeCache.Configure(probe, area, center, forward);
+            _probeCache.Configure(probe, area, center, forward, caster);
 
             // 2) Probe Collider와 겹치는 colliderHitArea(=CapsuleCollider2D) 수집
             var filter = new ContactFilter2D
@@ -42,7 +42,10 @@ namespace GGemCo2DSkill
                 layerMask = _mask,
                 useTriggers = true
             };
-
+            
+            // Transform/Collider 변경을 물리 엔진에 반영
+            Physics2D.SyncTransforms();
+            
             int count = CompatPhysics2D.OverlapColliderNonAlloc(probe, filter, _buffer);
             for (int i = 0; i < count && results.Count < maxTargets; i++)
             {
