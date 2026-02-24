@@ -198,6 +198,7 @@ namespace GGemCo2DSkillEditor
                         def.area = new SkillAreaSpec
                         {
                             shape = dmg.AreaShape,
+                            capsuleDirection = dmg.CapsuleDirection,
                             radius = dmg.Radius,
                             length = dmg.Length,
                             width = dmg.Width,
