@@ -29,6 +29,9 @@ namespace GGemCo2DSkillEditor
             Test = 200,
             SettingTestSkill,
 
+            /// <summary>패시브 스킬 사용 툴 메뉴의 위치입니다.</summary>
+            UsePassiveSkill,
+
             /// <summary>셔플(Shuffle) 미리보기 메뉴의 위치입니다.</summary>
             PreviewShuffle,
 
@@ -93,6 +96,8 @@ namespace GGemCo2DSkillEditor
         private const string NameToolTest = NameToolGGemCoSkill + "테스트툴/";
 
         public const string NameToolSettingTestSkill = NameToolTest + "스킬 테스트 툴";
+
+        public const string NameToolUsePassiveSkill = NameToolTest + "패시브 스킬 사용하기";
 
         // etc
 
