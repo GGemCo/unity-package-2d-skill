@@ -102,20 +102,20 @@ namespace GGemCo2DSkill
             var percent = new Dictionary<string, float>(32);
             var desiredAffects = new HashSet<int>();
 
-            var tableSkill = TableLoaderManagerSkill.Instance.TableSkill;
-            var tableOption = TableLoaderManagerSkill.Instance.TableSkillOption;
+            var tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
+            var tableOption = TableLoaderManagerSkill.Instance.TableSkillPassiveOption;
 
             foreach (var kv in _equippedPassives)
             {
                 int skillUid = kv.Key;
                 int level = kv.Value;
 
-                var skillRow = tableSkill.GetDataByUid(skillUid);
+                var skillRow = tableSkillPassive.GetDataByUid(skillUid);
                 if (skillRow == null) continue;
                 if (skillRow.SkillKind != ConfigCommonSkill.SkillKind.Passive) continue;
 
                 var groupUid = skillRow.OptionGroupUid;
-                if (string.IsNullOrEmpty(groupUid))
+                if (groupUid <= 0)
                 {
                     // 데이터 누락 시 안전하게 스킵
                     continue;
@@ -151,7 +151,7 @@ namespace GGemCo2DSkill
         }
 
         private static void ApplyStatOption(Dictionary<string, int> flat, Dictionary<string, float> percent,
-            StruckTableSkillOption op)
+            StruckTableSkillPassiveOption op)
         {
             if (string.IsNullOrEmpty(op.TargetId)) return;
 
