@@ -34,6 +34,10 @@ namespace GGemCo2DCore
             _saveDataContainerSkill = null;
         }
 
+        protected override string GetSaveFilePath(int slotIndex)
+        {
+            return saveFileController.GetSaveFilePath(slotIndex, SaveDataConstantsSkill.SaveDataFileName);
+        }
         protected override void OnLoaded(string json) 
         {
             _saveDataContainerSkill = JsonConvert.DeserializeObject<SaveDataContainerSkill>(json);

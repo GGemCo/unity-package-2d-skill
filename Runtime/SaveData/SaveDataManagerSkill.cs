@@ -21,7 +21,14 @@ namespace GGemCo2DSkill
     public class SaveDataManagerSkill : SaveDataManagerBase
     {
         public SkillData Skill { get; private set; }
+        private TableLoaderManagerSkill _tableLoaderManagerSkill;
 
+        protected override void Awake()
+        {
+            base.Awake();
+            _tableLoaderManagerSkill = TableLoaderManagerSkill.Instance;
+            if (_tableLoaderManagerSkill == null) return;
+        }
         /// <summary>
         /// 슬롯 관리, 파일 관리, 썸네일 관리 매니저 초기화
         /// </summary>
@@ -33,7 +40,7 @@ namespace GGemCo2DSkill
             Skill = new SkillData();
 
             // 초기화 실행
-            Skill.Initialize(tableLoaderManager, saveDataContainer);
+            Skill.Initialize(_tableLoaderManagerSkill, saveDataContainer);
             
             // 외부 섹션 복원
             if (saveDataContainer?.Extensions != null)
@@ -54,7 +61,7 @@ namespace GGemCo2DSkill
         {
             if (!base.SaveData()) return false;
             
-            string filePath = saveFileController.GetSaveFilePath(currentSaveSlot);
+            string filePath = saveFileController.GetSaveFilePath(currentSaveSlot, SaveDataConstantsSkill.SaveDataFileName);
             string thumbnailPath = thumbnailController.GetThumbnailPath(currentSaveSlot);
 
             // 외부 기여자에게 현재 상태 캡처 요청
@@ -70,7 +77,6 @@ namespace GGemCo2DSkill
             // GcLogger.Log($"데이터가 저장되었습니다. 슬롯 {currentSaveSlot}");
             
             // 메타파일 업데이트
-            // todo. 정리 필요
             // slotMetaDatController.UpdateSlot(currentSaveSlot, thumbnailPath, true, Player.CurrentLevel, filePath);
             return true;
         }

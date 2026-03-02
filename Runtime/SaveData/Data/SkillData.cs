@@ -19,7 +19,7 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="loader"></param>
         /// <param name="saveDataContainer"></param>
-        public void Initialize(TableLoaderManager loader, SaveDataContainerSkill saveDataContainer = null)
+        public void Initialize(TableLoaderManagerSkill loader, SaveDataContainerSkill saveDataContainer = null)
         {
             SkillDatas.Clear();
             PassiveEquipDatas.Clear();
@@ -32,6 +32,10 @@ namespace GGemCo2DSkill
                         new Dictionary<int, SaveDataIcon>(saveDataContainer.SkillData.PassiveEquipDatas);
                 }
             }
+        }
+        protected override void SaveDatas()
+        {
+            SkillPackageManager.Instance.SaveDataManagerSkill.StartSaveData();
         }
 
         protected override int GetMaxSlotCount()
