@@ -26,11 +26,12 @@ namespace GGemCo2DSkill
         /// 어펙트 기본 정의 테이블.
         /// </summary>
         public TableSkill TableSkill { get; private set; } = new TableSkill();
+        public TableSkillPassive TableSkillPassive { get; private set; } = new TableSkillPassive();
 
         /// <summary>
         /// 스킬 옵션(패시브/확장 효과) 테이블.
         /// </summary>
-        public TableSkillOption TableSkillOption { get; private set; } = new TableSkillOption();
+        public TableSkillPassiveOption TableSkillPassiveOption { get; private set; } = new TableSkillPassiveOption();
 
         /// <summary>
         /// Unity Awake 생명주기 메서드.
@@ -52,7 +53,8 @@ namespace GGemCo2DSkill
                 // (Modifier → Affect 순으로 로드됨)
                 registry = new TableRegistry();
                 registry.Register(TableSkill);
-                registry.Register(TableSkillOption);
+                registry.Register(TableSkillPassive);
+                registry.Register(TableSkillPassiveOption);
 }
             else
             {

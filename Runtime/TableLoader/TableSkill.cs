@@ -18,9 +18,6 @@ namespace GGemCo2DSkill
         /// <summary>스킬 분류(Active/Passive)</summary>
         public ConfigCommonSkill.SkillKind SkillKind;
 
-        /// <summary>패시브/옵션형 스킬이 참조하는 옵션 그룹 UID</summary>
-        public string OptionGroupUid;
-
         /// <summary>캐스팅 시간(초). 0이면 즉시 사용.</summary>
         public float CastTime;
         
@@ -60,9 +57,9 @@ namespace GGemCo2DSkill
             int uid = MathHelper.ParseInt(data.GetValueOrDefault("Uid"));
             // 로컬라이즈된 이름/설명
             string name = data.GetValueOrDefault("Name");
-            if (LocalizationManager.Instance != null)
+            if (LocalizationManagerSkill.Instance != null)
             {
-                name = LocalizationManager.Instance.GetSkillNameByKey(uid.ToString());
+                name = LocalizationManagerSkill.Instance.GetSkillNameByKey(uid.ToString());
             }
             
             return new StruckTableSkill
@@ -72,8 +69,7 @@ namespace GGemCo2DSkill
                 Memo = data["Memo"],
                 IconFileName = data["IconFileName"],
                 SoFileName = data["SoFileName"],
-                SkillKind = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillKind>(data.GetValueOrDefault("SkillKind", "Active")),
-                OptionGroupUid = data.GetValueOrDefault("OptionGroupUid", string.Empty),
+                SkillKind = ConfigCommonSkill.SkillKind.Active,
                 CastTime = MathHelper.ParseFloat(data["CastTime"]),
                 CoolTime = MathHelper.ParseFloat(data["CoolTime"]),
                 TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),

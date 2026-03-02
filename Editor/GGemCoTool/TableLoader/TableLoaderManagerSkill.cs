@@ -15,10 +15,14 @@ namespace GGemCo2DSkillEditor
         {
             return TableLoaderManagerBase.LoadTable<TableSkill>(ConfigAddressableTableSkill.TableSkill.Path, forceReload);
         }
-
-        public static TableSkillOption LoadTableSkillOption(bool forceReload = false)
+        public static TableSkillPassive LoadTableSkillPassive(bool forceReload = false)
         {
-            return TableLoaderManagerBase.LoadTable<TableSkillOption>(ConfigAddressableTableSkill.TableSkillOption.Path, forceReload);
+            return TableLoaderManagerBase.LoadTable<TableSkillPassive>(ConfigAddressableTableSkill.TableSkillPassive.Path, forceReload);
+        }
+
+        public static TableSkillPassiveOption LoadTableSkillPassiveOption(bool forceReload = false)
+        {
+            return TableLoaderManagerBase.LoadTable<TableSkillPassiveOption>(ConfigAddressableTableSkill.TableSkillPassiveOption.Path, forceReload);
         }
 
         /// <summary>

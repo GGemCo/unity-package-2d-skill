@@ -23,9 +23,9 @@ namespace GGemCo2DSkillEditor
         private const string Title = "패시브 스킬 사용하기";
 
         // Tables
-        private TableSkill _tableSkill;
-        private TableSkillOption _tableSkillOption;
-        private Dictionary<int, StruckTableSkill> _skillDict;
+        private TableSkillPassive _tableSkillPassive;
+        private TableSkillPassiveOption _tableSkillPassiveOption;
+        private Dictionary<int, StruckTableSkillPassive> _skillDict;
 
         // Dropdown data
         private readonly List<string> _passiveSkillNames = new();
@@ -270,7 +270,7 @@ namespace GGemCo2DSkillEditor
                 if (_passiveSkillUids.Count == 0) return;
 
                 var skillUid = _passiveSkillUids[Mathf.Clamp(_selectedSkillIndex, 0, _passiveSkillUids.Count - 1)];
-                var skillRow = _tableSkill?.GetDataByUid(skillUid);
+                var skillRow = _tableSkillPassive?.GetDataByUid(skillUid);
                 if (skillRow == null)
                 {
                     EditorGUILayout.HelpBox("선택한 스킬 Row를 찾지 못했습니다.", MessageType.Warning);
@@ -289,7 +289,7 @@ namespace GGemCo2DSkillEditor
                     return;
                 }
 
-                var options = _tableSkillOption?.GetOptions(skillRow.OptionGroupUid, Mathf.Max(1, _equipLevel));
+                var options = _tableSkillPassiveOption?.GetOptions(skillRow.OptionGroupUid, Mathf.Max(1, _equipLevel));
                 if (options == null || options.Count == 0)
                 {
                     EditorGUILayout.HelpBox("해당 레벨의 옵션이 없습니다. (Level=0 옵션만 있거나 데이터 누락)", MessageType.Info);
@@ -371,10 +371,10 @@ namespace GGemCo2DSkillEditor
         {
             try
             {
-                _tableSkill = TableLoaderManagerSkill.LoadTableSkill(forceReload: true);
-                _tableSkillOption = TableLoaderManagerSkill.LoadTableSkillOption(forceReload: true);
+                _tableSkillPassive = TableLoaderManagerSkill.LoadTableSkillPassive(forceReload: true);
+                _tableSkillPassiveOption = TableLoaderManagerSkill.LoadTableSkillPassiveOption(forceReload: true);
 
-                _skillDict = _tableSkill?.GetDatas();
+                _skillDict = _tableSkillPassive?.GetDatas();
                 RebuildPassiveSkillDropdown();
 
                 // Core 테이블(옵션 미리보기 검증에 사용 가능)
@@ -538,11 +538,11 @@ namespace GGemCo2DSkillEditor
 
         private string ResolveSkillName(int skillUid)
         {
-            var row = _tableSkill?.GetDataByUid(skillUid);
+            var row = _tableSkillPassive?.GetDataByUid(skillUid);
             return row?.Name ?? "(Unknown)";
         }
 
-        private static void AccumulateStat(Dictionary<string, int> flat, Dictionary<string, float> percent, StruckTableSkillOption op)
+        private static void AccumulateStat(Dictionary<string, int> flat, Dictionary<string, float> percent, StruckTableSkillPassiveOption op)
         {
             if (string.IsNullOrEmpty(op.TargetId)) return;
 
