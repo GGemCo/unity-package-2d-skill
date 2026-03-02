@@ -43,6 +43,13 @@ namespace GGemCo2DSkill
             // 스킬 컴포넌트 추가하기
             var skillExecutor = ch.gameObject.GetComponent<SkillExecutor>();
             if (skillExecutor == null) ch.gameObject.AddComponent<SkillExecutor>();
+
+            // 패시브 스킬 컨트롤러(플레이어만)
+            if (ch.IsPlayer())
+            {
+                var passive = ch.gameObject.GetComponent<CharacterPassiveSkillController>();
+                if (passive == null) ch.gameObject.AddComponent<CharacterPassiveSkillController>();
+            }
             
             var monsterSkillDriverAdapter = ch.gameObject.GetComponent<MonsterSkillDriverAdapter>();
             if (monsterSkillDriverAdapter == null)

@@ -17,6 +17,18 @@
             Projectile = 7,
             }
 
+
+        /// <summary>
+        /// 스킬 분류.
+        /// - Active: 사용(캐스팅/쿨타임/타겟팅) 기반 스킬
+        /// - Passive: 장착/획득 시 상시 적용되는 스킬
+        /// </summary>
+        public enum SkillKind
+        {
+            Active = 0,
+            Passive = 1,
+        }
+
         public enum SkillTargetingMode
         {
             LockOnGuaranteedHit = 0, // 타겟 고정 + 무조건 피격 정책

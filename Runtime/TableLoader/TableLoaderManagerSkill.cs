@@ -28,6 +28,11 @@ namespace GGemCo2DSkill
         public TableSkill TableSkill { get; private set; } = new TableSkill();
 
         /// <summary>
+        /// 스킬 옵션(패시브/확장 효과) 테이블.
+        /// </summary>
+        public TableSkillOption TableSkillOption { get; private set; } = new TableSkillOption();
+
+        /// <summary>
         /// Unity Awake 생명주기 메서드.
         /// </summary>
         /// <remarks>
@@ -47,7 +52,8 @@ namespace GGemCo2DSkill
                 // (Modifier → Affect 순으로 로드됨)
                 registry = new TableRegistry();
                 registry.Register(TableSkill);
-            }
+                registry.Register(TableSkillOption);
+}
             else
             {
                 // 이미 Singleton 인스턴스가 존재하는 경우 중복 생성을 방지한다.
