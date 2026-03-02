@@ -76,6 +76,7 @@ namespace GGemCo2DSkill
         }
 
         public string GetSkillNameByKey(string key) => GetString(LocalizationConstantsSkill.Tables.SkillName, key);
+        public string GetPassiveSkillNameByKey(string key) => GetString(LocalizationConstantsSkill.Tables.SkillPassiveName, key);
 
         public string GetSkillDescriptionByKey(string key) =>
             GetString(LocalizationConstantsSkill.Tables.SkillDescription, key);
@@ -87,5 +88,17 @@ namespace GGemCo2DSkill
         {
             return HasLocalizationKey(LocalizationConstantsSkill.Tables.SkillDescription, key);
         }
+
+        public string GetUIWindowSkillInfoByKey(string key) => GetString(LocalizationConstantsSkill.Tables.UIWindowSkillInfo, key);
+        public string GetUIWindowSkillByKey(string key) => GetString(LocalizationConstantsSkill.Tables.UIWindowSkill, key);
+        
+        // ----------------------------
+        // Smart String helpers
+        // ----------------------------
+        public string GetUIWindowSkillInfoSmart(string key, params object[] args) =>
+            GetSmartString(LocalizationConstantsSkill.Tables.UIWindowSkillInfo, key, args);
+
+        public string GetSmartUIWindowSkillInfoByKey(string key, params object[] arguments) =>
+            GetSmartString(LocalizationConstantsSkill.Tables.UIWindowSkillInfo, key, arguments);
     }
 }
