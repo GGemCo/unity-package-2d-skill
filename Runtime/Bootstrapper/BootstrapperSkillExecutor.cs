@@ -47,8 +47,8 @@ namespace GGemCo2DSkill
             // 패시브 스킬 컨트롤러(플레이어만)
             if (ch.IsPlayer())
             {
-                var passive = ch.gameObject.GetComponent<CharacterPassiveSkillController>();
-                if (passive == null) ch.gameObject.AddComponent<CharacterPassiveSkillController>();
+                var passive = ch.gameObject.GetComponent<PlayerPassiveSkillController>();
+                if (passive == null) ch.gameObject.AddComponent<PlayerPassiveSkillController>();
             }
             
             var monsterSkillDriverAdapter = ch.gameObject.GetComponent<MonsterSkillDriverAdapter>();

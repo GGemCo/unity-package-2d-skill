@@ -11,7 +11,7 @@ namespace GGemCo2DSkill
     /// - UI/세이브 시스템은 프로젝트 정책에 따라 외부에서 장착 목록을 전달한다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class CharacterPassiveSkillController : MonoBehaviour
+    public class CharacterPassiveSkillController : MonoBehaviour
     {
         private CharacterBase _character;
         private readonly HashSet<int> _appliedAffects = new();
@@ -33,30 +33,17 @@ namespace GGemCo2DSkill
             }
         }
 
+        protected virtual void Start()
+        {
+        }
+
         /// <summary>
         /// 세이브 데이터에 저장된 패시브 장착 정보를 다시 읽어서 적용합니다.
         /// - 내부적으로 <see cref="SkillPackageManager"/>의 <see cref="SaveDataManagerSkill"/>을 참조합니다.
         /// </summary>
-        public void RefreshFromSaveData()
+        public virtual void RefreshFromSaveData()
         {
-            var mgr = SkillPackageManager.Instance?.SaveDataManagerSkill;
-            RefreshFromSaveData(mgr?.Skill);
         }
-
-        /// <summary>
-        /// 전달된 <see cref="SkillData"/>의 패시브 장착 정보를 적용합니다.
-        /// </summary>
-        public void RefreshFromSaveData(SkillData skillData)
-        {
-            if (skillData == null)
-            {
-                Clear();
-                return;
-            }
-
-            ApplyEquippedPassives(skillData.BuildEquippedPassiveSkillLevels());
-        }
-
 
         /// <summary>
         /// 장착된 패시브 목록을 교체하고 즉시 적용한다.
