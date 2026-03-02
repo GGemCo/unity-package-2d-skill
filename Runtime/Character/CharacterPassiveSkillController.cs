@@ -21,6 +21,7 @@ namespace GGemCo2DSkill
         /// - 외부 시스템(UI/세이브)이 관리하며, 변경 시 <see cref="ApplyEquippedPassives"/>를 호출한다.
         /// </summary>
         public IReadOnlyDictionary<int, int> EquippedPassives => _equippedPassives;
+
         private readonly Dictionary<int, int> _equippedPassives = new();
 
         private void Awake()
@@ -31,6 +32,31 @@ namespace GGemCo2DSkill
                 Debug.LogError($"{nameof(CharacterPassiveSkillController)} requires {nameof(CharacterBase)}.");
             }
         }
+
+        /// <summary>
+        /// 세이브 데이터에 저장된 패시브 장착 정보를 다시 읽어서 적용합니다.
+        /// - 내부적으로 <see cref="SkillPackageManager"/>의 <see cref="SaveDataManagerSkill"/>을 참조합니다.
+        /// </summary>
+        public void RefreshFromSaveData()
+        {
+            var mgr = SkillPackageManager.Instance?.SaveDataManagerSkill;
+            RefreshFromSaveData(mgr?.Skill);
+        }
+
+        /// <summary>
+        /// 전달된 <see cref="SkillData"/>의 패시브 장착 정보를 적용합니다.
+        /// </summary>
+        public void RefreshFromSaveData(SkillData skillData)
+        {
+            if (skillData == null)
+            {
+                Clear();
+                return;
+            }
+
+            ApplyEquippedPassives(skillData.BuildEquippedPassiveSkillLevels());
+        }
+
 
         /// <summary>
         /// 장착된 패시브 목록을 교체하고 즉시 적용한다.
@@ -124,7 +150,8 @@ namespace GGemCo2DSkill
             _character.RecalculateStats();
         }
 
-        private static void ApplyStatOption(Dictionary<string, int> flat, Dictionary<string, float> percent, StruckTableSkillOption op)
+        private static void ApplyStatOption(Dictionary<string, int> flat, Dictionary<string, float> percent,
+            StruckTableSkillOption op)
         {
             if (string.IsNullOrEmpty(op.TargetId)) return;
 
