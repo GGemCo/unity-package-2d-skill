@@ -326,9 +326,6 @@ namespace GGemCo2DSkillEditor
                     _selectedSkill = opt.Data;
                     RefreshSelected();
                 },
-                maxVisibleItems: 12,
-                rowHeight: 20f,
-                popupWidth: 420f,
                 defaultSearchMode: SearchableDropdownUtility.SearchMode.Both);
         }
 
