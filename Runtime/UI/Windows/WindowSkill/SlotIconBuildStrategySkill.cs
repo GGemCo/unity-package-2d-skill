@@ -1,4 +1,6 @@
-﻿using GGemCo2DCore;
+﻿using System.Collections.Generic;
+using Config;
+using GGemCo2DCore;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -9,6 +11,16 @@ namespace GGemCo2DSkill
     /// </summary>
     public class SlotIconBuildStrategySkill : ISlotIconBuildStrategy
     {
+        private readonly TableSkill _tableSkill;
+        private readonly Dictionary<int, UIElementSkill> _uiElementSkills;
+        private readonly ConfigCommonSkill.Category _category;
+        
+        public SlotIconBuildStrategySkill(TableSkill tableSkill, Dictionary<int, UIElementSkill> uiElementSkills, ConfigCommonSkill.Category category)
+        {
+            _tableSkill = tableSkill;
+            _uiElementSkills = uiElementSkills;
+            _category = category;
+        }
         public void BuildSlotsAndIcons(UIWindow window, GridLayoutGroup container, int maxCount,
             IconConstants.Type iconType, Vector2 slotSize, Vector2 iconSize, GameObject[] slots, GameObject[] icons)
         {
@@ -21,7 +33,7 @@ namespace GGemCo2DSkill
                 GcLogger.LogError("UIElementSkill 프리팹이 없습니다.");
                 return;
             }
-            var datas = uiWindowSkill.TableSkill.GetDatas();
+            var datas = _tableSkill.GetSkillsByCategory(_category);
             uiWindowSkill.maxCountIcon = datas.Count;
             if (datas.Count <= 0) return;
             
@@ -45,7 +57,7 @@ namespace GGemCo2DSkill
                     UIElementSkill uiElementSkill = parent.GetComponent<UIElementSkill>();
                     if (uiElementSkill == null) continue;
                     uiElementSkill.Initialize(uiWindowSkill, index, info);
-                    uiWindowSkill.UIElementSkills.TryAdd(index, uiElementSkill);
+                    _uiElementSkills.TryAdd(index, uiElementSkill);
                 }
 
                 GameObject slotObject = Object.Instantiate(slot, parent.transform);

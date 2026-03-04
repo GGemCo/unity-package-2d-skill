@@ -48,20 +48,12 @@
             Line = 4,
         }
 
-        // legacy
-        public enum Target
+        public enum Category
         {
             None,
             Player, // 플레이어 자신
             Monster, //몬스터
         }
 
-        // legacy
-        public enum TargetType
-        {
-            None,
-            Fixed, // 고정 타겟
-            Range, // 범위
-        }
     }
 }

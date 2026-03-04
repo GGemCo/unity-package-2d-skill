@@ -11,6 +11,7 @@ namespace GGemCo2DSkill
     {
         public int Uid { get; set; }
         public string Name { get; set; }
+        public ConfigCommonSkill.Category Category ;
         public string Memo;
         public string IconFileName;
         public string SoFileName;
@@ -66,6 +67,7 @@ namespace GGemCo2DSkill
             {
                 Uid = uid,
                 Name = name,
+                Category = EnumHelper.ConvertEnum<ConfigCommonSkill.Category>(data["Category"]),
                 Memo = data["Memo"],
                 IconFileName = data["IconFileName"],
                 SoFileName = data["SoFileName"],
@@ -80,6 +82,20 @@ namespace GGemCo2DSkill
                 CastEndClip = data["CastEndClip"],
                 UseClip = data["UseClip"],
             };
+        }
+
+        public Dictionary<int, StruckTableSkill> GetSkillsByCategory(ConfigCommonSkill.Category category)
+        {
+            var datas = GetDatas();
+            var result = new Dictionary<int, StruckTableSkill>();
+            foreach (var kv in datas)
+            {
+                if (kv.Value.Category == category)
+                {
+                    result.Add(kv.Key, kv.Value);
+                }
+            }
+            return result;
         }
     }
 }
