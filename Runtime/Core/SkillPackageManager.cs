@@ -34,6 +34,9 @@ namespace GGemCo2DSkill
             GameObject managerContainer = GameObject.Find("Managers");
             if (GcLogger.IsNullGameObject(managerContainer, nameof(managerContainer))) return;
             SaveDataManagerSkill = SceneGame.Instance.CreateManager<SaveDataManagerSkill>(managerContainer);
+
+            // QuickSlot(코어) 확장 포인트 등록
+            QuickSlotContentProviderRegistry.Register(new QuickSlotSkillContentProvider());
         }
 
         private void Start()
