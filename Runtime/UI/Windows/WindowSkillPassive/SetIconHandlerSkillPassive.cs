@@ -12,8 +12,15 @@ namespace GGemCo2DSkill
             var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
             if (skillData == null) return;
 
+            // UI 장착 시에만 "임시 HP Current도 채움" 정책을 적용합니다.
+            // (기본 런타임 정책은 임시 최대 HP 변경 시 Current를 자동 충전하지 않습니다.)
+            var player = SceneGame.Instance.player.GetComponent<Player>();
+            var before = PassiveTempHpFillUtility.Capture(player);
+
             skillData.SetPassiveEquip(slotIndex, iconUid, iconCount, iconLevel, isLearned);
             RefreshPlayerPassiveController();
+
+            PassiveTempHpFillUtility.FillCurrentIfTempMaxIncreased(player, before);
         }
 
         public void OnDetachIcon(UIWindow window, int slotIndex)

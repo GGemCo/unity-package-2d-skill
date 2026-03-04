@@ -113,7 +113,7 @@ namespace GGemCo2DSkill
         }
 
 
-        #region Passive Equip
+        #region Passive
 
         public void SetPassiveEquip(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
         {
@@ -165,6 +165,11 @@ namespace GGemCo2DSkill
             return result;
         }
 
+        public void RemovePassiveEquipAll()
+        {
+            PassiveEquipDatas.Clear();
+            SaveDatas();
+        }
         #endregion
 
     }

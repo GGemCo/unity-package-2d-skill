@@ -207,8 +207,8 @@ namespace GGemCo2DSkillEditor
                     if (GUILayout.Button("장착(추가/갱신)", GUILayout.Height(24)))
                         EquipSelected();
 
-                    if (GUILayout.Button("해제", GUILayout.Height(24)))
-                        UnequipSelected();
+                    // if (GUILayout.Button("해제", GUILayout.Height(24)))
+                    //     UnequipSelected();
                 }
             }
         }
@@ -239,6 +239,7 @@ namespace GGemCo2DSkillEditor
                 }
 
                 _equippedScroll = EditorGUILayout.BeginScrollView(_equippedScroll, GUILayout.MinHeight(90));
+                int slotIndex = 0;
                 foreach (var kv in equipped)
                 {
                     var skillName = ResolveSkillName(kv.Key);
@@ -251,11 +252,13 @@ namespace GGemCo2DSkillEditor
                         {
                             if (GUILayout.Button("해제", GUILayout.Width(50)))
                             {
-                                RemoveEquipped(kv.Key);
+                                RemoveEquipped(kv.Key, slotIndex);
                                 break; // collection changed
                             }
                         }
                     }
+
+                    ++slotIndex;
                 }
                 EditorGUILayout.EndScrollView();
             }
@@ -497,6 +500,9 @@ namespace GGemCo2DSkillEditor
             if (_passiveSkillUids.Count == 0) return;
             var uid = _passiveSkillUids[Mathf.Clamp(_selectedSkillIndex, 0, _passiveSkillUids.Count - 1)];
 
+            // 테스트 툴에서도 "장착 후 임시 HP Current 채움" 정책을 적용합니다.
+            var before = PassiveTempHpFillUtility.Capture(_targetCharacter);
+
             var dict = new Dictionary<int, int>(_targetPassiveController.EquippedPassives.Count + 1);
             foreach (var kv in _targetPassiveController.EquippedPassives)
                 dict[kv.Key] = kv.Value;
@@ -504,18 +510,32 @@ namespace GGemCo2DSkillEditor
             dict[uid] = Mathf.Max(1, _equipLevel);
 
             _targetPassiveController.ApplyEquippedPassives(dict);
+
+            PassiveTempHpFillUtility.FillCurrentIfTempMaxIncreased(_targetCharacter, before);
+            
+            // UI 장착 시에만 "임시 HP Current도 채움" 정책을 적용합니다.
+            // (기본 런타임 정책은 임시 최대 HP 변경 시 Current를 자동 충전하지 않습니다.)
+            var player = _targetCharacter.GetComponent<Player>();
+            if (player)
+            {
+                var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
+                if (skillData != null)
+                {
+                    skillData.SetPassiveEquip(slotIndex:dict.Count-1, skillUid:uid, skillCount:1, skillLevel:1, skillLearn:true);    
+                }
+            }
         }
 
-        private void UnequipSelected()
-        {
-            if (_targetPassiveController == null) return;
-            if (_passiveSkillUids.Count == 0) return;
+        // private void UnequipSelected()
+        // {
+        //     if (_targetPassiveController == null) return;
+        //     if (_passiveSkillUids.Count == 0) return;
+        //
+        //     var uid = _passiveSkillUids[Mathf.Clamp(_selectedSkillIndex, 0, _passiveSkillUids.Count - 1)];
+        //     RemoveEquipped(uid);
+        // }
 
-            var uid = _passiveSkillUids[Mathf.Clamp(_selectedSkillIndex, 0, _passiveSkillUids.Count - 1)];
-            RemoveEquipped(uid);
-        }
-
-        private void RemoveEquipped(int uid)
+        private void RemoveEquipped(int uid, int slotIndex = 0)
         {
             if (_targetPassiveController == null) return;
 
@@ -527,6 +547,18 @@ namespace GGemCo2DSkillEditor
             }
 
             _targetPassiveController.ApplyEquippedPassives(dict);
+            
+            // UI 장착 시에만 "임시 HP Current도 채움" 정책을 적용합니다.
+            // (기본 런타임 정책은 임시 최대 HP 변경 시 Current를 자동 충전하지 않습니다.)
+            var player = _targetCharacter.GetComponent<Player>();
+            if (player)
+            {
+                var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
+                if (skillData != null)
+                {
+                    skillData.RemovePassiveEquip(slotIndex:slotIndex);
+                }
+            }
         }
 
         private void ClearAll()
@@ -534,6 +566,16 @@ namespace GGemCo2DSkillEditor
             EnsureTargetReady();
             if (_targetPassiveController == null) return;
             _targetPassiveController.Clear();
+            
+            var player = _targetCharacter.GetComponent<Player>();
+            if (player)
+            {
+                var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
+                if (skillData != null)
+                {
+                    skillData.RemovePassiveEquipAll();
+                }
+            }
         }
 
         private string ResolveSkillName(int skillUid)
