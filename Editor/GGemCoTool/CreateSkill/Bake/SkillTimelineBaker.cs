@@ -16,6 +16,30 @@ namespace GGemCo2DSkillEditor
     /// </summary>
     public static class SkillTimelineBaker
     {
+        private static readonly System.Reflection.FieldInfo ApplyStatusApplyToField =
+            typeof(ApplyStatusEventDefinition).GetField("applyTo");
+
+        private static void TrySetApplyStatusApplyTo(ApplyStatusEventDefinition def, int applyToRaw)
+        {
+            // Runtime 쪽 ApplyStatusEventDefinition 이 확장되었을 때만 적용한다.
+            // (구버전 런타임과의 컴파일/런타임 호환을 위해 Reflection 사용)
+            if (ApplyStatusApplyToField == null) return;
+
+            var fieldType = ApplyStatusApplyToField.FieldType;
+            if (!fieldType.IsEnum) return;
+
+            try
+            {
+                var value = Enum.ToObject(fieldType, applyToRaw);
+                ApplyStatusApplyToField.SetValue(def, value);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+
         /// <summary>
         /// Timeline을 메모리 상의 런타임 데이터로 변환한다.
         /// </summary>
@@ -229,7 +253,8 @@ namespace GGemCo2DSkillEditor
                     {
                         var def = ScriptableObject.CreateInstance<ApplyStatusEventDefinition>();
                         def.statusId = new StatusEffectId { id = aff.AffectUid.ToString() };
-                        def.durationOverrideSeconds = aff.Duration;
+                        def.durationOverrideSeconds = aff.AffectDuration;
+                        TrySetApplyStatusApplyTo(def, (int)aff.ApplyTo);
                         return def;
                     };
 

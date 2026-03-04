@@ -24,13 +24,35 @@ namespace GGemCo2DSkillEditor
     /// </summary>
     public sealed class CreateSkillWindow : EditorWindow
     {
+        private static readonly System.Reflection.FieldInfo ApplyStatusApplyToField =
+            typeof(ApplyStatusEventDefinition).GetField("applyTo");
+
+        private static void TrySetApplyStatusApplyTo(ApplyStatusEventDefinition def, int applyToRaw)
+        {
+            if (ApplyStatusApplyToField == null) return;
+
+            var fieldType = ApplyStatusApplyToField.FieldType;
+            if (!fieldType.IsEnum) return;
+
+            try
+            {
+                var value = System.Enum.ToObject(fieldType, applyToRaw);
+                ApplyStatusApplyToField.SetValue(def, value);
+            }
+            catch
+            {
+                // ignore
+            }
+        }
+
+
         private const string Title = "Skill Authoring V2";
 
         // Skill.txt canonical column order (TableSkill 기준)
         private static readonly string[] SkillTableHeaders =
         {
-            "Uid","Name","Memo","IconFileName","CastTime","CoolTime","TargetingMode","Range","MaxTargets",
-            "CastStartClip","CastLoopClip","CastEndClip","UseClip"
+            "Uid","Category","Memo","UseClip","IconFileName","SoFileName","CastTime","CoolTime","TargetingMode","Range","MaxTargets",
+            "CastStartClip","CastLoopClip","CastEndClip"
         };
 
         [MenuItem(ConfigEditorSkill.NameToolSettingTestSkill, false, (int)ConfigEditorSkill.ToolOrdering.SettingTestSkill)]
@@ -51,6 +73,7 @@ namespace GGemCo2DSkillEditor
 
         private IntegerField _fUid;
         private TextField _fName;
+        private EnumField _fCategory;
         private TextField _fMemo;
         private TextField _fIconFileName;
         private FloatField _fCastTime;
@@ -74,6 +97,27 @@ namespace GGemCo2DSkillEditor
         private Toggle _toggleAutoResetMonster;
         private Button _btnCaptureMonsterOrigin;
         private Button _btnResetMonsterOrigin;
+
+        // PlayMode Caster (Scene)
+        private Button _btnRefreshSceneCasters;
+        private DropdownField _sceneCasterDropdown;
+        private Button _btnSelectSceneCaster;
+        private Button _btnSelectCasterFromSelection;
+
+        // PlayMode Target (Scene)
+        private Button _btnRefreshSceneTargets;
+        private DropdownField _sceneTargetDropdown;
+        private Button _btnSelectSceneTarget;
+        private Button _btnSelectTargetFromSelection;
+        private Button _btnClearManualTarget;
+
+        private readonly System.Collections.Generic.List<CharacterBase> _sceneCasters = new();
+        private readonly System.Collections.Generic.List<string> _sceneCasterNames = new();
+        private int _selectedSceneCasterIndex;
+
+        private readonly System.Collections.Generic.List<CharacterBase> _sceneTargets = new();
+        private readonly System.Collections.Generic.List<string> _sceneTargetNames = new();
+        private int _selectedSceneTargetIndex;
 
         private readonly System.Collections.Generic.List<string> _monsterNames = new();
         private readonly System.Collections.Generic.List<int> _monsterUids = new();
@@ -188,6 +232,8 @@ namespace GGemCo2DSkillEditor
             _editRoot.Add(_bakeButton);
 
             BuildPlayModeMonsterUI();
+            BuildPlayModeSceneCasterUI();
+            BuildPlayModeSceneTargetUI();
 
             _btnUseSkill = new Button(UseSkillInPlayMode) { text = "스킬 사용하기(PlayMode)" };
             _editRoot.Add(_btnUseSkill);
@@ -258,6 +304,124 @@ namespace GGemCo2DSkillEditor
             _editRoot.Add(box);
 
             RefreshMonsterDropdown();
+        }
+
+        private void BuildPlayModeSceneCasterUI()
+        {
+            var box = new VisualElement
+            {
+                style =
+                {
+                    marginTop = 8,
+                    paddingLeft = 6,
+                    paddingRight = 6,
+                    paddingTop = 6,
+                    paddingBottom = 6,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                }
+            };
+
+            box.Add(new Label("씬 Caster 선택(PlayMode)") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
+
+            var row = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 4 } };
+            _btnSelectCasterFromSelection = new Button(SelectCasterFromCurrentSelection)
+            {
+                text = "현재 선택 오브젝트로 지정",
+                style = { marginRight = 6 }
+            };
+            row.Add(_btnSelectCasterFromSelection);
+
+            _btnRefreshSceneCasters = new Button(RefreshSceneCasterDropdown)
+            {
+                text = "씬 캐릭터 목록 새로고침",
+            };
+            row.Add(_btnRefreshSceneCasters);
+            box.Add(row);
+
+            _sceneCasterDropdown = new DropdownField("Scene Caster", _sceneCasterNames, 0);
+            _sceneCasterDropdown.RegisterValueChangedCallback(_ =>
+            {
+                _selectedSceneCasterIndex = Mathf.Clamp(_sceneCasterDropdown.index, 0, Mathf.Max(0, _sceneCasters.Count - 1));
+            });
+            box.Add(_sceneCasterDropdown);
+
+            _btnSelectSceneCaster = new Button(SelectSceneCasterInPlayMode) { text = "선택 캐릭터를 Caster로 지정" };
+            box.Add(_btnSelectSceneCaster);
+
+            box.Add(new HelpBox(
+                "- Play Mode에서만 동작합니다.\n" +
+                "- 선택한 캐릭터(플레이어/몬스터 모두 가능)를 스킬 실행 캐스터로 지정합니다.",
+                HelpBoxMessageType.Info));
+
+            _editRoot.Add(box);
+
+            RefreshSceneCasterDropdown();
+        }
+
+        private void BuildPlayModeSceneTargetUI()
+        {
+            var box = new VisualElement
+            {
+                style =
+                {
+                    marginTop = 8,
+                    paddingLeft = 6,
+                    paddingRight = 6,
+                    paddingTop = 6,
+                    paddingBottom = 6,
+                    borderTopWidth = 1,
+                    borderBottomWidth = 1,
+                    borderLeftWidth = 1,
+                    borderRightWidth = 1,
+                }
+            };
+
+            box.Add(new Label("씬 Target 선택(PlayMode)") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
+
+            var row = new VisualElement { style = { flexDirection = FlexDirection.Row, marginBottom = 4 } };
+            _btnSelectTargetFromSelection = new Button(SelectTargetFromCurrentSelection)
+            {
+                text = "현재 선택 오브젝트로 지정",
+                style = { marginRight = 6 }
+            };
+            row.Add(_btnSelectTargetFromSelection);
+
+            _btnRefreshSceneTargets = new Button(RefreshSceneTargetDropdown)
+            {
+                text = "씬 캐릭터 목록 새로고침",
+                style = { marginRight = 6 }
+            };
+            row.Add(_btnRefreshSceneTargets);
+
+            _btnClearManualTarget = new Button(ClearManualTargetInPlayMode)
+            {
+                text = "수동 Target 해제(기본 정책)",
+            };
+            row.Add(_btnClearManualTarget);
+            box.Add(row);
+
+            _sceneTargetDropdown = new DropdownField("Scene Target", _sceneTargetNames, 0);
+            _sceneTargetDropdown.RegisterValueChangedCallback(_ =>
+            {
+                _selectedSceneTargetIndex = Mathf.Clamp(_sceneTargetDropdown.index, 0, Mathf.Max(0, _sceneTargets.Count - 1));
+            });
+            box.Add(_sceneTargetDropdown);
+
+            _btnSelectSceneTarget = new Button(SelectSceneTargetInPlayMode) { text = "선택 캐릭터를 Target으로 지정" };
+            box.Add(_btnSelectSceneTarget);
+
+            box.Add(new HelpBox(
+                "- Play Mode에서만 동작합니다.\n" +
+                "- Target은 스킬 실행 컨텍스트(lockedTarget/groundPoint/forward)에 사용됩니다.\n" +
+                "- '수동 Target 해제'를 누르면 기존 기본 정책(캐스터가 Player면 몬스터 우선, 몬스터면 Player 고정)으로 돌아갑니다.",
+                HelpBoxMessageType.Info));
+
+            _editRoot.Add(box);
+
+            RefreshSceneTargetDropdown();
         }
 
         private void LoadSkills()
@@ -373,6 +537,9 @@ namespace GGemCo2DSkillEditor
             _fName.tooltip = "skill.txt의 Name 컬럼 값입니다. (런타임에서 로컬라이즈로 덮어쓸 수 있습니다.)";
             _editRoot.Add(_fName);
 
+            _fCategory = new EnumField("Category", ConfigCommonSkill.Category.Player);
+            _editRoot.Add(_fCategory);
+            
             _fMemo = new TextField("Memo");
             _editRoot.Add(_fMemo);
 
@@ -410,6 +577,14 @@ namespace GGemCo2DSkillEditor
             _editRoot.Add(_fUseClip);
 
             RegisterDirtyTracking(_fName, (v) => _editingSkill.Name = v);
+            
+            _fCategory.RegisterValueChangedCallback(evt =>
+            {
+                if (_editingSkill == null) return;
+                _editingSkill.Category = (ConfigCommonSkill.Category)evt.newValue;
+                MarkDirty();
+            });
+            
             RegisterDirtyTracking(_fMemo, (v) => _editingSkill.Memo = v);
             RegisterDirtyTracking(_fIconFileName, (v) => _editingSkill.IconFileName = v);
             RegisterDirtyTracking(_fCastTime, (v) => _editingSkill.CastTime = v);
@@ -470,6 +645,7 @@ namespace GGemCo2DSkillEditor
             _bakeButton.SetEnabled(enabled);
 
             _fName.SetEnabled(enabled);
+            _fCategory.SetEnabled(enabled);
             _fMemo.SetEnabled(enabled);
             _fIconFileName.SetEnabled(enabled);
             _fCastTime.SetEnabled(enabled);
@@ -610,29 +786,338 @@ namespace GGemCo2DSkillEditor
             caster = hub.SelectedMonster;
             if (caster == null)
             {
-                error = "스킬을 사용할 몬스터가 선택되지 않았습니다. 먼저 '선택 몬스터 소환'을 실행하세요.";
+                error = "스킬을 사용할 캐스터가 선택되지 않았습니다. '선택 몬스터 소환' 또는 '씬 Caster 선택'을 사용하세요.";
                 return false;
             }
 
-            // 타겟은 Player 고정
-            if (!hub.TryBindPlayerAsTarget() || hub.LockedTarget == null)
+
+            // TargetingMode가 Self이면 타겟은 캐스터 자신으로 고정한다.
+            // (이 경우 수동 Target 지정/기본 정책 타겟 결정은 무시한다.)
+            var targetingMode = _editingSkill != null
+                ? _editingSkill.TargetingMode
+                : (_selectedSkill != null ? _selectedSkill.TargetingMode : default);
+
+            if (targetingMode == ConfigCommonSkill.SkillTargetingMode.Self)
             {
-                error = "Player를 찾지 못했습니다. SceneGame.player 또는 Tag=Player 오브젝트가 필요합니다.";
-                return false;
+                var self = caster.transform;
+                var p = self.position;
+                var forwardSelf = (Vector2)caster.transform.right;
+                if (forwardSelf.sqrMagnitude < 1e-6f) forwardSelf = Vector2.right;
+
+                hub.SetGroundPoint(p);
+                hub.SetLockedTarget(self);
+                hub.SetForward(forwardSelf);
+
+                target = new GGemCo2DCore.MonsterSkillTarget(self, p, forwardSelf);
+                return true;
             }
 
-            var lockedTarget = hub.LockedTarget;
+            // 타겟 결정 우선순위
+            // 1) 툴에서 수동 지정한 Target
+            // 2) 기본 정책
+            //    - 캐스터가 Player이면: 타겟은 '스폰/선택된 다른 캐릭터(몬스터)' 우선
+            //    - 그 외(몬스터 등)이면: 타겟은 Player 고정
+            Transform lockedTarget = null;
+
+            if (hub.UseManualLockedTarget && hub.LockedTarget != null)
+            {
+                // 캐스터/타겟 동일이면(자기 자신) 의도치 않은 케이스가 많아 경고 후 기본 정책으로 폴백합니다.
+                if (hub.LockedTarget.gameObject != caster)
+                {
+                    lockedTarget = hub.LockedTarget;
+                }
+            }
+
+            if (SceneGame.Instance != null && SceneGame.Instance.player != null && caster == SceneGame.Instance.player.gameObject)
+            {
+                if (lockedTarget == null)
+                {
+                    // Player 캐스터: Spawned 중 자신이 아닌 첫 대상을 타겟으로 사용
+                for (int i = 0; i < hub.Spawned.Count; i++)
+                {
+                    var go = hub.Spawned[i];
+                    if (go == null || go == caster) continue;
+                    lockedTarget = go.transform;
+                    break;
+                }
+                }
+
+                if (lockedTarget == null)
+                {
+                    error = "Player를 캐스터로 선택했지만, 타겟을 찾지 못했습니다.\n" +
+                            "- 1) '씬 Target 선택'에서 타겟을 수동 지정하거나\n" +
+                            "- 2) 먼저 몬스터를 소환해서 기본 정책 타겟을 만들고\n" +
+                            "다시 시도하세요.";
+                    return false;
+                }
+            }
+            else
+            {
+                if (lockedTarget == null)
+                {
+                    // 몬스터 캐스터: Player 타겟
+                    if (!hub.TryBindPlayerAsTarget() || hub.LockedTarget == null)
+                    {
+                        error = "Player를 찾지 못했습니다. SceneGame.player 또는 Tag=Player 오브젝트가 필요합니다.";
+                        return false;
+                    }
+
+                    lockedTarget = hub.LockedTarget;
+                }
+            }
+
             var groundPoint = lockedTarget.position;
             var d = lockedTarget.position - caster.transform.position;
             var forward = new Vector2(d.x, d.y);
             if (forward.sqrMagnitude < 1e-6f) forward = Vector2.right;
 
             hub.SetGroundPoint(groundPoint);
-            hub.SetLockedTarget(lockedTarget);
+            // 수동 타겟이 설정된 상태라면, hub 내부 상태도 유지
+            if (hub.UseManualLockedTarget)
+                hub.SetManualLockedTarget(lockedTarget);
+            else
+                hub.SetLockedTarget(lockedTarget);
             hub.SetForward(forward);
 
             target = new GGemCo2DCore.MonsterSkillTarget(lockedTarget, groundPoint, forward);
             return true;
+        }
+
+        private void RefreshSceneCasterDropdown()
+        {
+            _sceneCasters.Clear();
+            _sceneCasterNames.Clear();
+
+            if (!Application.isPlaying)
+            {
+                // UI Toolkit DropdownField는 choices 변경 시 인덱스가 어긋날 수 있으므로 항상 Notify 없이 갱신
+                if (_sceneCasterDropdown != null)
+                    _sceneCasterDropdown.choices = _sceneCasterNames;
+                return;
+            }
+
+#if UNITY_2023_1_OR_NEWER
+            var chars = UnityEngine.Object.FindObjectsByType<CharacterBase>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+            var chars = FindObjectsOfType<CharacterBase>(includeInactive: false);
+#endif
+            for (int i = 0; i < chars.Length; i++)
+            {
+                var c = chars[i];
+                if (c == null) continue;
+                _sceneCasters.Add(c);
+                _sceneCasterNames.Add(c.name);
+            }
+
+            if (_sceneCasterDropdown != null)
+            {
+                _sceneCasterDropdown.choices = _sceneCasterNames;
+                _selectedSceneCasterIndex = Mathf.Clamp(_selectedSceneCasterIndex, 0, Mathf.Max(0, _sceneCasters.Count - 1));
+                _sceneCasterDropdown.SetValueWithoutNotify(_sceneCasterNames.Count > 0 ? _sceneCasterNames[_selectedSceneCasterIndex] : string.Empty);
+            }
+        }
+
+        private void SelectCasterFromCurrentSelection()
+        {
+            if (!Application.isPlaying)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            var go = Selection.activeGameObject;
+            if (go == null)
+            {
+                ShowNotification(new GUIContent("선택된 오브젝트가 없습니다."));
+                return;
+            }
+
+            var c = go.GetComponentInParent<CharacterBase>();
+            if (c == null) c = go.GetComponentInChildren<CharacterBase>();
+            if (c == null)
+            {
+                ShowNotification(new GUIContent("선택된 오브젝트에서 CharacterBase를 찾지 못했습니다."));
+                return;
+            }
+
+            SelectCasterInPlayMode(c.gameObject);
+        }
+
+        private void RefreshSceneTargetDropdown()
+        {
+            _sceneTargets.Clear();
+            _sceneTargetNames.Clear();
+
+            if (!Application.isPlaying)
+            {
+                if (_sceneTargetDropdown != null)
+                    _sceneTargetDropdown.choices = _sceneTargetNames;
+                return;
+            }
+
+#if UNITY_2023_1_OR_NEWER
+            var chars = UnityEngine.Object.FindObjectsByType<CharacterBase>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
+#else
+            var chars = FindObjectsOfType<CharacterBase>(includeInactive: false);
+#endif
+            for (int i = 0; i < chars.Length; i++)
+            {
+                var c = chars[i];
+                if (c == null) continue;
+                _sceneTargets.Add(c);
+                _sceneTargetNames.Add(c.name);
+            }
+
+            if (_sceneTargetDropdown != null)
+            {
+                _sceneTargetDropdown.choices = _sceneTargetNames;
+                _selectedSceneTargetIndex = Mathf.Clamp(_selectedSceneTargetIndex, 0, Mathf.Max(0, _sceneTargets.Count - 1));
+                _sceneTargetDropdown.SetValueWithoutNotify(_sceneTargetNames.Count > 0 ? _sceneTargetNames[_selectedSceneTargetIndex] : string.Empty);
+            }
+        }
+
+        private void SelectTargetFromCurrentSelection()
+        {
+            if (!Application.isPlaying)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            var go = Selection.activeGameObject;
+            if (go == null)
+            {
+                ShowNotification(new GUIContent("선택된 오브젝트가 없습니다."));
+                return;
+            }
+
+            var c = go.GetComponentInParent<CharacterBase>();
+            if (c == null) c = go.GetComponentInChildren<CharacterBase>();
+            if (c == null)
+            {
+                ShowNotification(new GUIContent("선택된 오브젝트에서 CharacterBase를 찾지 못했습니다."));
+                return;
+            }
+
+            var hub = SkillTestRuntimeHub.Instance != null
+                ? SkillTestRuntimeHub.Instance
+                : UnityEngine.Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+
+            if (hub == null)
+            {
+                EditorUtility.DisplayDialog(Title, "SkillTestRuntimeHub를 찾지 못했습니다.", "OK");
+                return;
+            }
+
+            hub.SetManualLockedTarget(c.transform);
+            ShowNotification(new GUIContent($"Target 지정: {c.name}"));
+
+            // UI 드롭다운도 동기화
+            RefreshSceneTargetDropdown();
+            _selectedSceneTargetIndex = _sceneTargets.IndexOf(c);
+            if (_selectedSceneTargetIndex < 0) _selectedSceneTargetIndex = 0;
+            if (_sceneTargetDropdown != null && _sceneTargetNames.Count > 0)
+                _sceneTargetDropdown.SetValueWithoutNotify(_sceneTargetNames[_selectedSceneTargetIndex]);
+        }
+
+        private void SelectSceneTargetInPlayMode()
+        {
+            if (!Application.isPlaying)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            if (_sceneTargets.Count <= 0)
+            {
+                ShowNotification(new GUIContent("씬에 캐릭터(CharacterBase)가 없습니다."));
+                return;
+            }
+
+            _selectedSceneTargetIndex = Mathf.Clamp(_selectedSceneTargetIndex, 0, _sceneTargets.Count - 1);
+            var c = _sceneTargets[_selectedSceneTargetIndex];
+            if (c == null)
+            {
+                ShowNotification(new GUIContent("선택 Target이 null 입니다."));
+                return;
+            }
+
+            var hub = SkillTestRuntimeHub.Instance != null
+                ? SkillTestRuntimeHub.Instance
+                : UnityEngine.Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+
+            if (hub == null)
+            {
+                EditorUtility.DisplayDialog(Title, "SkillTestRuntimeHub를 찾지 못했습니다.", "OK");
+                return;
+            }
+
+            hub.SetManualLockedTarget(c.transform);
+            ShowNotification(new GUIContent($"Target 지정: {c.name}"));
+        }
+
+        private void ClearManualTargetInPlayMode()
+        {
+            if (!Application.isPlaying)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            var hub = SkillTestRuntimeHub.Instance != null
+                ? SkillTestRuntimeHub.Instance
+                : UnityEngine.Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+
+            if (hub == null)
+            {
+                EditorUtility.DisplayDialog(Title, "SkillTestRuntimeHub를 찾지 못했습니다.", "OK");
+                return;
+            }
+
+            hub.ClearManualLockedTarget();
+            ShowNotification(new GUIContent("수동 Target 해제"));
+        }
+
+        private void SelectSceneCasterInPlayMode()
+        {
+            if (!Application.isPlaying)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            if (_sceneCasters.Count <= 0)
+            {
+                EditorUtility.DisplayDialog(Title, "씬에서 CharacterBase를 찾지 못했습니다. '씬 캐릭터 목록 새로고침'을 먼저 실행하세요.", "OK");
+                return;
+            }
+
+            _selectedSceneCasterIndex = Mathf.Clamp(_sceneCasterDropdown.index, 0, _sceneCasters.Count - 1);
+            var c = _sceneCasters[_selectedSceneCasterIndex];
+            if (c == null)
+            {
+                ShowNotification(new GUIContent("유효하지 않은 캐릭터입니다."));
+                return;
+            }
+
+            SelectCasterInPlayMode(c.gameObject);
+        }
+
+        private void SelectCasterInPlayMode(GameObject caster)
+        {
+            var hub = SkillTestRuntimeHub.Instance != null
+                ? SkillTestRuntimeHub.Instance
+                : UnityEngine.Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+
+            if (hub == null)
+            {
+                EditorUtility.DisplayDialog(Title, "SkillTestRuntimeHub를 찾지 못했습니다. (Play Mode 진입 시 자동 생성되어야 합니다.)", "OK");
+                return;
+            }
+
+            hub.SelectCaster(caster, captureSnapshot: false);
+            hub.AutoResetSelectedMonsterAfterSkill = _toggleAutoResetMonster != null && _toggleAutoResetMonster.value;
+            ShowNotification(new GUIContent($"Caster 지정: {caster.name}"));
         }
 
         private async void SpawnSelectedMonsterInPlayMode()
@@ -865,8 +1350,9 @@ namespace GGemCo2DSkillEditor
                     var def = ScriptableObject.CreateInstance<ApplyStatusEventDefinition>();
                     def.statusId = new StatusEffectId { id = c.AffectUid.ToString() };
                     def.stacks = 1;
-                    def.durationOverrideSeconds = c.Duration;
+                    def.durationOverrideSeconds = c.AffectDuration;
                     def.chance01 = 1f;
+                    TrySetApplyStatusApplyTo(def, (int)c.ApplyTo);
                     return def;
                 }
                 case ConfigCommonSkill.SkillEventType.Lunge:
@@ -919,6 +1405,7 @@ namespace GGemCo2DSkillEditor
             {
                 _fUid.SetValueWithoutNotify(s?.Uid ?? 0);
                 _fName.SetValueWithoutNotify(s?.Name ?? string.Empty);
+                _fCategory.SetValueWithoutNotify(s != null ? (Enum)s.Category : ConfigCommonSkill.Category.Player);
                 _fMemo.SetValueWithoutNotify(s?.Memo ?? string.Empty);
                 _fIconFileName.SetValueWithoutNotify(s?.IconFileName ?? string.Empty);
                 _fCastTime.SetValueWithoutNotify(s?.CastTime ?? 0f);
@@ -935,6 +1422,7 @@ namespace GGemCo2DSkillEditor
 
             _fUid.value = s?.Uid ?? 0;
             _fName.value = s?.Name ?? string.Empty;
+            _fCategory.value = s != null ? (Enum)s.Category : ConfigCommonSkill.Category.Player;
             _fMemo.value = s?.Memo ?? string.Empty;
             _fIconFileName.value = s?.IconFileName ?? string.Empty;
             _fCastTime.value = s?.CastTime ?? 0f;
@@ -1010,6 +1498,7 @@ namespace GGemCo2DSkillEditor
 
             // Uid는 키이므로 편집하지 않습니다.
             _selectedSkill.Name = _editingSkill.Name;
+            _selectedSkill.Category = _editingSkill.Category;
             _selectedSkill.Memo = _editingSkill.Memo;
             _selectedSkill.IconFileName = _editingSkill.IconFileName;
             _selectedSkill.CastTime = _editingSkill.CastTime;
@@ -1032,6 +1521,7 @@ namespace GGemCo2DSkillEditor
             {
                 Uid = row.Uid,
                 Name = row.Name,
+                Category = row.Category,
                 Memo = row.Memo,
                 IconFileName = row.IconFileName,
                 CastTime = row.CastTime,
@@ -1078,9 +1568,11 @@ namespace GGemCo2DSkillEditor
                         continue;
 
                     sb.Append(r.Uid).Append('\t');
-                    sb.Append(r.Name ?? string.Empty).Append('\t');
+                    sb.Append(r.Category).Append('\t');
                     sb.Append(r.Memo ?? string.Empty).Append('\t');
+                    sb.Append(r.UseClip ?? string.Empty);
                     sb.Append(r.IconFileName ?? string.Empty).Append('\t');
+                    sb.Append(r.SoFileName ?? string.Empty).Append('\t');
                     sb.Append(FormatFloat(r.CastTime)).Append('\t');
                     sb.Append(FormatFloat(r.CoolTime)).Append('\t');
                     sb.Append(r.TargetingMode).Append('\t');
@@ -1089,7 +1581,6 @@ namespace GGemCo2DSkillEditor
                     sb.Append(r.CastStartClip ?? string.Empty).Append('\t');
                     sb.Append(r.CastLoopClip ?? string.Empty).Append('\t');
                     sb.Append(r.CastEndClip ?? string.Empty).Append('\t');
-                    sb.Append(r.UseClip ?? string.Empty);
                     sb.AppendLine();
                 }
 
@@ -1122,6 +1613,7 @@ namespace GGemCo2DSkillEditor
                 return;
 
             info.Name = row.Name;
+            info.Category = row.Category;
             info.Memo = row.Memo;
             info.IconFileName = row.IconFileName;
             info.CastTime = row.CastTime;

@@ -25,6 +25,8 @@ namespace GGemCo2DSkillEditor
         [Header("Target")]
         [Tooltip("툴 테스트에서 스킬 타겟으로 고정할 대상입니다. 기본 정책: Player")]
         [SerializeField] private Transform lockedTarget;
+        [Tooltip("true이면 CreateSkillWindow에서 수동으로 지정한 lockedTarget을 우선 사용합니다.")]
+        [SerializeField] private bool useManualLockedTarget;
         [Tooltip("스킬이 지점 기반으로 사용할 기준 좌표입니다. 기본 정책: Player 위치")]
         [SerializeField] private Vector3 groundPoint;
         [Tooltip("캐스터가 바라보는 기본 방향입니다. (캐스터->Player 방향으로 자동 갱신)")]
@@ -59,6 +61,7 @@ namespace GGemCo2DSkillEditor
         public GameObject SelectedMonster { get; private set; }
 
         public Transform LockedTarget => lockedTarget;
+        public bool UseManualLockedTarget => useManualLockedTarget;
         public Vector3 GroundPoint => groundPoint;
         public Vector2 Forward => forward;
 
@@ -123,6 +126,23 @@ namespace GGemCo2DSkillEditor
         public void SetGroundPoint(Vector3 worldPos) => groundPoint = worldPos;
 
         public void SetLockedTarget(Transform target) => lockedTarget = target;
+
+        /// <summary>
+        /// 툴에서 타겟을 수동으로 지정합니다.
+        /// - 이후 스킬 실행 시, 자동 정책보다 수동 타겟을 우선합니다.
+        /// </summary>
+        public void SetManualLockedTarget(Transform target)
+        {
+            lockedTarget = target;
+            useManualLockedTarget = target != null;
+            if (target != null)
+                groundPoint = target.position;
+        }
+
+        public void ClearManualLockedTarget()
+        {
+            useManualLockedTarget = false;
+        }
 
         public void SetForward(Vector2 dir)
         {
@@ -238,6 +258,28 @@ namespace GGemCo2DSkillEditor
                     mb.enabled = false;
                 }
             }
+        }
+
+        /// <summary>
+        /// 툴에서 임의의 씬 캐릭터를 "캐스터"로 선택할 때 사용합니다.
+        /// - 몬스터/플레이어 모두 지원
+        /// - 필요한 스킬 테스트 컴포넌트를 자동 부착합니다.
+        /// </summary>
+        public void SelectCaster(GameObject caster, bool captureSnapshot = true)
+        {
+            if (caster == null) return;
+
+            EnsureSkillTestComponents(caster);
+
+            if (!_spawned.Contains(caster))
+                _spawned.Add(caster);
+
+            SelectedMonster = caster;
+
+            if (captureSnapshot)
+                CaptureSnapshot(caster);
+
+            BindAutoResetter(caster);
         }
 
         
