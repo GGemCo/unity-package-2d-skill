@@ -220,6 +220,11 @@ namespace GGemCo2DSkill
                     posOverride = new Vector2(groundPoint.x, groundPoint.y);
                     break;
 
+
+                case ConfigCommonSkill.SkillTargetingMode.Self:
+                    targetChar = casterChar;
+                    usePosOverride = false;
+                    break;
                 case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
                 case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
                 case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
@@ -503,7 +508,6 @@ namespace GGemCo2DSkill
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint)
         {
-            // SkillApplyAffectClip의 payload. (시전자에게만 적용)
             if (payloadObj is not ApplyStatusEventDefinition def) return;
             if (ctx.caster == null) return;
 
@@ -515,12 +519,26 @@ namespace GGemCo2DSkill
             if (chance < 0.9999f && UnityEngine.Random.value > chance)
                 return;
 
+            // Apply target resolve
+            GameObject applyTarget;
+            switch (def.applyTo)
+            {
+                case ApplyAffectTarget.LockedTarget:
+                    applyTarget = ctx.lockedTarget != null ? ctx.lockedTarget : ctx.caster;
+                    break;
+                case ApplyAffectTarget.Caster:
+                default:
+                    applyTarget = ctx.caster;
+                    break;
+            }
+
             int stacks = Mathf.Max(1, def.stacks);
             float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : 0f;
 
             for (int s = 0; s < stacks; s++)
             {
-                AffectApi.Apply(ctx.caster, affectUid, ctx.caster, duration);
+                // source는 caster로 유지합니다(버프/힐 출처 트래킹 용도)
+                AffectApi.Apply(applyTarget, affectUid, ctx.caster, duration);
             }
         }
 

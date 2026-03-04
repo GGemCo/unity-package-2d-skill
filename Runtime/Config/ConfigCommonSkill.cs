@@ -37,6 +37,7 @@
             GroundTarget = 3, // 지점 고정
             ForwardDirectional = 4, // 캐스터 전방 기준
             Projectile = 5, // 투사체 기반(확장)
+            Self = 6, // 시전자 자신
         }
 
         public enum SkillAreaShape

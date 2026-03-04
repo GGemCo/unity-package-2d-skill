@@ -2,9 +2,16 @@
 
 namespace GGemCo2DSkill
 {
+    public enum ApplyAffectTarget
+    {
+        Caster = 0,
+        LockedTarget = 1,
+    }
+
     public sealed class ApplyStatusEventDefinition : ScriptableObject
     {
         [Header("Status")]
+        public ApplyAffectTarget applyTo = ApplyAffectTarget.Caster;
         public StatusEffectId statusId;
         public int stacks = 1;
         public float durationOverrideSeconds = -1f;
