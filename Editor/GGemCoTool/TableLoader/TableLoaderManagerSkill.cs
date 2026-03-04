@@ -11,16 +11,16 @@ namespace GGemCo2DSkillEditor
     /// </summary>
     public static class TableLoaderManagerSkill
     {
-        public static TableSkill LoadTableSkill(bool forceReload = false)
+        public static TableSkill LoadTableSkill(bool forceReload = true)
         {
             return TableLoaderManagerBase.LoadTable<TableSkill>(ConfigAddressableTableSkill.TableSkill.Path, forceReload);
         }
-        public static TableSkillPassive LoadTableSkillPassive(bool forceReload = false)
+        public static TableSkillPassive LoadTableSkillPassive(bool forceReload = true)
         {
             return TableLoaderManagerBase.LoadTable<TableSkillPassive>(ConfigAddressableTableSkill.TableSkillPassive.Path, forceReload);
         }
 
-        public static TableSkillPassiveOption LoadTableSkillPassiveOption(bool forceReload = false)
+        public static TableSkillPassiveOption LoadTableSkillPassiveOption(bool forceReload = true)
         {
             return TableLoaderManagerBase.LoadTable<TableSkillPassiveOption>(ConfigAddressableTableSkill.TableSkillPassiveOption.Path, forceReload);
         }
