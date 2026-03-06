@@ -500,9 +500,6 @@ namespace GGemCo2DSkillEditor
             if (_passiveSkillUids.Count == 0) return;
             var uid = _passiveSkillUids[Mathf.Clamp(_selectedSkillIndex, 0, _passiveSkillUids.Count - 1)];
 
-            // 테스트 툴에서도 "장착 후 임시 HP Current 채움" 정책을 적용합니다.
-            var before = PassiveTempHpFillUtility.Capture(_targetCharacter);
-
             var dict = new Dictionary<int, int>(_targetPassiveController.EquippedPassives.Count + 1);
             foreach (var kv in _targetPassiveController.EquippedPassives)
                 dict[kv.Key] = kv.Value;
@@ -510,8 +507,6 @@ namespace GGemCo2DSkillEditor
             dict[uid] = Mathf.Max(1, _equipLevel);
 
             _targetPassiveController.ApplyEquippedPassives(dict);
-
-            PassiveTempHpFillUtility.FillCurrentIfTempMaxIncreased(_targetCharacter, before);
             
             // UI 장착 시에만 "임시 HP Current도 채움" 정책을 적용합니다.
             // (기본 런타임 정책은 임시 최대 HP 변경 시 Current를 자동 충전하지 않습니다.)

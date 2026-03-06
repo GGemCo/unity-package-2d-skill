@@ -50,6 +50,12 @@ namespace GGemCo2DSkill
         /// </summary>
         public override void RefreshFromSaveData()
         {
+            RefreshFromSaveDataInternal();
+            RebuildUsingPolicy();
+        }
+
+        private void RefreshFromSaveDataInternal()
+        {
             var mgr = SkillPackageManager.Instance?.SaveDataManagerSkill;
             RefreshFromSaveData(mgr?.Skill);
         }

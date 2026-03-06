@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
@@ -71,11 +72,141 @@ namespace GGemCo2DSkill
             _equippedPassives.Clear();
             Rebuild();
         }
+        
+        private PassiveTempHpApplyMode ResolveApplyMode(PassiveTempHpApplyMode requested)
+        {
+            if (requested != PassiveTempHpApplyMode.UsePolicy)
+                return requested;
 
+            var settings = AddressableLoaderSettings.Instance.playerSettings;
+            if (settings == null)
+                return PassiveTempHpApplyMode.KeepCurrent;
+
+            return AddressableLoaderSettings.Instance.playerSettings.PassiveTempHpApplyPolicy switch
+            {
+                PassiveTempHpApplyPolicy.FillDelta => PassiveTempHpApplyMode.FillDelta,
+                _ => PassiveTempHpApplyMode.KeepCurrent
+            };
+        }
+
+        public void Rebuild()
+        {
+            Rebuild(PassiveTempHpApplyMode.UsePolicy);
+        }
         /// <summary>
         /// 현재 장착된 패시브 목록을 기준으로 Stat/Affect 를 전체 재구성한다.
         /// </summary>
-        public void Rebuild()
+        private void Rebuild(PassiveTempHpApplyMode applyMode)
+        {
+            if (_character == null) return;
+            if (TableLoaderManagerSkill.Instance == null) return;
+
+            long beforePassiveTempMax = _character.GetPassiveBonusHpTempMax();
+            long beforePassiveTempCurrent = _character.GetPassiveBonusHpTempCurrent();
+
+            // 1) 기존 적용분 제거
+            _character.ClearPassiveSkillModifiers(recalculate: false);
+            SyncAffects(desired: null);
+
+            // 2) 새로 계산
+            var flat = new Dictionary<string, int>(32);
+            var percent = new Dictionary<string, float>(32);
+            var desiredAffects = new HashSet<int>();
+
+            var tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
+            var tableOption = TableLoaderManagerSkill.Instance.TableSkillPassiveOption;
+
+            foreach (var kv in _equippedPassives)
+            {
+                int skillUid = kv.Key;
+                int level = kv.Value;
+
+                var skillRow = tableSkillPassive.GetDataByUid(skillUid);
+                if (skillRow == null) continue;
+                if (skillRow.SkillKind != ConfigCommonSkill.SkillKind.Passive) continue;
+
+                var groupUid = skillRow.OptionGroupUid;
+                if (groupUid <= 0) continue;
+
+                var options = tableOption.GetOptions(groupUid, level);
+                if (options == null || options.Count == 0) continue;
+
+                for (int i = 0; i < options.Count; i++)
+                {
+                    var op = options[i];
+                    if (op == null || !op.IsValid) continue;
+
+                    switch (op.Kind)
+                    {
+                        case SkillOptionKind.Stat:
+                            ApplyStatOption(flat, percent, op);
+                            break;
+
+                        case SkillOptionKind.Affect:
+                            if (TryParseIntId(op.TargetId, out var affectUid) && affectUid > 0)
+                                desiredAffects.Add(affectUid);
+                            break;
+                    }
+                }
+            }
+
+            // 3) modifier 적용
+            _character.SetPassiveSkillModifiers(flat, percent, recalculate: false);
+            SyncAffects(desiredAffects);
+            _character.RecalculateStats();
+
+            // 4) 패시브 임시 HP 최대치 동기화
+            _character.SyncPassiveBonusHpTempMaxFromProvider();
+
+            long afterPassiveTempMax = _character.GetPassiveBonusHpTempMax();
+            long delta = afterPassiveTempMax - beforePassiveTempMax;
+
+            var resolvedMode = ResolveApplyMode(applyMode);
+
+            if (delta > 0)
+            {
+                switch (resolvedMode)
+                {
+                    case PassiveTempHpApplyMode.KeepCurrent:
+                        break;
+
+                    case PassiveTempHpApplyMode.FillDelta:
+                        _character.AddPassiveBonusHpTempCurrent(delta);
+                        break;
+
+                    case PassiveTempHpApplyMode.FillToMax:
+                        _character.FillPassiveBonusHpTempToMax();
+                        break;
+                }
+            }
+            else if (delta < 0)
+            {
+                // 감소했으면 현재치 클램프
+                long nextCurrent = Math.Min(beforePassiveTempCurrent, afterPassiveTempMax);
+                _character.SetPassiveBonusHpTempCurrent(nextCurrent);
+            }
+        }
+        public void RebuildUsingPolicy()
+        {
+            Rebuild(PassiveTempHpApplyMode.UsePolicy);
+        }
+
+        public void RebuildKeepingCurrentPassiveTempHp()
+        {
+            Rebuild(PassiveTempHpApplyMode.KeepCurrent);
+        }
+
+        public void RebuildAndFillPassiveTempHpDelta()
+        {
+            Rebuild(PassiveTempHpApplyMode.FillDelta);
+        }
+
+        public void RebuildAndFillPassiveTempHpToMax()
+        {
+            Rebuild(PassiveTempHpApplyMode.FillToMax);
+        }
+        
+        public void Rebuild_bak()
         {
             if (_character == null) return;
             if (TableLoaderManagerSkill.Instance == null) return;
