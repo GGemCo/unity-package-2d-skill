@@ -63,7 +63,7 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            ImageIcon.sprite = AddressableLoaderSkill.Instance.GetImageIconByName(path);
+            ImageIcon.sprite = AddressableLoaderSkill.Instance.GetSkillIconImageByName(path);
         }
         /// <summary>
         /// 아이콘 이미지 경로 가져오기 

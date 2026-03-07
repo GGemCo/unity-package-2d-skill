@@ -37,6 +37,7 @@ namespace GGemCo2DSkill
 
             // QuickSlot(코어) 확장 포인트 등록
             QuickSlotContentProviderRegistry.Register(new QuickSlotSkillContentProvider());
+            QuickSlotContentProviderRegistry.Register(new QuickSlotSkillPassiveContentProvider());
         }
 
         private void Start()

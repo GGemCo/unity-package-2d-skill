@@ -27,7 +27,7 @@ namespace GGemCo2DSkill
             var path = info.IconFileName;
             if (string.IsNullOrEmpty(path)) return null;
 
-            return AddressableLoaderSkill.Instance.GetImageIconByName(path);
+            return AddressableLoaderSkill.Instance.GetSkillIconImageByName(path);
         }
     }
 }
