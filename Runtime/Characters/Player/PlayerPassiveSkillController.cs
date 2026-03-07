@@ -50,28 +50,14 @@ namespace GGemCo2DSkill
         /// </summary>
         public override void RefreshFromSaveData()
         {
-            RefreshFromSaveDataInternal();
-            RebuildUsingPolicy();
-        }
-
-        private void RefreshFromSaveDataInternal()
-        {
             var mgr = SkillPackageManager.Instance?.SaveDataManagerSkill;
-            RefreshFromSaveData(mgr?.Skill);
-        }
-
-        /// <summary>
-        /// 전달된 <see cref="SkillData"/>의 패시브 장착 정보를 적용합니다.
-        /// </summary>
-        private void RefreshFromSaveData(SkillData skillData)
-        {
-            if (skillData == null)
+            if (mgr?.Skill == null)
             {
                 Clear();
                 return;
             }
-
-            ApplyEquippedPassives(skillData.BuildEquippedPassiveSkillLevels());
+            ApplyEquippedPassives(mgr?.Skill.BuildEquippedPassiveSkillLevels());
+            RebuildUsingPolicy();
         }
     }
 }

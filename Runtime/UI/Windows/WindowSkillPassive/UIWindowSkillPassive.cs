@@ -22,6 +22,7 @@ namespace GGemCo2DSkill
         
         private UIWindowQuickSlot _uiWindowQuickSlot;
         private UIWindowSkillInfo _uIWindowSkillInfo;
+        private CharacterPassiveSkillController _characterPassiveSkillController;
         
         protected override void Awake()
         {
@@ -150,56 +151,6 @@ namespace GGemCo2DSkill
         public UIElementSkillPassive GetElementSkillByIndex(int slotIndex)
         {
             return UIElementPassiveSkills[slotIndex];
-        }
-        /// <summary>
-        /// 패시브 스킬을 첫 번째 빈 패시브 슬롯에 장착합니다.
-        /// UI 버튼/컨텍스트 메뉴 등에서 호출하도록 설계합니다.
-        /// </summary>
-        public bool TryEquipPassiveSkill(int skillUid, int skillLevel)
-        {
-            if (SkillPackageManager.Instance == null || SkillPackageManager.Instance.SaveDataManagerSkill == null)
-                return false;
-
-            var tableInfo = TableSkillPassive?.GetDataByUid(skillUid);
-            if (tableInfo == null)
-                return false;
-
-            if (tableInfo.SkillKind != ConfigCommonSkill.SkillKind.Passive)
-                return false;
-
-            var skillData = SkillPackageManager.Instance.SaveDataManagerSkill.Skill;
-            if (skillData == null)
-                return false;
-
-            // 첫 빈 슬롯 찾기
-            var passiveWindow = SceneGame.Instance.uIWindowManager
-                .GetUIWindowByUid<UIWindowSkillPassive>(UIWindowConstants.WindowUid.PassiveSkill);
-
-            int maxSlots = passiveWindow != null && passiveWindow.maxCountIcon > 0 ? passiveWindow.maxCountIcon : 8;
-            for (int i = 0; i < maxSlots; i++)
-            {
-                var current = skillData.GetPassiveEquip(i);
-                if (current == null || current.Uid <= 0)
-                {
-                    skillData.SetPassiveEquip(i, skillUid, 1, skillLevel, true);
-
-                    // PassiveSkill 창이 열려 있으면 즉시 갱신
-                    if (passiveWindow != null)
-                        passiveWindow.LoadIcons();
-
-                    // 실제 캐릭터 반영
-                    if (SceneGame.Instance.player != null)
-                    {
-                        var ctrl = SceneGame.Instance.player.GetComponent<CharacterPassiveSkillController>();
-                        if (ctrl != null)
-                            ctrl.RefreshFromSaveData();
-                    }
-
-                    return true;
-                }
-            }
-
-            return false;
         }
     }
 }

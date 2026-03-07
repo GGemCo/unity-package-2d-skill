@@ -89,10 +89,11 @@ namespace GGemCo2DSkill
             };
         }
 
-        public void Rebuild()
+        private void Rebuild()
         {
             Rebuild(PassiveTempHpApplyMode.UsePolicy);
         }
+        
         /// <summary>
         /// 현재 장착된 패시브 목록을 기준으로 Stat/Affect 를 전체 재구성한다.
         /// </summary>
@@ -206,68 +207,6 @@ namespace GGemCo2DSkill
             Rebuild(PassiveTempHpApplyMode.FillToMax);
         }
         
-        public void Rebuild_bak()
-        {
-            if (_character == null) return;
-            if (TableLoaderManagerSkill.Instance == null) return;
-
-            // 1) 기존 적용분 제거
-            _character.ClearPassiveSkillModifiers(recalculate: false);
-            SyncAffects(desired: null); // remove all
-
-            // 2) 새로 계산
-            var flat = new Dictionary<string, int>(32);
-            var percent = new Dictionary<string, float>(32);
-            var desiredAffects = new HashSet<int>();
-
-            var tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
-            var tableOption = TableLoaderManagerSkill.Instance.TableSkillPassiveOption;
-
-            foreach (var kv in _equippedPassives)
-            {
-                int skillUid = kv.Key;
-                int level = kv.Value;
-
-                var skillRow = tableSkillPassive.GetDataByUid(skillUid);
-                if (skillRow == null) continue;
-                if (skillRow.SkillKind != ConfigCommonSkill.SkillKind.Passive) continue;
-
-                var groupUid = skillRow.OptionGroupUid;
-                if (groupUid <= 0)
-                {
-                    // 데이터 누락 시 안전하게 스킵
-                    continue;
-                }
-
-                var options = tableOption.GetOptions(groupUid, level);
-                if (options == null || options.Count == 0) continue;
-
-                for (int i = 0; i < options.Count; i++)
-                {
-                    var op = options[i];
-                    if (op == null || !op.IsValid) continue;
-
-                    switch (op.Kind)
-                    {
-                        case SkillOptionKind.Stat:
-                            ApplyStatOption(flat, percent, op);
-                            break;
-
-                        case SkillOptionKind.Affect:
-                            if (TryParseIntId(op.TargetId, out var affectUid) && affectUid > 0)
-                                desiredAffects.Add(affectUid);
-                            break;
-                    }
-                }
-            }
-
-            // 3) 적용(배치 재계산 1회)
-            _character.SetPassiveSkillModifiers(flat, percent, recalculate: false);
-            SyncAffects(desiredAffects);
-
-            _character.RecalculateStats();
-        }
-
         private static void ApplyStatOption(Dictionary<string, int> flat, Dictionary<string, float> percent,
             StruckTableSkillPassiveOption op)
         {

@@ -34,10 +34,10 @@ namespace GGemCo2DSkill
             GameObject managerContainer = GameObject.Find("Managers");
             if (GcLogger.IsNullGameObject(managerContainer, nameof(managerContainer))) return;
             SaveDataManagerSkill = SceneGame.Instance.CreateManager<SaveDataManagerSkill>(managerContainer);
-
-            // QuickSlot(코어) 확장 포인트 등록
-            QuickSlotContentProviderRegistry.Register(new QuickSlotSkillContentProvider());
-            QuickSlotContentProviderRegistry.Register(new QuickSlotSkillPassiveContentProvider());
+            
+            // 퀵슬롯 드래그 앤 드롭 처리
+            QuickSlotDragStrategyRegistry.Register(UIWindowConstants.WindowUid.Skill, new DragDropStrategyQuickSlotSkill());
+            QuickSlotDragStrategyRegistry.Register(UIWindowConstants.WindowUid.PassiveSkill, new DragDropStrategyQuickSlotSkillPassive());
         }
 
         private void Start()
