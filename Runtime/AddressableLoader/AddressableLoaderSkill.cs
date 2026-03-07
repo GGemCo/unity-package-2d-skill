@@ -16,6 +16,7 @@ namespace GGemCo2DSkill
     {
         public static AddressableLoaderSkill Instance { get; private set; }
         private readonly Dictionary<string, SpriteAtlas> _dicImageIconSkill = new Dictionary<string, SpriteAtlas>();
+        private readonly Dictionary<string, SpriteAtlas> _dicImageIconSkillPassive = new Dictionary<string, SpriteAtlas>();
         private readonly HashSet<AsyncOperationHandle> _activeHandles = new HashSet<AsyncOperationHandle>();
         private float _prefabLoadProgress;
 
@@ -49,7 +50,7 @@ namespace GGemCo2DSkill
         {
             try
             {
-                // 아이콘 이미지
+                // 엑티브 스킬 아이콘 이미지
                 _dicImageIconSkill.Clear();
                 var locationHandle = Addressables.LoadResourceLocationsAsync(ConfigAddressableLabelSkill.ImageSkillIcon);
                 await locationHandle.Task;
@@ -82,23 +83,68 @@ namespace GGemCo2DSkill
                 }
                 _activeHandles.Add(locationHandle);
 
+                #region 패시브 스킬
+                    
+                _dicImageIconSkillPassive.Clear();
+                locationHandle = Addressables.LoadResourceLocationsAsync(ConfigAddressableLabelSkill.ImageSkillPassiveIcon);
+                await locationHandle.Task;
+
+                if (!locationHandle.IsValid() || locationHandle.Status != AsyncOperationStatus.Succeeded)
+                {
+                    GcLogger.LogError($"{ConfigAddressableLabelSkill.ImageSkillPassiveIcon} 레이블을 가진 리소스를 찾을 수 없습니다.");
+                    return;
+                }
+
+                totalCount = locationHandle.Result.Count;
+                loadedCount = 0;
+
+                foreach (var location in locationHandle.Result)
+                {
+                    string address = location.PrimaryKey;
+                    var loadHandle = Addressables.LoadAssetAsync<SpriteAtlas>(address);
+
+                    while (!loadHandle.IsDone)
+                    {
+                        _prefabLoadProgress = (loadedCount + loadHandle.PercentComplete) / totalCount;
+                        await Task.Yield();
+                    }
+                    _activeHandles.Add(loadHandle);
+
+                    SpriteAtlas prefab = await loadHandle.Task;
+                    if (!prefab) continue;
+                    _dicImageIconSkillPassive[address] = prefab;
+                    loadedCount++;
+                }
+                _activeHandles.Add(locationHandle);
+                #endregion
+
                 _prefabLoadProgress = 1f; // 100%
                 // GcLogger.Log($"총 {loadedCount}/{totalCount}개의 프리팹을 성공적으로 로드했습니다.");
             }
             catch (Exception ex)
             {
-                GcLogger.LogError($"프리팹 로딩 중 오류 발생: {ex.Message}");
+                GcLogger.LogError($"스킬 아이콘 이미지 로딩 중 오류 발생: {ex.Message}");
             }
         }
 
-        public Sprite GetImageIconByName(string prefabName)
+        public Sprite GetSkillIconImageByName(string fileName)
         {
             if (_dicImageIconSkill.TryGetValue(ConfigAddressableLabelSkill.ImageSkillIcon, out var prefab))
             {
-                return prefab.GetSprite(prefabName);
+                return prefab.GetSprite(fileName);
             }
 
-            GcLogger.LogError($"Addressables에서 {prefabName} 프리팹을 찾을 수 없습니다.");
+            GcLogger.LogError($"아이콘 Atlas에서 엑티브 스킬 아이콘 이미지를 찾을 수 없습니다. fileName: {fileName} ");
+            return null;
+        }
+        public Sprite GetSkillPassiveIconImageByName(string fileName)
+        {
+            if (_dicImageIconSkillPassive.TryGetValue(ConfigAddressableLabelSkill.ImageSkillPassiveIcon, out var prefab))
+            {
+                return prefab.GetSprite(fileName);
+            }
+
+            GcLogger.LogError($"아이콘 Atlas에서 패시브 스킬 아이콘 이미지를 찾을 수 없습니다. fileName: {fileName} ");
             return null;
         }
         public float GetPrefabLoadProgress() => _prefabLoadProgress;

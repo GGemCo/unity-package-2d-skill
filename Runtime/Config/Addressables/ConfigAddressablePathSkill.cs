@@ -12,6 +12,7 @@ namespace GGemCo2DSkill
             public static class Icon
             {
                 public static string Skill => ConfigAddressablePath.Combine(ConfigAddressablePath.Images.Icon.RootIcon, "Skill");
+                public static string SkillPassive => ConfigAddressablePath.Combine(ConfigAddressablePath.Images.Icon.RootIcon, "SkillPassive");
             }
         }
 
