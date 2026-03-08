@@ -28,6 +28,7 @@ namespace GGemCo2DSkill
                     UIWindowConstants.WindowUid.SkillInfo);
             _skillData = SkillPackageManager.Instance.SaveDataManagerSkill.Skill;
         }
+
         /// <summary>
         /// 다른 uid 로 변경하기
         /// </summary>
@@ -36,9 +37,13 @@ namespace GGemCo2DSkill
         /// <param name="iconLevel"></param>
         /// <param name="iconIsLearn"></param>
         /// <param name="remainCoolTime"></param>
-        public override bool ChangeInfoByUid(int iconUid, int iconCount = 0, int iconLevel = 0, bool iconIsLearn = false, int remainCoolTime = 0, long iconInstanceId = 0)
+        /// <param name="iconInstanceId"></param>
+        /// <param name="iconType"></param>
+        public override bool ChangeInfoByUid(int iconUid, int iconCount = 0, int iconLevel = 0,
+            bool iconIsLearn = false, int remainCoolTime = 0, long iconInstanceId = 0, IconConstants.Type iconType = IconConstants.Type.None)
         {
-            if (!base.ChangeInfoByUid(iconUid, iconCount, iconLevel, iconIsLearn, remainCoolTime, iconInstanceId)) return false;
+            if (!base.ChangeInfoByUid(iconUid, iconCount, iconLevel, iconIsLearn, remainCoolTime, iconInstanceId, iconType))
+                return false;
             // todo. 정리 필요. Level 정보
             var info = _tableSkillPassive.GetDataByUid(iconUid);
             if (info == null)
@@ -46,10 +51,12 @@ namespace GGemCo2DSkill
                 GcLogger.LogError("스킬 테이블에 없는 아이템 입니다.");
                 return false;
             }
+
             _struckTableSkillPassive = info;
             UpdateInfo();
             return true;
         }
+
         /// <summary>
         /// 아이콘 이미지 업데이트 하기
         /// </summary>

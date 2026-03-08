@@ -11,7 +11,7 @@ namespace GGemCo2DSkill
         private AddressableLoaderSkill _addressableLoaderSkill;
         private QuickSlotData _quickSlotData;
         
-        public void OnSetIcon(UIWindow window, int slotIndex, int iconUid, int iconCount, int iconLevel, bool isLearned)
+        public void OnSetIcon(UIWindow window, int slotIndex, int iconUid, int iconCount, int iconLevel, bool isLearned, IconConstants.Type iconType)
         {
             UIIcon icon = window.GetIconByIndex(slotIndex);
             if (icon == null) return;
@@ -37,7 +37,7 @@ namespace GGemCo2DSkill
             }
             
             // 순서 중요. 다른 슬롯 삭제하고 저장하기
-            _quickSlotData.SetIcon(slotIndex, icon.GetIconType(), iconUid, iconCount, iconLevel, isLearned);
+            _quickSlotData.SetIcon(slotIndex, iconUid, iconCount, iconLevel, isLearned, iconType);
             
             var sprite = _addressableLoaderSkill.GetSkillIconImageByName(info.IconFileName);
             // 아이콘 이미지 변경하기
