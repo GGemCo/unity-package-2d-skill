@@ -45,18 +45,18 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 세이브 데이터에 저장된 패시브 장착 정보를 다시 읽어서 적용합니다.
+        /// 퀵슬롯 세이브 데이터에 저장된 패시브 장착 정보를 다시 읽어서 적용합니다.
         /// - 내부적으로 <see cref="SkillPackageManager"/>의 <see cref="SaveDataManagerSkill"/>을 참조합니다.
         /// </summary>
         public override void RefreshFromSaveData()
         {
-            var mgr = SkillPackageManager.Instance?.SaveDataManagerSkill;
-            if (mgr?.Skill == null)
+            var mgr = SceneGame.Instance?.saveDataManager;
+            if (mgr?.QuickSlot == null)
             {
                 Clear();
                 return;
             }
-            ApplyEquippedPassives(mgr?.Skill.BuildEquippedPassiveSkillLevels());
+            ApplyEquippedPassives(mgr?.QuickSlot.GetAllSkillPassive());
             RebuildUsingPolicy();
         }
     }

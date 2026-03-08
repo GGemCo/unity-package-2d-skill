@@ -23,7 +23,8 @@ namespace GGemCo2DSkill
             _tableSkillPassive ??= TableLoaderManagerSkill.Instance.TableSkillPassive;
             _addressableLoaderSkill ??= AddressableLoaderSkill.Instance;
             _quickSlotData ??= SceneGame.Instance.saveDataManager.QuickSlot;
-            _playerPassiveSkillController ??= SceneGame.Instance.player.GetComponent<PlayerPassiveSkillController>();
+            if (SceneGame.Instance && SceneGame.Instance.player)
+                _playerPassiveSkillController ??= SceneGame.Instance.player.GetComponent<PlayerPassiveSkillController>();
             
             var info = _tableSkillPassive.GetDataByUid(iconUid);
             if (info == null) return;
@@ -49,13 +50,16 @@ namespace GGemCo2DSkill
             {
                 dict[kv.Key] = kv.Value;
             }
-            _playerPassiveSkillController.ApplyEquippedPassives(dict);
+            _playerPassiveSkillController?.ApplyEquippedPassives(dict);
         }
         public void OnDetachIcon(UIWindow window, int slotIndex)
         {
             UIIcon icon = window.GetIconByIndex(slotIndex);
             if (icon == null) return;
             _quickSlotData ??= SceneGame.Instance.saveDataManager.QuickSlot;
+            if (SceneGame.Instance && SceneGame.Instance.player)
+                _playerPassiveSkillController ??= SceneGame.Instance.player.GetComponent<PlayerPassiveSkillController>();
+            
             _quickSlotData.Remove(slotIndex);
             
             // 패시브 해제하기
@@ -64,7 +68,7 @@ namespace GGemCo2DSkill
             {
                 dict[kv.Key] = kv.Value;
             }
-            _playerPassiveSkillController.ApplyEquippedPassives(dict);
+            _playerPassiveSkillController?.ApplyEquippedPassives(dict);
         }
     }
 }
