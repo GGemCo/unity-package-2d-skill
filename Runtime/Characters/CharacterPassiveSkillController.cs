@@ -184,7 +184,7 @@ namespace GGemCo2DSkill
             {
                 // 감소했으면 현재치 클램프
                 long nextCurrent = Math.Min(beforePassiveTempCurrent, afterPassiveTempMax);
-                _character.SetPassiveBonusHpTempCurrent(nextCurrent);
+                _character.SetCurrentHpTempPassive(nextCurrent);
             }
         }
         public void RebuildUsingPolicy()
