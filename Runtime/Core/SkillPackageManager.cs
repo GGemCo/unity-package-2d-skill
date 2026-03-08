@@ -37,7 +37,10 @@ namespace GGemCo2DSkill
             
             // 퀵슬롯 드래그 앤 드롭 처리
             QuickSlotDragStrategyRegistry.Register(UIWindowConstants.WindowUid.Skill, new DragDropStrategyQuickSlotSkill());
-            QuickSlotDragStrategyRegistry.Register(UIWindowConstants.WindowUid.PassiveSkill, new DragDropStrategyQuickSlotSkillPassive());
+            QuickSlotDragStrategyRegistry.Register(UIWindowConstants.WindowUid.SkillPassive, new DragDropStrategyQuickSlotSkillPassive());
+            
+            QuickSlotSetIconStrategyRegistry.Register(IconConstants.Type.Skill, new SetIconHandlerQuickSlotSkill());
+            QuickSlotSetIconStrategyRegistry.Register(IconConstants.Type.SkillPassive, new SetIconHandlerQuickSlotSkillPassive());
         }
 
         private void Start()
