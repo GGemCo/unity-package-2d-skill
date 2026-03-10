@@ -32,6 +32,7 @@ namespace GGemCo2DSkill
         /// 스킬 옵션(패시브/확장 효과) 테이블.
         /// </summary>
         public TableSkillPassiveOption TableSkillPassiveOption { get; private set; } = new TableSkillPassiveOption();
+        public TableSkillMonster TableSkillMonster { get; private set; } = new TableSkillMonster();
 
         /// <summary>
         /// Unity Awake 생명주기 메서드.
@@ -55,6 +56,7 @@ namespace GGemCo2DSkill
                 registry.Register(TableSkill);
                 registry.Register(TableSkillPassive);
                 registry.Register(TableSkillPassiveOption);
+                registry.Register(TableSkillMonster);
 }
             else
             {

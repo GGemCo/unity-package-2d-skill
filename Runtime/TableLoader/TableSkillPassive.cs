@@ -12,6 +12,8 @@ namespace GGemCo2DSkill
         public int Uid { get; set; }
         public string Name { get; set; }
         public string Memo;
+        public bool DefaultLearn;
+        public int NeedPlayerLevel;
         public ConfigCommonSkill.SkillKind SkillKind;
         public string IconFileName;
         /// <summary>패시브/옵션형 스킬이 참조하는 옵션 그룹 UID</summary>
@@ -40,6 +42,8 @@ namespace GGemCo2DSkill
                 Uid = uid,
                 Name = name,
                 Memo = data["Memo"],
+                DefaultLearn = ConvertBoolean(data["DefaultLearn"]),
+                NeedPlayerLevel = MathHelper.ParseInt(data["NeedPlayerLevel"]),
                 IconFileName = data["IconFileName"],
                 SkillKind = ConfigCommonSkill.SkillKind.Passive,
                 OptionGroupUid = MathHelper.ParseInt(data["OptionGroupUid"]),

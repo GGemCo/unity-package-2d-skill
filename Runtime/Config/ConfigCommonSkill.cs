@@ -48,13 +48,5 @@
             Capsule = 3,
             Line = 4,
         }
-
-        public enum Category
-        {
-            None,
-            Player, // 플레이어 자신
-            Monster, //몬스터
-        }
-
     }
 }

@@ -7,16 +7,14 @@ namespace GGemCo2DSkill
     /// <summary>
     /// 플레이어 엑티브 스킬 테이블 Structure
     /// </summary>
-    public class StruckTableSkill
+    public class StruckTableSkillMonster
     {
         public int Uid { get; set; }
         public string Name { get; set; }
         public string Memo;
-        public bool DefaultLearn;
-        public int NeedPlayerLevel;
-        public string IconFileName;
         public string SoFileName;
 
+        /// <summary>스킬 분류(Active/Passive)</summary>
         public ConfigCommonSkill.SkillKind SkillKind;
 
         /// <summary>캐스팅 시간(초). 0이면 즉시 사용.</summary>
@@ -49,28 +47,19 @@ namespace GGemCo2DSkill
     /// <summary>
     /// 플레이어 엑티브 스킬 테이블
     /// </summary>
-    public class TableSkill : DefaultTable<StruckTableSkill>
+    public class TableSkillMonster : DefaultTable<StruckTableSkillMonster>
     {
-        public override string Key => ConfigAddressableTableSkill.Skill;
+        public override string Key => ConfigAddressableTableSkill.SkillMonster;
         
-        protected override StruckTableSkill BuildRow(Dictionary<string, string> data)
+        protected override StruckTableSkillMonster BuildRow(Dictionary<string, string> data)
         {
             int uid = MathHelper.ParseInt(data.GetValueOrDefault("Uid"));
-            // 로컬라이즈된 이름/설명
-            string name = data.GetValueOrDefault("Name");
-            if (LocalizationManagerSkill.Instance != null)
-            {
-                name = LocalizationManagerSkill.Instance.GetSkillNameByKey(uid.ToString());
-            }
             
-            return new StruckTableSkill
+            return new StruckTableSkillMonster
             {
                 Uid = uid,
-                Name = name,
+                Name = data["Memo"],
                 Memo = data["Memo"],
-                DefaultLearn = ConvertBoolean(data["DefaultLearn"]),
-                NeedPlayerLevel = MathHelper.ParseInt(data["NeedPlayerLevel"]),
-                IconFileName = data["IconFileName"],
                 SoFileName = data["SoFileName"],
                 SkillKind = ConfigCommonSkill.SkillKind.Active,
                 CastTime = MathHelper.ParseFloat(data["CastTime"]),

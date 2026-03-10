@@ -73,7 +73,6 @@ namespace GGemCo2DSkillEditor
 
         private IntegerField _fUid;
         private TextField _fName;
-        private EnumField _fCategory;
         private TextField _fMemo;
         private TextField _fIconFileName;
         private FloatField _fCastTime;
@@ -537,9 +536,6 @@ namespace GGemCo2DSkillEditor
             _fName.tooltip = "skill.txt의 Name 컬럼 값입니다. (런타임에서 로컬라이즈로 덮어쓸 수 있습니다.)";
             _editRoot.Add(_fName);
 
-            _fCategory = new EnumField("Category", ConfigCommonSkill.Category.Player);
-            _editRoot.Add(_fCategory);
-            
             _fMemo = new TextField("Memo");
             _editRoot.Add(_fMemo);
 
@@ -577,13 +573,6 @@ namespace GGemCo2DSkillEditor
             _editRoot.Add(_fUseClip);
 
             RegisterDirtyTracking(_fName, (v) => _editingSkill.Name = v);
-            
-            _fCategory.RegisterValueChangedCallback(evt =>
-            {
-                if (_editingSkill == null) return;
-                _editingSkill.Category = (ConfigCommonSkill.Category)evt.newValue;
-                MarkDirty();
-            });
             
             RegisterDirtyTracking(_fMemo, (v) => _editingSkill.Memo = v);
             RegisterDirtyTracking(_fIconFileName, (v) => _editingSkill.IconFileName = v);
@@ -645,7 +634,6 @@ namespace GGemCo2DSkillEditor
             _bakeButton.SetEnabled(enabled);
 
             _fName.SetEnabled(enabled);
-            _fCategory.SetEnabled(enabled);
             _fMemo.SetEnabled(enabled);
             _fIconFileName.SetEnabled(enabled);
             _fCastTime.SetEnabled(enabled);
@@ -1405,7 +1393,6 @@ namespace GGemCo2DSkillEditor
             {
                 _fUid.SetValueWithoutNotify(s?.Uid ?? 0);
                 _fName.SetValueWithoutNotify(s?.Name ?? string.Empty);
-                _fCategory.SetValueWithoutNotify(s != null ? (Enum)s.Category : ConfigCommonSkill.Category.Player);
                 _fMemo.SetValueWithoutNotify(s?.Memo ?? string.Empty);
                 _fIconFileName.SetValueWithoutNotify(s?.IconFileName ?? string.Empty);
                 _fCastTime.SetValueWithoutNotify(s?.CastTime ?? 0f);
@@ -1422,7 +1409,6 @@ namespace GGemCo2DSkillEditor
 
             _fUid.value = s?.Uid ?? 0;
             _fName.value = s?.Name ?? string.Empty;
-            _fCategory.value = s != null ? (Enum)s.Category : ConfigCommonSkill.Category.Player;
             _fMemo.value = s?.Memo ?? string.Empty;
             _fIconFileName.value = s?.IconFileName ?? string.Empty;
             _fCastTime.value = s?.CastTime ?? 0f;
@@ -1498,7 +1484,6 @@ namespace GGemCo2DSkillEditor
 
             // Uid는 키이므로 편집하지 않습니다.
             _selectedSkill.Name = _editingSkill.Name;
-            _selectedSkill.Category = _editingSkill.Category;
             _selectedSkill.Memo = _editingSkill.Memo;
             _selectedSkill.IconFileName = _editingSkill.IconFileName;
             _selectedSkill.CastTime = _editingSkill.CastTime;
@@ -1521,7 +1506,6 @@ namespace GGemCo2DSkillEditor
             {
                 Uid = row.Uid,
                 Name = row.Name,
-                Category = row.Category,
                 Memo = row.Memo,
                 IconFileName = row.IconFileName,
                 CastTime = row.CastTime,
@@ -1568,7 +1552,6 @@ namespace GGemCo2DSkillEditor
                         continue;
 
                     sb.Append(r.Uid).Append('\t');
-                    sb.Append(r.Category).Append('\t');
                     sb.Append(r.Memo ?? string.Empty).Append('\t');
                     sb.Append(r.UseClip ?? string.Empty);
                     sb.Append(r.IconFileName ?? string.Empty).Append('\t');
@@ -1613,7 +1596,6 @@ namespace GGemCo2DSkillEditor
                 return;
 
             info.Name = row.Name;
-            info.Category = row.Category;
             info.Memo = row.Memo;
             info.IconFileName = row.IconFileName;
             info.CastTime = row.CastTime;
