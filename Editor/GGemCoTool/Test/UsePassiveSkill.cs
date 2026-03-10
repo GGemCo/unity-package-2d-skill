@@ -25,20 +25,13 @@ namespace GGemCo2DSkillEditor
         // Tables
         private TableSkillPassive _tableSkillPassive;
         private TableSkillPassiveOption _tableSkillPassiveOption;
-        private Dictionary<int, StruckTableSkillPassive> _skillDict;
 
         // Dropdown data
-        private readonly List<string> _passiveSkillNames = new();
-        private readonly List<int> _passiveSkillUids = new();
-        private int _selectedSkillIndex;
+        private Dictionary<int, StruckTableSkillPassive> _dictionary;
+        private readonly List<SearchableDropdownUtility.Option<StruckTableSkillPassive>> _dropDownOptions = new();
+        private StruckTableSkillPassive _selectedData;
 
-        // Target
-        private CharacterBase _targetCharacter;
         private CharacterPassiveSkillController _targetPassiveController;
-
-        private readonly List<CharacterBase> _sceneCharacters = new();
-        private readonly List<string> _sceneCharacterNames = new();
-        private int _selectedCharacterIndex;
 
         // Equip params
         private int _equipLevel = 1;
@@ -63,14 +56,16 @@ namespace GGemCo2DSkillEditor
             base.OnEnable();
             packageType = ConfigPackageInfo.PackageType.Skill;
 
-            _selectedSkillIndex = 0;
-            _selectedCharacterIndex = 0;
+            _selectedData = null;
             _equipLevel = 1;
 
             ReloadAllTables();
-            RefreshSceneCharacters();
         }
 
+        protected override void OnSelectedCharacterChanged(CharacterBase character)
+        {
+            Repaint();
+        }
         private void OnGUI()
         {
             using (var scroll = new EditorGUILayout.ScrollViewScope(_scroll))
@@ -84,7 +79,7 @@ namespace GGemCo2DSkillEditor
                 DrawTargetSection();
                 EditorGUILayout.Space(8);
 
-                DrawSkillSection();
+                DrawTableSection();
                 EditorGUILayout.Space(8);
 
                 DrawEquippedSection();
@@ -94,114 +89,51 @@ namespace GGemCo2DSkillEditor
                 EditorGUILayout.Space(8);
 
                 DrawReloadSection();
+                EditorGUILayout.Space(20);
             }
         }
 
-        private void DrawPlayModeGate()
-        {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("실행 조건", EditorStyles.boldLabel);
-
-                if (!Application.isPlaying)
-                {
-                    EditorGUILayout.HelpBox("Play Mode에서만 동작합니다.", MessageType.Warning);
-                    return;
-                }
-
-                if (!SceneGame.Instance)
-                {
-                    EditorGUILayout.HelpBox("SceneGame.Instance를 찾지 못했습니다. 게임 씬이 로드되어 있는지 확인해주세요.", MessageType.Warning);
-                }
-                else
-                {
-                    EditorGUILayout.HelpBox("Play Mode에서 동작 중입니다.", MessageType.Info);
-                }
-            }
-        }
-
+        #region GUI
         private void DrawTargetSection()
         {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("대상 캐릭터", EditorStyles.boldLabel);
+            DrawCharacterSelectionSection(Title);
 
-                using (new EditorGUI.DisabledScope(!Application.isPlaying))
-                {
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        if (GUILayout.Button("현재 선택 오브젝트로 지정", GUILayout.Height(22)))
-                            TryAssignFromSelection();
-
-                        if (GUILayout.Button("씬 캐릭터 목록 새로고침", GUILayout.Height(22)))
-                            RefreshSceneCharacters();
-                    }
-
-                    if (_sceneCharacterNames.Count == 0)
-                    {
-                        EditorGUILayout.HelpBox("씬에서 CharacterBase를 찾지 못했습니다.", MessageType.Info);
-                    }
-                    else
-                    {
-                        var newIndex = EditorGUILayout.Popup("씬 캐릭터", _selectedCharacterIndex, _sceneCharacterNames.ToArray());
-                        if (newIndex != _selectedCharacterIndex)
-                        {
-                            _selectedCharacterIndex = newIndex;
-                            AssignTarget(_sceneCharacters[_selectedCharacterIndex]);
-                        }
-                    }
-
-                    _targetCharacter = (CharacterBase)EditorGUILayout.ObjectField("대상(직접 지정)", _targetCharacter, typeof(CharacterBase), true);
-
-                    using (new EditorGUILayout.HorizontalScope())
-                    {
-                        _autoAttachComponents = EditorGUILayout.ToggleLeft("필요 컴포넌트 자동 부착", _autoAttachComponents, GUILayout.Width(180));
-
-                        if (GUILayout.Button("대상에 적용 준비", GUILayout.Height(22)))
-                            EnsureTargetReady();
-                    }
-
-                    DrawTargetSummary();
-                }
-            }
-        }
-
-        private void DrawTargetSummary()
-        {
-            if (_targetCharacter == null)
-            {
-                EditorGUILayout.HelpBox("대상을 지정해주세요.", MessageType.Warning);
+            if (selectedCharacter == null)
                 return;
-            }
-
-            var hasController = _targetCharacter.GetComponent<CharacterPassiveSkillController>() != null;
-            var hasAffect = AffectApi.HasRuntime();
-
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("대상 상태", EditorStyles.boldLabel);
-                EditorGUILayout.LabelField("GameObject", _targetCharacter.name);
-                EditorGUILayout.LabelField("CharacterPassiveSkillController", hasController ? "O" : "X");
-                EditorGUILayout.LabelField("Affect Runtime", hasAffect ? "O" : "X (미설치/미로드 시 Affect 옵션은 적용되지 않습니다)");
-            }
         }
 
-        private void DrawSkillSection()
+        private void DrawTableSection()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
             {
-                EditorGUILayout.LabelField("패시브 스킬 선택", EditorStyles.boldLabel);
-
-                if (_passiveSkillNames.Count == 0)
+                using (new EditorGUILayout.HorizontalScope())
                 {
-                    EditorGUILayout.HelpBox("패시브 스킬 목록이 비어 있습니다. 테이블을 재로딩 해주세요.", MessageType.Info);
-                    return;
-                }
+                    EditorGUILayout.PrefixLabel("패시브 스킬");
 
-                _selectedSkillIndex = EditorGUILayout.Popup("패시브 스킬", _selectedSkillIndex, _passiveSkillNames.ToArray());
+                    if (_dropDownOptions.Count == 0)
+                    {
+                        EditorGUILayout.HelpBox("Affect 테이블이 비어있습니다. 테이블 로딩/Addressables 설정을 확인해주세요.", MessageType.Warning);
+                        return;
+                    }
+
+                    string currentText = _selectedData != null ? _selectedData.Memo : "선택...";
+                    int selectIndex = _selectedData?.Uid ?? 0;
+
+                    SearchableDropdownUtility.DrawButtonAndShow(
+                        buttonText: currentText,
+                        options: _dropDownOptions,
+                        selectedIndex: selectIndex,
+                        onSelected: (idx, opt) =>
+                        {
+                            _selectedData = opt.Data;
+                            Repaint();
+                        },
+                        defaultSearchMode: SearchableDropdownUtility.SearchMode.Both);
+                }
+                
                 _equipLevel = Mathf.Max(1, EditorGUILayout.IntField("레벨", _equipLevel));
 
-                using (new EditorGUI.DisabledScope(!Application.isPlaying || _targetCharacter == null))
+                using (new EditorGUI.DisabledScope(!Application.isPlaying || selectedCharacter == null))
                 using (new EditorGUILayout.HorizontalScope())
                 {
                     if (GUILayout.Button("장착(추가/갱신)", GUILayout.Height(24)))
@@ -219,7 +151,7 @@ namespace GGemCo2DSkillEditor
             {
                 EditorGUILayout.LabelField("현재 장착된 패시브", EditorStyles.boldLabel);
 
-                using (new EditorGUI.DisabledScope(!Application.isPlaying || _targetCharacter == null))
+                using (new EditorGUI.DisabledScope(!Application.isPlaying || selectedCharacter == null))
                 {
                     if (GUILayout.Button("전체 해제", GUILayout.Height(22)))
                         ClearAll();
@@ -242,17 +174,19 @@ namespace GGemCo2DSkillEditor
                 int slotIndex = 0;
                 foreach (var kv in equipped)
                 {
-                    var skillName = ResolveSkillName(kv.Key);
+                    var uid = kv.Key;
+                    var row = _tableSkillPassive?.GetDataByUid(uid);
+                    var skillName =  row?.Memo ?? "(Unknown)";
                     using (new EditorGUILayout.HorizontalScope())
                     {
-                        EditorGUILayout.LabelField($"{kv.Key}  {skillName}", GUILayout.MinWidth(240));
+                        EditorGUILayout.LabelField($"{uid}  {skillName}", GUILayout.MinWidth(240));
                         EditorGUILayout.LabelField($"Lv {kv.Value}", GUILayout.Width(60));
 
                         using (new EditorGUI.DisabledScope(!Application.isPlaying))
                         {
                             if (GUILayout.Button("해제", GUILayout.Width(50)))
                             {
-                                RemoveEquipped(kv.Key, slotIndex);
+                                RemoveEquipped(uid, slotIndex);
                                 break; // collection changed
                             }
                         }
@@ -270,39 +204,35 @@ namespace GGemCo2DSkillEditor
             {
                 EditorGUILayout.LabelField("옵션 미리보기", EditorStyles.boldLabel);
 
-                if (_passiveSkillUids.Count == 0) return;
+                if (_dictionary.Count == 0) return;
 
-                var skillUid = _passiveSkillUids[Mathf.Clamp(_selectedSkillIndex, 0, _passiveSkillUids.Count - 1)];
-                var skillRow = _tableSkillPassive?.GetDataByUid(skillUid);
-                if (skillRow == null)
+                if (_selectedData == null)
                 {
                     EditorGUILayout.HelpBox("선택한 스킬 Row를 찾지 못했습니다.", MessageType.Warning);
                     return;
                 }
 
-                if (skillRow.SkillKind != ConfigCommonSkill.SkillKind.Passive)
+                if (_selectedData.SkillKind != ConfigCommonSkill.SkillKind.Passive)
                 {
                     EditorGUILayout.HelpBox("선택한 스킬이 Passive가 아닙니다.", MessageType.Warning);
                     return;
                 }
 
-                if (skillRow.OptionGroupUid <= 0)
+                if (_selectedData.OptionGroupUid <= 0)
                 {
                     EditorGUILayout.HelpBox("OptionGroupUid가 비어 있습니다. (skill_option 테이블과 연결되지 않음)", MessageType.Info);
                     return;
                 }
 
-                var options = _tableSkillPassiveOption?.GetOptions(skillRow.OptionGroupUid, Mathf.Max(1, _equipLevel));
+                var options = _tableSkillPassiveOption?.GetOptions(_selectedData.OptionGroupUid, Mathf.Max(1, _equipLevel));
                 if (options == null || options.Count == 0)
                 {
                     EditorGUILayout.HelpBox("해당 레벨의 옵션이 없습니다. (Level=0 옵션만 있거나 데이터 누락)", MessageType.Info);
                     return;
                 }
 
-                var flat = new Dictionary<string, int>(16);
-                var percent = new Dictionary<string, float>(16);
-                var affects = new List<int>();
-
+                var result = new StatPreviewResult();
+                
                 for (int i = 0; i < options.Count; i++)
                 {
                     var op = options[i];
@@ -311,12 +241,12 @@ namespace GGemCo2DSkillEditor
                     switch (op.Kind)
                     {
                         case SkillOptionKind.Stat:
-                            AccumulateStat(flat, percent, op);
+                            StatModifierHelper.AccumulateStat(result.Flat, result.Percent, 
+                                op.TargetId, op.Op, op.Value);
                             break;
 
                         case SkillOptionKind.Affect:
-                            if (int.TryParse(op.TargetId, out var aid) && aid > 0)
-                                affects.Add(aid);
+                            StatModifierHelper.AccumulateAffect(result.AffectUids, op.TargetId);
                             break;
                     }
                 }
@@ -324,51 +254,43 @@ namespace GGemCo2DSkillEditor
                 _previewScroll = EditorGUILayout.BeginScrollView(_previewScroll, GUILayout.MinHeight(120));
 
                 EditorGUILayout.LabelField("Stat", EditorStyles.boldLabel);
-                if (flat.Count == 0 && percent.Count == 0)
+                if (result.Flat.Count == 0 && result.Percent.Count == 0)
                 {
                     EditorGUILayout.LabelField("- (없음)");
                 }
                 else
                 {
-                    foreach (var kv in flat)
+                    foreach (var kv in result.Flat)
                         EditorGUILayout.LabelField($"- {kv.Key}: {kv.Value:+#;-#;0}");
 
-                    foreach (var kv in percent)
+                    foreach (var kv in result.Percent)
                         EditorGUILayout.LabelField($"- {kv.Key}: {kv.Value:+0.##;-0.##;0}%");
                 }
 
                 EditorGUILayout.Space(6);
                 EditorGUILayout.LabelField("Affect", EditorStyles.boldLabel);
-                if (affects.Count == 0)
+                if (result.AffectUids.Count == 0)
                 {
                     EditorGUILayout.LabelField("- (없음)");
                 }
                 else
                 {
-                    for (int i = 0; i < affects.Count; i++)
-                        EditorGUILayout.LabelField($"- {affects[i]}");
+                    for (int i = 0; i < result.AffectUids.Count; i++)
+                        EditorGUILayout.LabelField($"- {result.AffectUids[i]}");
                 }
-
+                
                 EditorGUILayout.EndScrollView();
             }
         }
 
         private void DrawReloadSection()
         {
-            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
-            {
-                EditorGUILayout.LabelField("테이블", EditorStyles.boldLabel);
-
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    if (GUILayout.Button("테이블 재로딩", GUILayout.Height(22)))
-                        ReloadAllTables();
-
-                    if (!string.IsNullOrEmpty(_lastReloadMessage))
-                        EditorGUILayout.LabelField(_lastReloadMessage);
-                }
-            }
+            DrawTableReloadSection(
+                _lastReloadMessage,
+                "skill_passive / skill_passive_option 재로딩",
+                ReloadAllTables);
         }
+        #endregion
 
         private void ReloadAllTables()
         {
@@ -377,8 +299,8 @@ namespace GGemCo2DSkillEditor
                 _tableSkillPassive = TableLoaderManagerSkill.LoadTableSkillPassive(forceReload: true);
                 _tableSkillPassiveOption = TableLoaderManagerSkill.LoadTableSkillPassiveOption(forceReload: true);
 
-                _skillDict = _tableSkillPassive?.GetDatas();
-                RebuildPassiveSkillDropdown();
+                _dictionary = _tableSkillPassive?.GetDatas();
+                RebuildDropdown();
 
                 // Core 테이블(옵션 미리보기 검증에 사용 가능)
                 TableLoaderManagerSkill.LoadCoreTable<TableStat>("stat", forceReload: true);
@@ -396,93 +318,34 @@ namespace GGemCo2DSkillEditor
             Repaint();
         }
 
-        private void RebuildPassiveSkillDropdown()
+        private void RebuildDropdown()
         {
-            _passiveSkillNames.Clear();
-            _passiveSkillUids.Clear();
-
-            if (_skillDict == null) return;
-
-            foreach (var kvp in _skillDict)
-            {
-                var row = kvp.Value;
-                if (row == null) continue;
-                if (row.SkillKind != ConfigCommonSkill.SkillKind.Passive) continue;
-
-                _passiveSkillUids.Add(row.Uid);
-                _passiveSkillNames.Add($"{row.Uid}  {row.Name}");
-            }
-
-            if (_selectedSkillIndex >= _passiveSkillNames.Count)
-                _selectedSkillIndex = Mathf.Max(0, _passiveSkillNames.Count - 1);
-        }
-
-        private void RefreshSceneCharacters()
-        {
-            _sceneCharacters.Clear();
-            _sceneCharacterNames.Clear();
-
-            if (!Application.isPlaying)
-            {
-                Repaint();
-                return;
-            }
-
-            #if UNITY_2023_1_OR_NEWER
-            var chars = UnityEngine.Object.FindObjectsByType<CharacterBase>(FindObjectsInactive.Exclude, FindObjectsSortMode.None);
-#else
-            var chars = FindObjectsOfType<CharacterBase>(includeInactive: false);
-#endif
-            foreach (var c in chars)
-            {
-                _sceneCharacters.Add(c);
-                _sceneCharacterNames.Add(c ? c.name : "(null)");
-            }
-
-            if (_sceneCharacters.Count > 0)
-            {
-                _selectedCharacterIndex = Mathf.Clamp(_selectedCharacterIndex, 0, _sceneCharacters.Count - 1);
-                if (_targetCharacter == null)
-                    AssignTarget(_sceneCharacters[_selectedCharacterIndex]);
-            }
-
-            Repaint();
-        }
-
-        private void TryAssignFromSelection()
-        {
-            var go = Selection.activeGameObject;
-            if (!go) return;
-
-            var c = go.GetComponentInParent<CharacterBase>();
-            if (!c) c = go.GetComponentInChildren<CharacterBase>();
-            AssignTarget(c);
-        }
-
-        private void AssignTarget(CharacterBase c)
-        {
-            _targetCharacter = c;
-            _targetPassiveController = _targetCharacter ? _targetCharacter.GetComponent<CharacterPassiveSkillController>() : null;
-            Repaint();
+            RebuildDropdownOptions(
+                source: _dictionary?.Values,
+                targetOptions: _dropDownOptions,
+                isValidRow: row => row.Uid > 0,
+                keySelector: row => row.Uid.ToString(),
+                valueSelector: row => row.Memo,
+                assignSelected: row => _selectedData = row);
         }
 
         private void EnsureTargetReady()
         {
-            if (_targetCharacter == null) return;
+            if (selectedCharacter == null) return;
 
             if (_autoAttachComponents)
             {
                 // 패시브 컨트롤러
-                _targetPassiveController = _targetCharacter.GetComponent<CharacterPassiveSkillController>();
+                _targetPassiveController = selectedCharacter.GetComponent<CharacterPassiveSkillController>();
                 if (_targetPassiveController == null)
-                    _targetPassiveController = _targetCharacter.gameObject.AddComponent<CharacterPassiveSkillController>();
+                    _targetPassiveController = selectedCharacter.gameObject.AddComponent<CharacterPassiveSkillController>();
 
                 // Affect 시스템(설치되어 있으면 자동 부착)
-                AffectApi.Ensure(_targetCharacter.gameObject);
+                AffectApi.Ensure(selectedCharacter.gameObject);
             }
             else
             {
-                _targetPassiveController = _targetCharacter.GetComponent<CharacterPassiveSkillController>();
+                _targetPassiveController = selectedCharacter.GetComponent<CharacterPassiveSkillController>();
             }
 
             Repaint();
@@ -497,8 +360,8 @@ namespace GGemCo2DSkillEditor
                 return;
             }
 
-            if (_passiveSkillUids.Count == 0) return;
-            var uid = _passiveSkillUids[Mathf.Clamp(_selectedSkillIndex, 0, _passiveSkillUids.Count - 1)];
+            if (_dictionary.Count == 0 || _selectedData == null || _selectedData.Uid <= 0) return;
+            var uid = _selectedData.Uid;
 
             var dict = new Dictionary<int, int>(_targetPassiveController.EquippedPassives.Count + 1);
             foreach (var kv in _targetPassiveController.EquippedPassives)
@@ -510,7 +373,7 @@ namespace GGemCo2DSkillEditor
             
             // UI 장착 시에만 "임시 HP Current도 채움" 정책을 적용합니다.
             // (기본 런타임 정책은 임시 최대 HP 변경 시 Current를 자동 충전하지 않습니다.)
-            var player = _targetCharacter.GetComponent<Player>();
+            var player = selectedCharacter.GetComponent<Player>();
             if (player)
             {
                 var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
@@ -545,7 +408,7 @@ namespace GGemCo2DSkillEditor
             
             // UI 장착 시에만 "임시 HP Current도 채움" 정책을 적용합니다.
             // (기본 런타임 정책은 임시 최대 HP 변경 시 Current를 자동 충전하지 않습니다.)
-            var player = _targetCharacter.GetComponent<Player>();
+            var player = selectedCharacter.GetComponent<Player>();
             if (player)
             {
                 var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
@@ -562,7 +425,7 @@ namespace GGemCo2DSkillEditor
             if (_targetPassiveController == null) return;
             _targetPassiveController.Clear();
             
-            var player = _targetCharacter.GetComponent<Player>();
+            var player = selectedCharacter.GetComponent<Player>();
             if (player)
             {
                 var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
@@ -570,41 +433,6 @@ namespace GGemCo2DSkillEditor
                 {
                     skillData.RemovePassiveEquipAll();
                 }
-            }
-        }
-
-        private string ResolveSkillName(int skillUid)
-        {
-            var row = _tableSkillPassive?.GetDataByUid(skillUid);
-            return row?.Name ?? "(Unknown)";
-        }
-
-        private static void AccumulateStat(Dictionary<string, int> flat, Dictionary<string, float> percent, StruckTableSkillPassiveOption op)
-        {
-            if (string.IsNullOrEmpty(op.TargetId)) return;
-
-            // CharacterPassiveSkillController 정책과 동일
-            switch (op.Op)
-            {
-                case ConfigCommon.SuffixType.Plus:
-                    flat[op.TargetId] = flat.GetValueOrDefault(op.TargetId, 0) + (int)op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.Minus:
-                    flat[op.TargetId] = flat.GetValueOrDefault(op.TargetId, 0) - (int)op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.Increase:
-                    percent[op.TargetId] = percent.GetValueOrDefault(op.TargetId, 0f) + op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.Decrease:
-                    percent[op.TargetId] = percent.GetValueOrDefault(op.TargetId, 0f) - op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.None:
-                    flat[op.TargetId] = flat.GetValueOrDefault(op.TargetId, 0) + (int)op.Value;
-                    break;
             }
         }
     }
