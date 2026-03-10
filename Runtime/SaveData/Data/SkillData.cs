@@ -11,8 +11,8 @@ namespace GGemCo2DSkill
         // public 으로 해야 json 으로 저장된다. 
         public Dictionary<int, SaveDataIcon> SkillDatas = new();
 
-        // 패시브 스킬 장착 슬롯 데이터 (slotIndex -> SaveDataIcon)
-        public Dictionary<int, SaveDataIcon> PassiveEquipDatas = new();
+        // 패시브 스킬 레벨 정보
+        public Dictionary<int, SaveDataIcon> SkillPassiveDatas = new();
 
         /// <summary>
         /// 초기화. Awake 단계에서 실행
@@ -22,17 +22,18 @@ namespace GGemCo2DSkill
         public void Initialize(TableLoaderManagerSkill loader, SaveDataContainerSkill saveDataContainer = null)
         {
             SkillDatas.Clear();
-            PassiveEquipDatas.Clear();
+            SkillPassiveDatas.Clear();
             if (saveDataContainer?.SkillData != null)
             {
                 SkillDatas = new Dictionary<int, SaveDataIcon>(saveDataContainer.SkillData.SkillDatas);
-                if (saveDataContainer.SkillData.PassiveEquipDatas != null)
+                if (saveDataContainer.SkillData.SkillPassiveDatas != null)
                 {
-                    PassiveEquipDatas =
-                        new Dictionary<int, SaveDataIcon>(saveDataContainer.SkillData.PassiveEquipDatas);
+                    SkillPassiveDatas =
+                        new Dictionary<int, SaveDataIcon>(saveDataContainer.SkillData.SkillPassiveDatas);
                 }
             }
         }
+
         protected override void SaveDatas()
         {
             SkillPackageManager.Instance.SaveDataManagerSkill.StartSaveData();
@@ -45,46 +46,7 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 스킬 레벨업
-        /// </summary>
-        /// <param name="slotIndex"></param>
-        /// <param name="skillUid"></param>
-        /// <param name="skillCount"></param>
-        /// <param name="skillLevel"></param>
-        /// <param name="skillLearn"></param>
-        public ResultCommon SetSkillLevelUp(int slotIndex, int skillUid, int skillCount, int skillLevel,
-            bool skillLearn)
-        {
-            if (skillUid <= 0)
-            {
-                return ResultCommon.Fail($"QuickSlot_NoSkillInfo"); //$"스킬 정보가 없습니다."
-            }
-
-            if (!SkillDatas.ContainsKey(slotIndex))
-            {
-                return ResultCommon.Fail($"QuickSlot_SkillNotLearned"); //$"아직 스킬을 배우지 않았습니다."
-            }
-
-            List<SaveDataIcon> controls = new List<SaveDataIcon>
-                { new(slotIndex, skillUid, skillCount, skillLevel, skillLearn) };
-
-            SaveDatas();
-            return ResultCommon.SuccessWithIcons(controls);
-        }
-
-        /// <summary>
-        /// 스킬 설정
-        /// </summary>
-        public void SetSkill(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
-        {
-            if (skillUid <= 0) return;
-
-            SkillDatas[slotIndex] = new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn);
-            SaveDatas();
-        }
-
-        /// <summary>
-        /// 스킬 레벨 설정
+        /// 스킬 배움 여부 설정
         /// </summary>
         public ResultCommon SetSkillLearn(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
         {
@@ -92,10 +54,23 @@ namespace GGemCo2DSkill
             {
                 return ResultCommon.Fail("QuickSlot_NoSkillInfo"); //$"스킬 정보가 없습니다."
             }
+            var info = GetData(slotIndex);
+            if (info == null)
+            {
+                if (!SkillDatas.TryAdd(slotIndex,
+                        new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn)))
+                {
+                    GcLogger.LogError($"스킬 배움 여부 저장 실패. slotIndex: {slotIndex} / skillUid: {skillUid}");
+                }
+            }
+            else
+            {
+                info.SetIsLearn(skillLearn);
+            }
 
+            SaveDatas();
             List<SaveDataIcon> controls = new List<SaveDataIcon>
                 { new(slotIndex, skillUid, skillCount, skillLevel, skillLearn) };
-            SaveDatas();
             return ResultCommon.SuccessWithIcons(controls);
         }
 
@@ -112,31 +87,49 @@ namespace GGemCo2DSkill
             return SkillDatas.GetValueOrDefault(slotIndex);
         }
 
-
         #region Passive
 
+        public void SetSkillPassiveLearn(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
+        {
+            if (skillUid <= 0) return;
+            SkillPassiveDatas[slotIndex] = new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn);
+            SaveDatas();
+        }
+#if UNITY_EDITOR
+        /// <summary>
+        /// 패시브 스킬 사용 툴에서 호출 
+        /// </summary>
+        /// <param name="slotIndex"></param>
+        /// <param name="skillUid"></param>
+        /// <param name="skillCount"></param>
+        /// <param name="skillLevel"></param>
+        /// <param name="skillLearn"></param>
         public void SetPassiveEquip(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
         {
             if (skillUid <= 0) return;
-            PassiveEquipDatas[slotIndex] = new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn);
+            SkillPassiveDatas[slotIndex] = new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn);
             SaveDatas();
         }
 
+        /// <summary>
+        /// 패시브 스킬 사용 툴에서 호출 
+        /// </summary>
+        /// <param name="slotIndex"></param>
         public void RemovePassiveEquip(int slotIndex)
         {
-            if (!PassiveEquipDatas.ContainsKey(slotIndex)) return;
-            PassiveEquipDatas.Remove(slotIndex);
+            if (!SkillPassiveDatas.ContainsKey(slotIndex)) return;
+            SkillPassiveDatas.Remove(slotIndex);
             SaveDatas();
         }
-
+#endif
         public Dictionary<int, SaveDataIcon> GetAllPassiveEquips()
         {
-            return PassiveEquipDatas;
+            return SkillPassiveDatas;
         }
 
         public SaveDataIcon GetPassiveEquip(int slotIndex)
         {
-            return PassiveEquipDatas.GetValueOrDefault(slotIndex);
+            return SkillPassiveDatas.GetValueOrDefault(slotIndex);
         }
 
         /// <summary>
@@ -146,7 +139,7 @@ namespace GGemCo2DSkill
         public Dictionary<int, int> BuildEquippedPassiveSkillLevels()
         {
             var result = new Dictionary<int, int>();
-            foreach (var kv in PassiveEquipDatas)
+            foreach (var kv in SkillPassiveDatas)
             {
                 var v = kv.Value;
                 if (v == null) continue;
@@ -167,10 +160,10 @@ namespace GGemCo2DSkill
 
         public void RemovePassiveEquipAll()
         {
-            PassiveEquipDatas.Clear();
+            SkillPassiveDatas.Clear();
             SaveDatas();
         }
-        #endregion
 
+        #endregion
     }
 }

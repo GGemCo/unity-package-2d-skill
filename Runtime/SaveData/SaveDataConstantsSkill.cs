@@ -1,4 +1,4 @@
-﻿namespace GGemCo2DCore
+﻿namespace GGemCo2DSkill
 {
     public static class SaveDataConstantsSkill
     {

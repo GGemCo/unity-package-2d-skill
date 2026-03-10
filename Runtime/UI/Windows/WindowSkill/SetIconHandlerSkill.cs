@@ -7,22 +7,8 @@ namespace GGemCo2DSkill
     /// </summary>
     public class SetIconHandlerSkill : ISetIconHandler
     {
-        public void OnSetIcon(UIWindow window, int slotIndex, int iconUid, int iconCount, int iconLevel, bool isLearned)
+        public void OnSetIcon(UIWindow window, int slotIndex, int iconUid, int iconCount, int iconLevel, bool isLearned, IconConstants.Type iconType)
         {
-            UIWindowSkill uiWindowSkill = window as UIWindowSkill;
-            if (uiWindowSkill == null) return;
-            var skillData = SkillPackageManager.Instance.SaveDataManagerSkill.Skill;
-            UIIcon icon = window.GetIconByIndex(slotIndex);
-            if (icon != null)
-            {
-                skillData.SetSkill(slotIndex, iconUid, iconCount, iconLevel, isLearned);
-                UIElementSkill uiElementSkill = uiWindowSkill.GetElementSkillByIndex(slotIndex);
-                if (uiElementSkill != null)
-                {
-                    UIIconSkill uiIconSkill = icon.GetComponent<UIIconSkill>();
-                    uiElementSkill.UpdateInfos(uiIconSkill.GetTableInfo(), uiIconSkill.GetSaveDataInfo());
-                }
-            }
             
         }
         public void OnDetachIcon(UIWindow window, int slotIndex)

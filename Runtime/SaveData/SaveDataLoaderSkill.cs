@@ -1,7 +1,7 @@
-﻿using GGemCo2DSkill;
+﻿using GGemCo2DCore;
 using Newtonsoft.Json;
 
-namespace GGemCo2DCore
+namespace GGemCo2DSkill
 {
     /// <summary>
     /// 세이브 데이터 json 파일 로드

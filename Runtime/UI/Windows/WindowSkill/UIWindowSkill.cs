@@ -16,13 +16,11 @@ namespace GGemCo2DSkill
         private TableSkill _tableSkill;
         private readonly Dictionary<int, UIElementSkill> _uiElementSkills = new Dictionary<int, UIElementSkill>();
 
-        // private SkillData _skillData;
         private QuickSlotData _quickSlotData;
+        private SkillData _skillData;
 
         private UIWindowQuickSlot _uiWindowQuickSlot;
         private UIWindowSkillInfo _uIWindowSkillInfo;
-
-        private const ConfigCommonSkill.Category Category = ConfigCommonSkill.Category.Player;
 
         protected override void Awake()
         {
@@ -30,10 +28,10 @@ namespace GGemCo2DSkill
             uid = UIWindowConstants.WindowUid.Skill;
             if (TableLoaderManager.Instance == null) return;
             _tableSkill = TableLoaderManagerSkill.Instance.TableSkill;
-            maxCountIcon = _tableSkill.GetSkillsByCategory(Category).Count;
+            maxCountIcon = _tableSkill.GetDatas().Count;
 
             // 순서 중요: IconPoolManager에서 사용 (슬롯 빌드 전략 등록 후 base.Awake 호출)
-            SlotIconBuildStrategyRegistry.Register(uid, window => new SlotIconBuildStrategySkill(_tableSkill, _uiElementSkills, Category));
+            SlotIconBuildStrategyRegistry.Register(uid, window => new SlotIconBuildStrategySkill(_tableSkill, _uiElementSkills));
 
             base.Awake();
             IconPoolManager.SetSetIconHandler(new SetIconHandlerSkill());
@@ -43,8 +41,8 @@ namespace GGemCo2DSkill
         protected override void Start()
         {
             base.Start();
-            // _skillData = SceneGame.saveDataManager.Skill;
             _quickSlotData = SceneGame.saveDataManager.QuickSlot;
+            _skillData = SkillPackageManager.Instance.SaveDataManagerSkill.Skill;
             _uIWindowSkillInfo =
                 SceneGame.uIWindowManager.GetUIWindowByUid<UIWindowSkillInfo>(UIWindowConstants.WindowUid
                     .SkillInfo);
@@ -69,7 +67,7 @@ namespace GGemCo2DSkill
 
         public override void OnShow(bool show)
         {
-            if (SceneGame.Instance == null || TableLoaderManager.Instance == null) return;
+            if (SceneGame.Instance == null || TableLoaderManagerSkill.Instance == null) return;
             if (!show)
             {
                 _uIWindowSkillInfo?.Show(false);
@@ -86,7 +84,7 @@ namespace GGemCo2DSkill
         private void LoadIcons()
         {
             if (!gameObject.activeSelf) return;
-            var datas = SkillPackageManager.Instance.SaveDataManagerSkill.Skill.GetAllDatas();
+            var datas = _skillData.GetAllDatas();
             if (datas == null) return;
             for (int index = 0; index < maxCountIcon; index++)
             {
@@ -95,22 +93,24 @@ namespace GGemCo2DSkill
                 if (icon == null) continue;
                 UIIconSkill uiIcon = icon.GetComponent<UIIconSkill>();
                 if (uiIcon == null) continue;
-                SaveDataIcon saveDataIcon = datas.GetValueOrDefault(index);
-                if (saveDataIcon == null) continue;
-
-                int skillUid = saveDataIcon.Uid;
-                int skillCount = saveDataIcon.Count;
-                int skillLevel = saveDataIcon.Level;
-                bool skillIsLearned = saveDataIcon.IsLearned;
+                
                 // todo. 정리 필요. 다음 Level 정보
-                var info = _tableSkill.GetDataByUid(skillUid);
+                var info = _tableSkill.GetDataByUid(uiIcon.uid);
                 if (info == null) continue;
-                uiIcon.ChangeInfoByUid(skillUid, skillCount, skillLevel, skillIsLearned);
+                
+                SaveDataIcon saveDataIcon = datas.GetValueOrDefault(index);
+                if (saveDataIcon == null)
+                {
+                    _skillData.SetSkillLearn(index, info.Uid, 1, 1, info.DefaultLearn);
+                    saveDataIcon = datas.GetValueOrDefault(index);
+                }
+
                 UIElementSkill uiElementSkill = _uiElementSkills[index];
                 if (uiElementSkill != null)
                 {
-                    uiElementSkill.UpdateInfos(info, saveDataIcon);
+                    uiElementSkill.UpdateInfos(saveDataIcon);
                 }
+                
             }
         }
 
@@ -121,30 +121,6 @@ namespace GGemCo2DSkill
         public override void OnRightClick(UIIcon icon)
         {
             if (icon == null) return;
-            AddToQuickSlot(icon);
-        }
-
-        public void AddToQuickSlot(UIIcon icon)
-        {
-            float time = SceneGame.uIIconCoolTimeManager.GetCurrentCoolTime(uid, icon.uid);
-            if (time > 0)
-            {
-                SceneGame.systemMessageManager.ShowMessageWarning(
-                    "Skill_CannotChangeDuringCooldown"); //"쿨타임 중에는 바꿀 수 없습니다."
-                return;
-            }
-
-            if (!icon.IsLearn())
-            {
-                SceneGame.systemMessageManager.ShowMessageWarning("Skill_NotLearned"); //"배운 후 사용할 수 있습니다."
-                return;
-            }
-
-            if (!icon.CheckRequireLevel()) return;
-            if (_uiWindowQuickSlot == null) return;
-            // 퀵슬롯에 하나 넣기
-            var result = _quickSlotData.AddSkill(icon.uid, icon.GetCount(), icon.GetLevel(), icon.IsLearn());
-            _uiWindowQuickSlot.SetIcons(result);
         }
 
         public UIElementSkill GetElementSkillByIndex(int slotIndex)

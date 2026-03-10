@@ -25,22 +25,22 @@ namespace GGemCo2DSkill
         private SaveDataIcon _saveDataIcon;
         private TableSkill _tableSkill;
         private int _slotIndex;
+
+        private LocalizationManagerSkill _localizationManagerSkill;
         
         /// <summary>
         /// 초기화
         /// </summary>
-        /// <param name="puiWindowSkill"></param>
-        /// <param name="pslotIndex"></param>
-        /// <param name="pstruckTableSkill"></param>
-        /// <param name="pstructSkillIcon"></param>
-        public void Initialize(UIWindowSkill puiWindowSkill, int pslotIndex, StruckTableSkill pstruckTableSkill, SaveDataIcon pstructSkillIcon = null)
+        /// <param name="uiWindowSkill"></param>
+        /// <param name="slotIndex"></param>
+        /// <param name="struckTableSkill"></param>
+        public void Initialize(UIWindowSkill uiWindowSkill, int slotIndex, StruckTableSkill struckTableSkill)
         {
-            _slotIndex = pslotIndex;
-            _struckTableSkill = pstruckTableSkill;
-            _saveDataIcon = pstructSkillIcon;
+            _slotIndex = slotIndex;
+            _struckTableSkill = struckTableSkill;
             if (buttonLearn != null)
             {
-                buttonLearn.gameObject.SetActive(true);
+                buttonLearn.gameObject.SetActive(false);
                 buttonLearn.onClick.AddListener(OnClickLearn);
             }
             if (buttonLevelUp != null)
@@ -49,64 +49,85 @@ namespace GGemCo2DSkill
                 buttonLevelUp.onClick.AddListener(OnClickLevelUp);
             }
 
-            _uiWindowSkill = puiWindowSkill;
+            _uiWindowSkill = uiWindowSkill;
+            _tableSkill = TableLoaderManagerSkill.Instance.TableSkill;
+            _localizationManagerSkill = LocalizationManagerSkill.Instance;
+            
+            if (textName != null) textName.text = _struckTableSkill.Name;
+            
+            // todo. 정리 필요
+            textNeedLevel.gameObject.SetActive(false);
+            textNeedCurrency.gameObject.SetActive(false);
+        }
+        
+        private void Start()
+        {
             _uiWindowSkillInfo =
                 SceneGame.Instance.uIWindowManager.GetUIWindowByUid<UIWindowSkillInfo>(
                     UIWindowConstants.WindowUid.SkillInfo);
-            _tableSkill = TableLoaderManagerSkill.Instance.TableSkill;
-            
-            if (textName != null) textName.text = _struckTableSkill.Name;
-            UpdateInfos(pstruckTableSkill, _saveDataIcon);
         }
 
         /// <summary>
         /// slotIndex 로 아이템 정보를 가져온다.
         /// SaveDataIcon 정보에 따라 버튼 visible 업데이트
         /// </summary>
-        public void UpdateInfos(StruckTableSkill pstruckTableSkill, SaveDataIcon psaveDataIcon)
+        public void UpdateInfos(SaveDataIcon saveDataIcon)
         {
-            // todo. 정리 필요
-            /*
-            _struckTableSkill = pstruckTableSkill;
-            _saveDataIcon = psaveDataIcon;
-            if (_struckTableSkill == null)
+            if (saveDataIcon == null)
             {
-                GcLogger.LogError($"스킬 테이블에 없는 스킬입니다. struckTableSkill is null");
+                GcLogger.LogError($"저장된 정보가 없습니다.");
                 return;
             }
 
-            int level = _saveDataIcon?.Level ?? 1;
+            // 안배운 상태
+            if (!saveDataIcon.IsLearned)
+            {
+                var icon = _uiWindowSkill.GetIconByIndex(_slotIndex);
+                if (icon)
+                {
+                    icon.SetIconLock(true);
+                }
+                if (buttonLearn)
+                    buttonLearn.gameObject.SetActive(true);
+            }
+            return;
+
+            int level = saveDataIcon?.Level ?? 1;
             if (textLevel != null) textLevel.text = $"Lv.{level}";
             if (textNeedLevel != null)
             {
-                textNeedLevel.text = string.Format(LocalizationManager.Instance.GetUIWindowSkillInfoByKey("Text_NeedLevel"), _struckTableSkill.NeedPlayerLevel);
+                textNeedLevel.text = string.Format(_localizationManagerSkill.GetUIWindowSkillInfoByKey("Text_NeedLevel"), _struckTableSkill.NeedPlayerLevel);
             }
 
             // 필요 재화
             if (textNeedCurrency != null)
             {
-                textNeedCurrency.text = $"{_struckTableSkill.NeedCurrencyType} {_struckTableSkill.NeedCurrencyValue}";
-                if (_struckTableSkill.NeedCurrencyType == CurrencyConstants.Type.None)
-                {
-                    textNeedCurrency.gameObject.SetActive(false);
-                }
+                textNeedCurrency.gameObject.SetActive(false);
+                // textNeedCurrency.text = $"{_struckTableSkill.NeedCurrencyType} {_struckTableSkill.NeedCurrencyValue}";
+                // if (_struckTableSkill.NeedCurrencyType == CurrencyConstants.Type.None)
+                // {
+                //     textNeedCurrency.gameObject.SetActive(false);
+                // }
             }
             
             // 최대 레벨
-            if (_saveDataIcon != null && _struckTableSkill != null && _saveDataIcon.Level >= _struckTableSkill.MaxLevel)
+            int maxLevel = 1; //_struckTableSkill.MaxLevel;
+            if (saveDataIcon != null && _struckTableSkill != null && saveDataIcon.Level >= maxLevel)
             {
                 buttonLearn.gameObject.SetActive(false);
                 textNeedLevel.gameObject.SetActive(false);
                 buttonLevelUp.gameObject.SetActive(true);
-                buttonLevelUp.GetComponentInChildren<TextMeshProUGUI>().text = LocalizationManager.Instance.GetUIWindowSkillByKey("Element_Text_MaxLevel");
+                buttonLevelUp.GetComponentInChildren<TextMeshProUGUI>().text = _localizationManagerSkill.GetUIWindowSkillByKey("Element_Text_MaxLevel");
                 buttonLevelUp.interactable = false;
             }
             // 레벨업 할때는 다음 레벨 정보로 셋팅
-            else if (_saveDataIcon is { IsLearned: true })
+            else if (saveDataIcon is { IsLearned: true })
             {
                 buttonLearn.gameObject.SetActive(false);
                 textNeedLevel.gameObject.SetActive(true);
                 buttonLevelUp.gameObject.SetActive(true);
+                textNeedCurrency.gameObject.SetActive(false);
+                /*
                 int nextLevel = level + 1;
                 var infoNextLevel = _tableSkill.GetDataByUidLevel(_struckTableSkill.Uid, nextLevel);
                 if (infoNextLevel == null)
@@ -117,7 +138,8 @@ namespace GGemCo2DSkill
 
                 if (textNeedLevel != null)
                 {
-                    textNeedLevel.text = string.Format(LocalizationManager.Instance.GetUIWindowSkillInfoByKey("Text_NeedLevel"), infoNextLevel.NeedPlayerLevel);
+                    string text = LocalizationManagerSkill.Instance.GetUIWindowSkillInfoByKey("Text_NeedLevel");
+                    textNeedLevel.text = string.Format(text, infoNextLevel.NeedPlayerLevel);
                 }
                 
                 // 필요 재화
@@ -129,6 +151,7 @@ namespace GGemCo2DSkill
                         textNeedCurrency.gameObject.SetActive(false);
                     }
                 }
+                */
             }
             else
             {
@@ -136,7 +159,6 @@ namespace GGemCo2DSkill
                 buttonLearn.gameObject.SetActive(true);
                 buttonLevelUp.gameObject.SetActive(false); 
             }
-            */
         }
         /// <summary>
         /// 레벨업
@@ -214,20 +236,24 @@ namespace GGemCo2DSkill
         /// </summary>
         private void OnClickLearn()
         {
-            // todo. 정리 필요
-            /*
             // GcLogger.Log("click learn");
-            bool result = CheckLevelCurrency(_struckTableSkill.NeedPlayerLevel, _struckTableSkill.NeedCurrencyType,
-                _struckTableSkill.NeedCurrencyValue);
-            if (!result) return;
+            // bool result = CheckLevelCurrency(_struckTableSkill.NeedPlayerLevel, _struckTableSkill.NeedCurrencyType,
+            //     _struckTableSkill.NeedCurrencyValue);
+            // if (!result) return;
 
-            var result2 = SkillPackageManager.Instance.SaveDataManagerSkill.Skill.SetSkillLearn(_slotIndex, _struckTableSkill.Uid, 1, _struckTableSkill.Level, true);
+            var result2 = SkillPackageManager.Instance.SaveDataManagerSkill.Skill.SetSkillLearn(_slotIndex, _struckTableSkill.Uid, 1, 1, true);
             if (result2.Result == ResultCommon.ResultType.Success)
             {
-                MinusNeedCurrency(_struckTableSkill.NeedCurrencyType, _struckTableSkill.NeedCurrencyValue);
+                // MinusNeedCurrency(_struckTableSkill.NeedCurrencyType, _struckTableSkill.NeedCurrencyValue);
             }
+            var icon = _uiWindowSkill.GetIconByIndex(_slotIndex);
+            if (icon)
+            {
+                icon.SetIconLock(false);
+            }
+            if (buttonLearn)
+                buttonLearn.gameObject.SetActive(false);
             _uiWindowSkill.SetIcons(result2);
-            */
         }
 
         public void OnPointerEnter(PointerEventData eventData)

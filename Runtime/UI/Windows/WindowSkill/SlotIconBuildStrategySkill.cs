@@ -13,13 +13,11 @@ namespace GGemCo2DSkill
     {
         private readonly TableSkill _tableSkill;
         private readonly Dictionary<int, UIElementSkill> _uiElementSkills;
-        private readonly ConfigCommonSkill.Category _category;
         
-        public SlotIconBuildStrategySkill(TableSkill tableSkill, Dictionary<int, UIElementSkill> uiElementSkills, ConfigCommonSkill.Category category)
+        public SlotIconBuildStrategySkill(TableSkill tableSkill, Dictionary<int, UIElementSkill> uiElementSkills)
         {
             _tableSkill = tableSkill;
             _uiElementSkills = uiElementSkills;
-            _category = category;
         }
         public void BuildSlotsAndIcons(UIWindow window, GridLayoutGroup container, int maxCount,
             IconConstants.Type iconType, Vector2 slotSize, Vector2 iconSize, GameObject[] slots, GameObject[] icons)
@@ -33,7 +31,7 @@ namespace GGemCo2DSkill
                 GcLogger.LogError("UIElementSkill 프리팹이 없습니다.");
                 return;
             }
-            var datas = _tableSkill.GetSkillsByCategory(_category);
+            var datas = _tableSkill.GetDatas();
             uiWindowSkill.maxCountIcon = datas.Count;
             if (datas.Count <= 0) return;
             
