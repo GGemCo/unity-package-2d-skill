@@ -126,7 +126,7 @@ namespace GGemCo2DSkill
 
         public SaveDataIcon GetSaveDataInfo()
         {
-            return skillData.GetData(slotIndex);
+            return skillData.GetDataSkillBySlotIndex(slotIndex);
         }
     }
 }

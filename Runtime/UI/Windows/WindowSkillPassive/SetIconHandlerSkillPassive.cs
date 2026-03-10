@@ -7,37 +7,12 @@ namespace GGemCo2DSkill
     /// </summary>
     public class SetIconHandlerSkillPassive : ISetIconHandler
     {
-        public void OnSetIcon(UIWindow window, int slotIndex, int iconUid, int iconCount, int iconLevel, bool isLearned)
+        public void OnSetIcon(UIWindow window, int slotIndex, int iconUid, int iconCount, int iconLevel, bool isLearned, IconConstants.Type iconType)
         {
-            var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
-            if (skillData == null) return;
-
-            // UI 장착 시에만 "임시 HP Current도 채움" 정책을 적용합니다.
-            // (기본 런타임 정책은 임시 최대 HP 변경 시 Current를 자동 충전하지 않습니다.)
-            var player = SceneGame.Instance.player.GetComponent<Player>();
-            var before = PassiveTempHpFillUtility.Capture(player);
-
-            skillData.SetPassiveEquip(slotIndex, iconUid, iconCount, iconLevel, isLearned);
-            RefreshPlayerPassiveController();
-
-            PassiveTempHpFillUtility.FillCurrentIfTempMaxIncreased(player, before);
         }
 
         public void OnDetachIcon(UIWindow window, int slotIndex)
         {
-            var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
-            if (skillData == null) return;
-
-            skillData.RemovePassiveEquip(slotIndex);
-            RefreshPlayerPassiveController();
-        }
-
-        private static void RefreshPlayerPassiveController()
-        {
-            if (SceneGame.Instance == null || SceneGame.Instance.player == null) return;
-            var ctrl = SceneGame.Instance.player.GetComponent<CharacterPassiveSkillController>();
-            if (ctrl == null) return;
-            ctrl.RefreshFromSaveData();
         }
     }
 }

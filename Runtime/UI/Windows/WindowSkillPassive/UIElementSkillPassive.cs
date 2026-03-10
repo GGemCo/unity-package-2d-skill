@@ -26,21 +26,22 @@ namespace GGemCo2DSkill
         private TableSkillPassive _tableSkillPassive;
         private int _slotIndex;
         
+        private LocalizationManagerSkill _localizationManagerSkill;
+        
         /// <summary>
         /// 초기화
         /// </summary>
         /// <param name="uiWindowSkillPassive"></param>
-        /// <param name="pslotIndex"></param>
+        /// <param name="slotIndex"></param>
         /// <param name="struckTableSkillPassive"></param>
-        /// <param name="pstructSkillIcon"></param>
-        public void Initialize(UIWindowSkillPassive uiWindowSkillPassive, int pslotIndex, StruckTableSkillPassive struckTableSkillPassive, SaveDataIcon pstructSkillIcon = null)
+        /// <param name="structSkillIcon"></param>
+        public void Initialize(UIWindowSkillPassive uiWindowSkillPassive, int slotIndex, StruckTableSkillPassive struckTableSkillPassive, SaveDataIcon structSkillIcon = null)
         {
-            _slotIndex = pslotIndex;
+            _slotIndex = slotIndex;
             _struckTableSkillPassive = struckTableSkillPassive;
-            _saveDataIcon = pstructSkillIcon;
             if (buttonLearn != null)
             {
-                buttonLearn.gameObject.SetActive(true);
+                buttonLearn.gameObject.SetActive(false);
                 buttonLearn.onClick.AddListener(OnClickLearn);
             }
             if (buttonLevelUp != null)
@@ -51,9 +52,13 @@ namespace GGemCo2DSkill
 
             _uiWindowSkillPassive = uiWindowSkillPassive;
             _tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
+            _localizationManagerSkill = LocalizationManagerSkill.Instance;
             
             if (textName != null) textName.text = _struckTableSkillPassive.Name;
-            UpdateInfos(struckTableSkillPassive, _saveDataIcon);
+            
+            // todo. 정리 필요
+            textNeedLevel.gameObject.SetActive(false);
+            textNeedCurrency.gameObject.SetActive(false);
         }
 
         private void Start()
@@ -67,8 +72,27 @@ namespace GGemCo2DSkill
         /// slotIndex 로 아이템 정보를 가져온다.
         /// SaveDataIcon 정보에 따라 버튼 visible 업데이트
         /// </summary>
-        public void UpdateInfos(StruckTableSkillPassive struckTableSkillPassive, SaveDataIcon saveDataIcon)
+        public void UpdateInfos(SaveDataIcon saveDataIcon)
         {
+            if (saveDataIcon == null)
+            {
+                GcLogger.LogError($"저장된 정보가 없습니다.");
+                return;
+            }
+
+            // 안배운 상태
+            if (!saveDataIcon.IsLearned)
+            {
+                var icon = _uiWindowSkillPassive.GetIconByIndex(_slotIndex);
+                if (icon)
+                {
+                    icon.SetIconLock(true);
+                }
+                if (buttonLearn)
+                    buttonLearn.gameObject.SetActive(true);
+            }
+            return;
+            
             // todo. 정리 필요
             /*
             _struckTableSkill = pstruckTableSkill;
@@ -219,19 +243,25 @@ namespace GGemCo2DSkill
         private void OnClickLearn()
         {
             // todo. 정리 필요
-            /*
-            // GcLogger.Log("click learn");
-            bool result = CheckLevelCurrency(_struckTableSkill.NeedPlayerLevel, _struckTableSkill.NeedCurrencyType,
-                _struckTableSkill.NeedCurrencyValue);
-            if (!result) return;
+            // // GcLogger.Log("click learn");
+            // bool result = CheckLevelCurrency(_struckTableSkill.NeedPlayerLevel, _struckTableSkill.NeedCurrencyType,
+            //     _struckTableSkill.NeedCurrencyValue);
+            // if (!result) return;
 
-            var result2 = SkillPackageManager.Instance.SaveDataManagerSkill.Skill.SetSkillLearn(_slotIndex, _struckTableSkill.Uid, 1, _struckTableSkill.Level, true);
+            var result2 = SkillPackageManager.Instance.SaveDataManagerSkill.Skill.SetSkillLearn(_slotIndex,
+                _struckTableSkillPassive.Uid, 1, 1, true);
             if (result2.Result == ResultCommon.ResultType.Success)
             {
-                MinusNeedCurrency(_struckTableSkill.NeedCurrencyType, _struckTableSkill.NeedCurrencyValue);
+                // MinusNeedCurrency(_struckTableSkillPassive.NeedCurrencyType, _struckTableSkillPassive.NeedCurrencyValue);
             }
-            _uiWindowSkill.SetIcons(result2);
-            */
+            var icon = _uiWindowSkillPassive.GetIconByIndex(_slotIndex);
+            if (icon)
+            {
+                icon.SetIconLock(false);
+            }
+            if (buttonLearn)
+                buttonLearn.gameObject.SetActive(false);
+            _uiWindowSkillPassive.SetIcons(result2);
         }
 
         public void OnPointerEnter(PointerEventData eventData)

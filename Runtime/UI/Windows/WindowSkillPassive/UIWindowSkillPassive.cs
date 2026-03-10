@@ -15,10 +15,11 @@ namespace GGemCo2DSkill
         [Header(UIWindowConstants.TitleHeaderIndividual)] [Tooltip("패시브 스킬 Element 프리팹")]
         public GameObject prefabUIElementSkill;
         
-        public TableSkillPassive TableSkillPassive;
-        public readonly Dictionary<int, UIElementSkillPassive> UIElementPassiveSkills = new Dictionary<int, UIElementSkillPassive>();
+        private TableSkillPassive _tableSkillPassive;
+        private readonly Dictionary<int, UIElementSkillPassive> _uiElementPassiveSkills = new Dictionary<int, UIElementSkillPassive>();
         
         private QuickSlotData _quickSlotData;
+        private SkillData _skillData;
         
         private UIWindowQuickSlot _uiWindowQuickSlot;
         private UIWindowSkillInfo _uIWindowSkillInfo;
@@ -26,17 +27,17 @@ namespace GGemCo2DSkill
         
         protected override void Awake()
         {
-            UIElementPassiveSkills.Clear();
-            uid = UIWindowConstants.WindowUid.PassiveSkill;
+            _uiElementPassiveSkills.Clear();
+            uid = UIWindowConstants.WindowUid.SkillPassive;
             if (TableLoaderManagerSkill.Instance == null) return;
-            TableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
-            maxCountIcon = TableSkillPassive.GetDatas().Count;
+            _tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
+            maxCountIcon = _tableSkillPassive.GetDatas().Count;
 
             // 기본 슬롯/아이콘 전략(DefaultSlotIconBuildStrategy)을 사용한다.
             if (iconType == IconConstants.Type.None)
                 iconType = IconConstants.Type.Skill;
             // 순서 중요: IconPoolManager에서 사용 (슬롯 빌드 전략 등록 후 base.Awake 호출)
-            SlotIconBuildStrategyRegistry.Register(uid, window => new SlotIconBuildStrategySkillPassive());
+            SlotIconBuildStrategyRegistry.Register(uid, window => new SlotIconBuildStrategySkillPassive(_tableSkillPassive, _uiElementPassiveSkills));
 
             base.Awake();
 
@@ -48,6 +49,7 @@ namespace GGemCo2DSkill
         {
             base.Start();
             _quickSlotData = SceneGame.saveDataManager.QuickSlot;
+            _skillData = SkillPackageManager.Instance.SaveDataManagerSkill.Skill;
             _uIWindowSkillInfo =
                 SceneGame.uIWindowManager.GetUIWindowByUid<UIWindowSkillInfo>(UIWindowConstants.WindowUid
                     .SkillInfo);
@@ -63,7 +65,7 @@ namespace GGemCo2DSkill
         /// <param name="index"></param>
         public void SetPositionUiSlot(UISlot slot, int index)
         {
-            UIElementSkillPassive uiElementSkillPassive = UIElementPassiveSkills[index];
+            UIElementSkillPassive uiElementSkillPassive = _uiElementPassiveSkills[index];
             if (uiElementSkillPassive == null) return;
             Vector3 position = uiElementSkillPassive.GetIconPosition();
             if (position == Vector3.zero) return;
@@ -90,7 +92,7 @@ namespace GGemCo2DSkill
             var skillData = SkillPackageManager.Instance?.SaveDataManagerSkill?.Skill;
             if (skillData == null) return;
 
-            var datas = skillData.GetAllPassiveEquips();
+            var datas = skillData.GetAllPassive();
             for (int index = 0; index < maxCountIcon; index++)
             {
                 if (index >= icons.Length) continue;
@@ -98,21 +100,22 @@ namespace GGemCo2DSkill
                 if (icon == null) continue;
                 UIIconSkillPassive uiIcon = icon.GetComponent<UIIconSkillPassive>();
                 if (uiIcon == null) continue;
-                var saveDataIcon = datas.GetValueOrDefault(index);
-                if (saveDataIcon == null) continue;
-
-                int skillUid = saveDataIcon.Uid;
-                int skillCount = saveDataIcon.Count;
-                int skillLevel = saveDataIcon.Level;
-                bool skillIsLearned = saveDataIcon.IsLearned;
+                
                 // todo. 정리 필요. 다음 Level 정보
-                var info = TableSkillPassive.GetDataByUid(skillUid);
+                var info = _tableSkillPassive.GetDataByUid(uiIcon.uid);
                 if (info == null) continue;
-                uiIcon.ChangeInfoByUid(skillUid, skillCount, skillLevel, skillIsLearned);
-                UIElementSkillPassive uiElementPassiveSkill = UIElementPassiveSkills[index];
+                
+                SaveDataIcon saveDataIcon = datas.GetValueOrDefault(index);
+                if (saveDataIcon == null)
+                {
+                    _skillData.SetSkillPassiveLearn(index, info.Uid, 1, 1, info.DefaultLearn);
+                    saveDataIcon = datas.GetValueOrDefault(index);
+                }
+
+                UIElementSkillPassive uiElementPassiveSkill = _uiElementPassiveSkills[index];
                 if (uiElementPassiveSkill != null)
                 {
-                    uiElementPassiveSkill.UpdateInfos(info, saveDataIcon);
+                    uiElementPassiveSkill.UpdateInfos(saveDataIcon);
                 }
             }
         }
@@ -123,34 +126,11 @@ namespace GGemCo2DSkill
         public override void OnRightClick(UIIcon icon)
         {
             if (icon == null) return;
-            AddToQuickSlot(icon);
         }
 
-        public void AddToQuickSlot(UIIcon icon)
-        {
-            float time = SceneGame.uIIconCoolTimeManager.GetCurrentCoolTime(uid, icon.uid);
-            if (time > 0)
-            {
-                SceneGame.systemMessageManager.ShowMessageWarning(
-                    "Skill_CannotChangeDuringCooldown"); //"쿨타임 중에는 바꿀 수 없습니다."
-                return;
-            }
-
-            if (!icon.IsLearn())
-            {
-                SceneGame.systemMessageManager.ShowMessageWarning("Skill_NotLearned"); //"배운 후 사용할 수 있습니다."
-                return;
-            }
-
-            if (!icon.CheckRequireLevel()) return;
-            if (_uiWindowQuickSlot == null) return;
-            // 퀵슬롯에 하나 넣기
-            var result = _quickSlotData.AddSkill(icon.uid, icon.GetCount(), icon.GetLevel(), icon.IsLearn());
-            _uiWindowQuickSlot.SetIcons(result);
-        }
         public UIElementSkillPassive GetElementSkillByIndex(int slotIndex)
         {
-            return UIElementPassiveSkills[slotIndex];
+            return _uiElementPassiveSkills[slotIndex];
         }
     }
 }

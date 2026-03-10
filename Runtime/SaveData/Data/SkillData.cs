@@ -44,7 +44,16 @@ namespace GGemCo2DSkill
             return SceneGame.Instance.uIWindowManager
                 .GetUIWindowByUid<UIWindowSkill>(UIWindowConstants.WindowUid.Skill)?.maxCountIcon ?? 0;
         }
+        
+        /// <summary>
+        /// 모든 스킬 목록 가져오기
+        /// </summary>
+        public Dictionary<int, SaveDataIcon> GetAllDatas()
+        {
+            return SkillDatas;
+        }
 
+        #region Active Skill
         /// <summary>
         /// 스킬 배움 여부 설정
         /// </summary>
@@ -54,7 +63,7 @@ namespace GGemCo2DSkill
             {
                 return ResultCommon.Fail("QuickSlot_NoSkillInfo"); //$"스킬 정보가 없습니다."
             }
-            var info = GetData(slotIndex);
+            var info = GetDataSkillBySlotIndex(slotIndex);
             if (info == null)
             {
                 if (!SkillDatas.TryAdd(slotIndex,
@@ -74,27 +83,49 @@ namespace GGemCo2DSkill
             return ResultCommon.SuccessWithIcons(controls);
         }
 
-        /// <summary>
-        /// 모든 스킬 목록 가져오기
-        /// </summary>
-        public Dictionary<int, SaveDataIcon> GetAllDatas()
-        {
-            return SkillDatas;
-        }
-
-        public SaveDataIcon GetData(int slotIndex)
+        public SaveDataIcon GetDataSkillBySlotIndex(int slotIndex)
         {
             return SkillDatas.GetValueOrDefault(slotIndex);
         }
+        #endregion
 
-        #region Passive
+        #region Passive Skill
 
-        public void SetSkillPassiveLearn(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
+        public SaveDataIcon GetDataSkillPassiveBySlotIndex(int slotIndex)
         {
-            if (skillUid <= 0) return;
-            SkillPassiveDatas[slotIndex] = new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn);
-            SaveDatas();
+            return SkillPassiveDatas.GetValueOrDefault(slotIndex);
         }
+        public ResultCommon SetSkillPassiveLearn(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
+        {
+            if (skillUid <= 0)
+            {
+                return ResultCommon.Fail("QuickSlot_NoSkillInfo"); //$"스킬 정보가 없습니다."
+            }
+            var info = GetDataSkillPassiveBySlotIndex(slotIndex);
+            if (info == null)
+            {
+                if (!SkillPassiveDatas.TryAdd(slotIndex,
+                        new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn)))
+                {
+                    GcLogger.LogError($"패시브 스킬 배움 여부 저장 실패. slotIndex: {slotIndex} / skillUid: {skillUid}");
+                }
+            }
+            else
+            {
+                info.SetIsLearn(skillLearn);
+            }
+
+            SaveDatas();
+            List<SaveDataIcon> controls = new List<SaveDataIcon>
+                { new(slotIndex, skillUid, skillCount, skillLevel, skillLearn) };
+            return ResultCommon.SuccessWithIcons(controls);
+        }
+        
+        public Dictionary<int, SaveDataIcon> GetAllPassive()
+        {
+            return SkillPassiveDatas;
+        }
+
 #if UNITY_EDITOR
         /// <summary>
         /// 패시브 스킬 사용 툴에서 호출 
@@ -122,48 +153,6 @@ namespace GGemCo2DSkill
             SaveDatas();
         }
 #endif
-        public Dictionary<int, SaveDataIcon> GetAllPassiveEquips()
-        {
-            return SkillPassiveDatas;
-        }
-
-        public SaveDataIcon GetPassiveEquip(int slotIndex)
-        {
-            return SkillPassiveDatas.GetValueOrDefault(slotIndex);
-        }
-
-        /// <summary>
-        /// 장착된 패시브 목록을 (skillUid -> level) 형태로 반환합니다.
-        /// 슬롯 중복 장착 시 가장 높은 레벨을 우선합니다.
-        /// </summary>
-        public Dictionary<int, int> BuildEquippedPassiveSkillLevels()
-        {
-            var result = new Dictionary<int, int>();
-            foreach (var kv in SkillPassiveDatas)
-            {
-                var v = kv.Value;
-                if (v == null) continue;
-                if (v.Uid <= 0) continue;
-
-                if (result.TryGetValue(v.Uid, out var prev))
-                {
-                    if (v.Level > prev) result[v.Uid] = v.Level;
-                }
-                else
-                {
-                    result[v.Uid] = v.Level;
-                }
-            }
-
-            return result;
-        }
-
-        public void RemovePassiveEquipAll()
-        {
-            SkillPassiveDatas.Clear();
-            SaveDatas();
-        }
-
         #endregion
     }
 }
