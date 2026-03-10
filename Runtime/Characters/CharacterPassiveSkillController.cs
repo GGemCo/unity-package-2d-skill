@@ -140,7 +140,8 @@ namespace GGemCo2DSkill
                     switch (op.Kind)
                     {
                         case SkillOptionKind.Stat:
-                            ApplyStatOption(flat, percent, op);
+                            StatModifierHelper.AccumulateStat(flat, percent,
+                                op.TargetId, op.Op, op.Value);
                             break;
 
                         case SkillOptionKind.Affect:
@@ -205,40 +206,6 @@ namespace GGemCo2DSkill
         public void RebuildAndFillPassiveTempHpToMax()
         {
             Rebuild(PassiveTempHpApplyMode.FillToMax);
-        }
-        
-        private static void ApplyStatOption(Dictionary<string, int> flat, Dictionary<string, float> percent,
-            StruckTableSkillPassiveOption op)
-        {
-            if (string.IsNullOrEmpty(op.TargetId)) return;
-
-            // 정책:
-            // - Plus/Minus: flat(정수)
-            // - Increase/Decrease: percent(퍼센트 포인트). 예) +5%면 Value=5
-            // - None: Plus로 간주(레거시 호환)
-            switch (op.Op)
-            {
-                case ConfigCommon.SuffixType.Plus:
-                    flat[op.TargetId] = flat.GetValueOrDefault(op.TargetId, 0) + (int)op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.Minus:
-                    flat[op.TargetId] = flat.GetValueOrDefault(op.TargetId, 0) - (int)op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.Increase:
-                    percent[op.TargetId] = percent.GetValueOrDefault(op.TargetId, 0f) + op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.Decrease:
-                    percent[op.TargetId] = percent.GetValueOrDefault(op.TargetId, 0f) - op.Value;
-                    break;
-
-                case ConfigCommon.SuffixType.None:
-                default:
-                    flat[op.TargetId] = flat.GetValueOrDefault(op.TargetId, 0) + (int)op.Value;
-                    break;
-            }
         }
 
         private void SyncAffects(HashSet<int> desired)
