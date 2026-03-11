@@ -1,5 +1,5 @@
-using System.IO;
-using Config;
+﻿using System.IO;
+using GGemCo2DCoreEditor;
 using GGemCo2DSkill;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
@@ -9,12 +9,40 @@ using UnityEngine.Timeline;
 
 namespace GGemCo2DSkillEditor
 {
-    /// <summary>
-    /// Timeline Bake와 Addressables 등록을 담당합니다.
-    /// </summary>
-    public static class SkillBakeService
+    public partial class CreateSkillWindow
     {
-        public static bool BakeRuntimeSequence(SkillAuthoringModel selectedSkill, TimelineAsset timeline, out string message)
+        private TimelineAsset _timelineField;
+        
+        private void OnGUITimelineBake()
+        {
+            using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
+            {
+                EditorGUILayout.LabelField("타임라인 Bake", EditorStyles.boldLabel);
+
+                _timelineField =
+                    (TimelineAsset)EditorGUILayout.ObjectField("타임라인 파일 지정", _timelineField, typeof(TimelineAsset),
+                        false);
+
+                using (new EditorGUI.DisabledScope(!_timelineField))
+                {
+                    if (GUILayout.Button("런타임 시퀀스 생성 + Addressables 등록", EditorConstants.GUILayoutButtonHeight22))
+                    {
+                        if (BakeRuntimeSequence(_selectedData, _timelineField, out var message))
+                        {
+                            Debug.Log(message);
+                            return;
+                        }
+
+                        if (!string.IsNullOrEmpty(message))
+                        {
+                            Debug.LogWarning(message);
+                        }
+                    }
+                }
+            }
+        }
+
+        private static bool BakeRuntimeSequence(StruckTableSkill selectedSkill, TimelineAsset timeline, out string message)
         {
             message = null;
 
@@ -55,7 +83,7 @@ namespace GGemCo2DSkillEditor
             return true;
         }
 
-        public static void EnsureAddressableEntry(string assetPath, string addressKey, string groupName, string label)
+        private static void EnsureAddressableEntry(string assetPath, string addressKey, string groupName, string label)
         {
             var settings = AddressableAssetSettingsDefaultObject.Settings;
             if (settings == null)
