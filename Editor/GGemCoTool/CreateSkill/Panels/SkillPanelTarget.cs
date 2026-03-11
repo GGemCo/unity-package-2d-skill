@@ -4,15 +4,35 @@ using UnityEngine;
 
 namespace GGemCo2DSkillEditor
 {
+    /// <summary>
+    /// 스킬 테스트용 더미 Target 관리 UI를 제공하는 CreateSkillWindow의 partial 구현입니다.
+    /// 선택한 Caster 기준으로 더미 캐릭터를 생성하거나 재사용하고,
+    /// SkillTestRuntimeHub의 수동 Target으로 연결합니다.
+    /// </summary>
     public partial class CreateSkillWindow
     {
-        private const string DummyTargetName = "SkillTest_DummyTarget";
-        private CharacterBase _dummyTargetCharacter;
         /// <summary>
-        /// 테스트 대상 더미 캐릭터 참조입니다.
+        /// 씬에 생성되는 더미 캐릭터의 기본 이름입니다.
+        /// </summary>
+        private const string DummyTargetName = "SkillTest_DummyTarget";
+
+        /// <summary>
+        /// 현재 창에서 관리 중인 더미 Target 캐릭터 참조입니다.
+        /// </summary>
+        private CharacterBase _dummyTargetCharacter;
+
+        /// <summary>
+        /// 더미 캐릭터 생성 시 Caster 기준으로 적용되는 기본 위치 오프셋입니다.
         /// </summary>
         private static readonly Vector3 DummyTargetOffset = new(150f, 0f, 0f);
 
+        /// <summary>
+        /// 더미 Target 생성 및 관리 UI를 그립니다.
+        /// </summary>
+        /// <remarks>
+        /// 플레이 모드에서만 동작하며, 선택된 Caster를 기준으로 더미 캐릭터를 생성하거나 재사용합니다.
+        /// 생성된 더미는 <see cref="SkillTestRuntimeHub"/>의 수동 Target으로 설정됩니다.
+        /// </remarks>
         private void OnGUITarget()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
@@ -77,6 +97,11 @@ namespace GGemCo2DSkillEditor
                 }
             }
         }
+
+        /// <summary>
+        /// 지정한 더미 캐릭터를 <see cref="SkillTestRuntimeHub"/>의 수동 Target으로 설정합니다.
+        /// </summary>
+        /// <param name="dummyCharacter">Target으로 사용할 더미 캐릭터입니다.</param>
         private void BindDummyTargetToHub(CharacterBase dummyCharacter)
         {
             if (dummyCharacter == null)
@@ -93,6 +118,9 @@ namespace GGemCo2DSkillEditor
             hub.SetGroundPoint(dummyCharacter.transform.position);
         }
 
+        /// <summary>
+        /// 현재 설정된 수동 Target을 <see cref="SkillTestRuntimeHub"/>에서 해제합니다.
+        /// </summary>
         private void ClearDummyTargetFromHub()
         {
             var hub = SkillTestRuntimeHub.Instance != null

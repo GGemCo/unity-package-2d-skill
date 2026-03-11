@@ -9,10 +9,20 @@ using UnityEngine.Timeline;
 
 namespace GGemCo2DSkillEditor
 {
+    /// <summary>
+    /// 스킬 생성 창의 타임라인 Bake 및 런타임 시퀀스 생성 기능을 담당하는 partial 구현입니다.
+    /// 선택한 타임라인 에셋을 런타임 시퀀스로 변환하고 Addressables 등록까지 수행합니다.
+    /// </summary>
     public partial class CreateSkillWindow
     {
+        /// <summary>
+        /// Bake 대상 타임라인 에셋입니다.
+        /// </summary>
         private TimelineAsset _timelineField;
         
+        /// <summary>
+        /// 타임라인 Bake UI를 그리고, 선택한 타임라인을 런타임 시퀀스로 생성 및 등록하는 기능을 제공합니다.
+        /// </summary>
         private void OnGUITimelineBake()
         {
             using (new EditorGUILayout.VerticalScope(EditorStyles.helpBox))
@@ -42,6 +52,14 @@ namespace GGemCo2DSkillEditor
             }
         }
 
+        /// <summary>
+        /// 선택한 스킬과 타임라인 정보를 바탕으로 런타임 시퀀스 에셋을 생성하거나 갱신하고,
+        /// 해당 에셋을 Addressables에 등록합니다.
+        /// </summary>
+        /// <param name="selectedSkill">현재 선택된 스킬 데이터입니다.</param>
+        /// <param name="timeline">Bake할 원본 타임라인 에셋입니다.</param>
+        /// <param name="message">처리 결과 또는 실패 사유를 반환합니다.</param>
+        /// <returns>런타임 시퀀스 생성 및 등록에 성공하면 <see langword="true"/>를 반환합니다.</returns>
         private static bool BakeRuntimeSequence(SkillEditorRow selectedSkill, TimelineAsset timeline, out string message)
         {
             message = null;
@@ -83,6 +101,14 @@ namespace GGemCo2DSkillEditor
             return true;
         }
 
+        /// <summary>
+        /// 지정한 에셋이 Addressables 그룹에 등록되도록 보장하고,
+        /// 주소 키와 라벨을 설정한 뒤 변경 사항을 저장합니다.
+        /// </summary>
+        /// <param name="assetPath">등록할 에셋의 Unity 프로젝트 경로입니다.</param>
+        /// <param name="addressKey">Addressables에서 사용할 주소 키입니다.</param>
+        /// <param name="groupName">에셋을 등록할 Addressables 그룹 이름입니다.</param>
+        /// <param name="label">에셋에 부여할 Addressables 라벨입니다.</param>
         private static void EnsureAddressableEntry(string assetPath, string addressKey, string groupName, string label)
         {
             var settings = AddressableAssetSettingsDefaultObject.Settings;

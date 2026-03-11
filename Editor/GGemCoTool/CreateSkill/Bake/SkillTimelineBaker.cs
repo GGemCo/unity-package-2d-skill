@@ -9,16 +9,24 @@ using UnityEngine.Timeline;
 namespace GGemCo2DSkillEditor
 {
     /// <summary>
-    /// TimelineAsset -> SkillRuntimeSequence Bake 유틸리티.
-    /// - Authoring Timeline은 제작/검증용이며, 런타임은 Bake된 <see cref="SkillRuntimeSequence"/>만 사용한다.
-    /// - SkillEventTrack의 이벤트 클립을 수집하여 <see cref="SkillRuntimeEvent"/>로 변환한다.
-    /// - 이벤트 클립의 Payload(Definition ScriptableObject)는 RuntimeSequence 에셋의 Sub-Asset으로 생성/갱신한다.
+    /// TimelineAsset을 <see cref="SkillRuntimeSequence"/>로 변환하는 Bake 유틸리티입니다.
+    /// Authoring Timeline의 이벤트 클립을 런타임 이벤트와 Payload 에셋으로 변환하며, 필요 시 RuntimeSequence 에셋을 생성하거나 갱신합니다.
     /// </summary>
     public static class SkillTimelineBaker
     {
+        /// <summary>
+        /// 런타임 버전의 <see cref="ApplyStatusEventDefinition"/>에 존재할 수 있는 applyTo 필드에 대한 리플렉션 정보입니다.
+        /// 구버전 런타임과의 호환성을 위해 직접 참조 대신 리플렉션으로 접근합니다.
+        /// </summary>
         private static readonly System.Reflection.FieldInfo ApplyStatusApplyToField =
             typeof(ApplyStatusEventDefinition).GetField("applyTo");
 
+        /// <summary>
+        /// <see cref="ApplyStatusEventDefinition"/>의 applyTo 필드가 존재하는 경우 값을 설정합니다.
+        /// 런타임 타입 확장 여부에 따라 선택적으로 적용되며, 필드가 없거나 형식이 맞지 않으면 무시합니다.
+        /// </summary>
+        /// <param name="def">설정할 상태 적용 이벤트 정의입니다.</param>
+        /// <param name="applyToRaw">설정할 enum 원시 값입니다.</param>
         private static void TrySetApplyStatusApplyTo(ApplyStatusEventDefinition def, int applyToRaw)
         {
             // Runtime 쪽 ApplyStatusEventDefinition 이 확장되었을 때만 적용한다.
@@ -39,18 +47,13 @@ namespace GGemCo2DSkillEditor
             }
         }
 
-
         /// <summary>
-        /// Timeline을 메모리 상의 런타임 데이터로 변환한다.
+        /// 타임라인을 메모리 상의 런타임 데이터로 변환합니다.
+        /// Play Mode 테스트에서 Addressables 로딩 없이 즉시 사용할 수 있는 이벤트 배열과 임시 Payload 인스턴스를 생성합니다.
         /// </summary>
-        /// <remarks>
-        /// <para>
-        /// - PlayMode 테스트에서 Addressables 로딩을 우회하기 위한 용도이다.
-        /// - Sub-Asset 생성/저장은 하지 않으며, Payload는 임시 ScriptableObject 인스턴스로 생성된다.
-        /// </para>
-        /// </remarks>
-        /// <param name="timeline">변환할 타임라인 에셋</param>
-        /// <returns>이벤트/페이로드/총 길이</returns>
+        /// <param name="timeline">변환할 타임라인 에셋입니다.</param>
+        /// <returns>런타임 이벤트 배열, Payload 배열, 타임라인 총 길이를 포함한 튜플입니다.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="timeline"/>이 <see langword="null"/>인 경우 발생합니다.</exception>
         public static (SkillRuntimeEvent[] events, UnityEngine.Object[] payloads, float duration) BakeToMemory(TimelineAsset timeline)
         {
             if (timeline == null) throw new ArgumentNullException(nameof(timeline));
@@ -67,6 +70,16 @@ namespace GGemCo2DSkillEditor
             return (events, payloads, duration);
         }
 
+        /// <summary>
+        /// 타임라인을 Bake하여 <see cref="SkillRuntimeSequence"/> 에셋을 생성하거나 기존 에셋을 갱신합니다.
+        /// 기존 Payload Sub-Asset은 정리한 뒤 Bake 결과에 맞게 다시 생성합니다.
+        /// </summary>
+        /// <param name="skillUid">Bake 대상 스킬의 고유 ID입니다.</param>
+        /// <param name="timeline">변환할 타임라인 에셋입니다.</param>
+        /// <param name="assetPath">생성하거나 갱신할 RuntimeSequence 에셋 경로입니다.</param>
+        /// <returns>생성되거나 갱신된 <see cref="SkillRuntimeSequence"/> 인스턴스입니다.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="timeline"/> 또는 <paramref name="assetPath"/>가 유효하지 않은 경우 발생합니다.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="skillUid"/>가 0 이하인 경우 발생합니다.</exception>
         public static SkillRuntimeSequence BakeOrUpdate(int skillUid, TimelineAsset timeline, string assetPath)
         {
             if (timeline == null) throw new ArgumentNullException(nameof(timeline));
@@ -117,6 +130,12 @@ namespace GGemCo2DSkillEditor
             return seq;
         }
 
+        /// <summary>
+        /// 지정한 RuntimeSequence 에셋 경로에 포함된 기존 Payload Sub-Asset을 정리합니다.
+        /// 메인 에셋을 제외한 <see cref="ScriptableObject"/> 타입의 서브 에셋을 제거하여 Bake 결과와의 불일치를 방지합니다.
+        /// </summary>
+        /// <param name="assetPath">정리할 RuntimeSequence 에셋 경로입니다.</param>
+        /// <param name="seq">보존할 메인 RuntimeSequence 에셋입니다.</param>
         private static void CleanupPayloadSubAssets(string assetPath, SkillRuntimeSequence seq)
         {
             // 같은 파일 경로의 모든 에셋을 읽어, 메인(seq) 외 ScriptableObject payload를 제거한다.
@@ -137,6 +156,12 @@ namespace GGemCo2DSkillEditor
             }
         }
 
+        /// <summary>
+        /// 타임라인에서 스킬 이벤트와 Payload 생성 팩터리를 추출합니다.
+        /// SkillEventTrack의 클립을 순회하여 런타임 이벤트 배열과 Payload 생성 규칙을 구성합니다.
+        /// </summary>
+        /// <param name="timeline">추출할 타임라인 에셋입니다.</param>
+        /// <returns>이벤트 배열, Payload 생성 팩터리 목록, 타임라인 총 길이를 포함한 튜플입니다.</returns>
         private static (SkillRuntimeEvent[] events, List<Func<UnityEngine.Object>> payloadFactories, float duration) Extract(TimelineAsset timeline)
         {
             var tmpEvents = new List<SkillRuntimeEvent>(64);
@@ -183,6 +208,12 @@ namespace GGemCo2DSkillEditor
             return (tmpEvents.ToArray(), payloadFactories, duration);
         }
 
+        /// <summary>
+        /// 타임라인의 모든 트랙을 재귀적으로 순회합니다.
+        /// Root Track부터 시작하여 하위 트랙까지 포함한 전체 트랙 집합을 반환합니다.
+        /// </summary>
+        /// <param name="timeline">순회할 타임라인 에셋입니다.</param>
+        /// <returns>타임라인에 포함된 모든 트랙의 열거 결과입니다.</returns>
         private static IEnumerable<TrackAsset> EnumerateAllTracks(TimelineAsset timeline)
         {
             // GetOutputTracks()는 GroupTrack/하위 트랙 구성이 섞였을 때 누락될 수 있어,
@@ -194,6 +225,11 @@ namespace GGemCo2DSkillEditor
             }
         }
 
+        /// <summary>
+        /// 지정한 트랙과 그 하위 트랙을 재귀적으로 순회합니다.
+        /// </summary>
+        /// <param name="track">순회를 시작할 기준 트랙입니다.</param>
+        /// <returns>현재 트랙과 모든 하위 트랙의 열거 결과입니다.</returns>
         private static IEnumerable<TrackAsset> EnumerateTrackRecursive(TrackAsset track)
         {
             if (track == null) yield break;
@@ -207,9 +243,15 @@ namespace GGemCo2DSkillEditor
             }
         }
 
+        /// <summary>
+        /// 이벤트 클립을 런타임 Payload 생성 팩터리로 변환합니다.
+        /// 지원하지 않는 클립 타입은 Payload 없이 저장되도록 <see langword="null"/>을 반환합니다.
+        /// </summary>
+        /// <param name="clip">변환할 스킬 이벤트 클립입니다.</param>
+        /// <returns>Payload를 생성하는 팩터리 델리게이트이며, 변환 대상이 아니면 <see langword="null"/>입니다.</returns>
         private static Func<UnityEngine.Object> CreatePayloadFactory(SkillEventClipBase clip)
         {
-            // 현재 런타임 실행기(SkillExecutor)는 아래 3종 이벤트만 처리한다.
+            // 현재 런타임 실행기(SkillExecutor)는 아래 이벤트만 처리한다.
             // 그 외 이벤트는 PayloadIndex = -1 로 저장되며, 런타임에서 무시된다.
             switch (clip)
             {
@@ -257,7 +299,6 @@ namespace GGemCo2DSkillEditor
                         TrySetApplyStatusApplyTo(def, (int)aff.ApplyTo);
                         return def;
                     };
-
 
                 case SkillLungeClip lunge:
                     return () =>
