@@ -15,7 +15,16 @@ namespace GGemCo2DSkill
         public float CastTime;
         public float CoolTime;
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
+
+        /// <summary>스킬 사용 가능 거리입니다.</summary>
+        public float CastRange;
+
+        /// <summary>Projectile/Effect/Damage 중심점 계산에 사용하는 기본 배치 거리입니다.</summary>
+        public float PlacementRange;
+
+        /// <summary>구버전 Range 컬럼 값입니다. 신규 컬럼 미지정 시 fallback으로 사용합니다.</summary>
         public float Range;
+
         public int MaxTargets;
         public string CastStartClip;
         public string CastLoopClip;
@@ -35,6 +44,8 @@ namespace GGemCo2DSkill
                 CastTime = row.CastTime,
                 CoolTime = row.CoolTime,
                 TargetingMode = row.TargetingMode,
+                CastRange = row.CastRange,
+                PlacementRange = row.PlacementRange,
                 Range = row.Range,
                 MaxTargets = row.MaxTargets,
                 CastStartClip = row.CastStartClip,
@@ -57,6 +68,8 @@ namespace GGemCo2DSkill
                 CastTime = row.CastTime,
                 CoolTime = row.CoolTime,
                 TargetingMode = row.TargetingMode,
+                CastRange = row.CastRange,
+                PlacementRange = row.PlacementRange,
                 Range = row.Range,
                 MaxTargets = row.MaxTargets,
                 CastStartClip = row.CastStartClip,

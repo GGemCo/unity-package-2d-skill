@@ -91,6 +91,9 @@ namespace GGemCo2DSkill
                 forward: new Vector3(target.Forward.x, target.Forward.y, 0f)
             );
 
+            if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
+                return SkillUseResult.Rejected;
+
             bool started = _executor.TryUse(skillUid, ctx, ConfigCommon.SkillTableSource.Monster);
             if (!started) return SkillUseResult.Rejected;
 

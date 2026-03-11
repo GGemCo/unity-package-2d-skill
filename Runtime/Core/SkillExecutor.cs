@@ -306,11 +306,11 @@ namespace GGemCo2DSkill
                 default:
                     // Forward / fallback
                     var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
-                    float range = skill.Range > 0f ? skill.Range : 3f;
+                    float range = SkillRangeResolver.GetPlacementRange(skill);
                     if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
                         range = def.targetingOverride.rangeOverride;
 
-                    var p = casterPos + fwd * Mathf.Max(0.1f, range);
+                    var p = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
                     usePosOverride = true;
                     posOverride = new Vector2(p.x, p.y);
                     break;
@@ -357,7 +357,7 @@ namespace GGemCo2DSkill
 
             // 기본값은 skill 테이블의 값(SSOT)
             var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
-            float range = skill.Range > 0f ? skill.Range : 3f;
+            float range = SkillRangeResolver.GetPlacementRange(skill);
             int maxTargets = skill.MaxTargets > 0 ? skill.MaxTargets : 1;
 
             // 이벤트 override 적용
@@ -401,7 +401,7 @@ namespace GGemCo2DSkill
                 default:
                     // Forward / Fallback
                     var fwd = resolvedForward.sqrMagnitude < 1e-6f ? Vector3.right : resolvedForward.normalized;
-                    center = casterPos + fwd * Mathf.Max(0.1f, range);
+                    center = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
                     break;
             }
 
@@ -546,8 +546,10 @@ namespace GGemCo2DSkill
                     default:
                         // Forward / fallback
                         var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
-                        float range = skill.Range > 0f ? skill.Range : 3f;
-                        spawnPos = casterPos + fwd * Mathf.Max(0.1f, range);
+                        float range = SkillRangeResolver.GetPlacementRange(skill);
+                        if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
+                            range = def.targetingOverride.rangeOverride;
+                        spawnPos = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
                         break;
                 }
             }
