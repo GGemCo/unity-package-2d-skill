@@ -1,61 +1,145 @@
-﻿// todo. 정리 필요. namespace 이름 변경해야 함
+﻿// TODO: 네임스페이스 구조를 정리하고 명칭을 변경할 필요가 있습니다.
 namespace Config
 {
+    /// <summary>
+    /// 스킬 시스템에서 공통으로 사용하는 열거형과 상수를 정의합니다.
+    /// 런타임과 Bake 단계에서 공유되는 스킬 관련 공용 타입을 포함합니다.
+    /// </summary>
     public static class ConfigCommonSkill
     {
         /// <summary>
-        /// 스킬 이벤트 타입(런타임/Bake 공통).
+        /// 스킬 실행 중 발생하는 이벤트 유형을 정의합니다.
+        /// 런타임과 Bake 단계에서 공통으로 사용됩니다.
         /// </summary>
         public enum SkillEventType
         {
+            /// <summary>
+            /// 데미지 판정과 피해 적용을 수행합니다.
+            /// </summary>
             Damage = 0,
-            SpawnEffect = 1,
-            ApplyAffect = 2,
-            StateToggle = 3,
-            PlayAudio = 4,
-            Camera = 5,
-            Lunge = 6,
-            Projectile = 7,
-            }
 
+            /// <summary>
+            /// 이펙트를 생성합니다.
+            /// </summary>
+            SpawnEffect = 1,
+
+            /// <summary>
+            /// Affect 또는 상태이상을 적용합니다.
+            /// </summary>
+            ApplyAffect = 2,
+
+            /// <summary>
+            /// 특정 상태를 활성화하거나 비활성화합니다.
+            /// </summary>
+            StateToggle = 3,
+
+            /// <summary>
+            /// 오디오를 재생합니다.
+            /// </summary>
+            PlayAudio = 4,
+
+            /// <summary>
+            /// 카메라 연출을 수행합니다.
+            /// </summary>
+            Camera = 5,
+
+            /// <summary>
+            /// 돌진 또는 강제 이동을 수행합니다.
+            /// </summary>
+            Lunge = 6,
+
+            /// <summary>
+            /// 투사체를 생성하거나 발사합니다.
+            /// </summary>
+            Projectile = 7,
+        }
 
         /// <summary>
-        /// 스킬 분류.
-        /// - Active: 사용(캐스팅/쿨타임/타겟팅) 기반 스킬
-        /// - Passive: 장착/획득 시 상시 적용되는 스킬
+        /// 스킬의 동작 분류를 정의합니다.
         /// </summary>
         public enum SkillKind
         {
+            /// <summary>
+            /// 사용 시 캐스팅, 쿨타임, 타겟팅 절차를 거치는 능동형 스킬입니다.
+            /// </summary>
             Active = 0,
+
+            /// <summary>
+            /// 장착 또는 획득 상태에서 지속적으로 적용되는 수동형 스킬입니다.
+            /// </summary>
             Passive = 1,
         }
 
+        /// <summary>
+        /// 스킬의 타겟 지정 및 판정 기준을 정의합니다.
+        /// </summary>
         public enum SkillTargetingMode
         {
-            LockOnGuaranteedHit = 0, // 타겟 고정 + 무조건 피격 정책
-            TargetCenteredArea = 1, // 타겟 중심 범위
-            FollowTargetArea = 2, // 타겟 추적 범위
-            GroundTarget = 3, // 지점 고정
-            ForwardDirectional = 4, // 캐스터 전방 기준
-            Projectile = 5, // 투사체 기반(확장)
-            Self = 6, // 시전자 자신
+            /// <summary>
+            /// 타겟을 고정하고 명중을 보장하는 방식입니다.
+            /// </summary>
+            LockOnGuaranteedHit = 0,
+
+            /// <summary>
+            /// 타겟 위치를 중심으로 범위를 판정하는 방식입니다.
+            /// </summary>
+            TargetCenteredArea = 1,
+
+            /// <summary>
+            /// 이동하는 타겟을 추적하며 범위를 판정하는 방식입니다.
+            /// </summary>
+            FollowTargetArea = 2,
+
+            /// <summary>
+            /// 지정한 지면 좌표를 기준으로 판정하는 방식입니다.
+            /// </summary>
+            GroundTarget = 3,
+
+            /// <summary>
+            /// 캐스터의 전방 방향을 기준으로 판정하는 방식입니다.
+            /// </summary>
+            ForwardDirectional = 4,
+
+            /// <summary>
+            /// 투사체를 생성해 충돌 또는 도달 시점을 기준으로 처리하는 방식입니다.
+            /// </summary>
+            Projectile = 5,
+
+            /// <summary>
+            /// 시전자 자신에게 적용하는 방식입니다.
+            /// </summary>
+            Self = 6,
         }
 
+        /// <summary>
+        /// 범위 판정에 사용하는 영역 형태를 정의합니다.
+        /// </summary>
         public enum SkillAreaShape
         {
+            /// <summary>
+            /// 원형 범위입니다.
+            /// </summary>
             Circle = 0,
+
+            /// <summary>
+            /// 박스형 범위입니다.
+            /// </summary>
             Box = 1,
+
+            /// <summary>
+            /// 원뿔형 범위입니다.
+            /// </summary>
             Cone = 2,
+
+            /// <summary>
+            /// 캡슐형 범위입니다.
+            /// </summary>
             Capsule = 3,
+
+            /// <summary>
+            /// 선형 범위입니다.
+            /// </summary>
             Line = 4,
-        }
-        /// <summary>
-        /// 스킬 정의를 조회할 원본 테이블 종류입니다.
-        /// </summary>
-        public enum SkillTableSource
-        {
-            Player = 0,
-            Monster = 1,
         }
     }
 }

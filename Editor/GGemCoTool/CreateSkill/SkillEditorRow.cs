@@ -1,4 +1,5 @@
 using Config;
+using GGemCo2DCore;
 using GGemCo2DSkill;
 
 namespace GGemCo2DSkillEditor
@@ -20,7 +21,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 이 Row가 어떤 스킬 테이블(player/monster)에서 생성되었는지를 나타냅니다.
         /// </summary>
-        public ConfigCommonSkill.SkillTableSource Source;
+        public ConfigCommon.SkillTableSource Source;
 
         /// <summary>
         /// 스킬의 고유 식별자입니다.
@@ -121,7 +122,7 @@ namespace GGemCo2DSkillEditor
 
             return new SkillEditorRow
             {
-                Source = ConfigCommonSkill.SkillTableSource.Player,
+                Source = ConfigCommon.SkillTableSource.Player,
                 Uid = row.Uid,
                 Name = row.Name,
                 Memo = row.Memo,
@@ -160,7 +161,7 @@ namespace GGemCo2DSkillEditor
 
             return new SkillEditorRow
             {
-                Source = ConfigCommonSkill.SkillTableSource.Monster,
+                Source = ConfigCommon.SkillTableSource.Monster,
                 Uid = row.Uid,
                 Name = row.Name,
                 Memo = row.Memo,

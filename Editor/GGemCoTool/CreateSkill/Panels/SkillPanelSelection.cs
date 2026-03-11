@@ -1,6 +1,5 @@
-using Config;
+using GGemCo2DCore;
 using GGemCo2DCoreEditor;
-using GGemCo2DSkill;
 using UnityEditor;
 using UnityEngine;
 
@@ -17,7 +16,7 @@ namespace GGemCo2DSkillEditor
         /// 몬스터 테이블이 선택된 경우 몬스터 스킬 테이블의 로드 상태를, 그 외에는 일반 스킬 테이블의 로드 상태를 확인합니다.
         /// </summary>
         private bool HasCurrentTableLoaded =>
-            _selectedSource == ConfigCommonSkill.SkillTableSource.Monster
+            _selectedSource == ConfigCommon.SkillTableSource.Monster
                 ? _tableSkillMonster != null
                 : _tableSkill != null;
 
@@ -39,7 +38,7 @@ namespace GGemCo2DSkillEditor
             using (new EditorGUILayout.HorizontalScope())
             {
                 EditorGUILayout.PrefixLabel("테이블");
-                var nextSource = (ConfigCommonSkill.SkillTableSource)EditorGUILayout.EnumPopup(_selectedSource);
+                var nextSource = (ConfigCommon.SkillTableSource)EditorGUILayout.EnumPopup(_selectedSource);
 
                 if (nextSource != _selectedSource)
                 {
@@ -57,7 +56,7 @@ namespace GGemCo2DSkillEditor
             {
                 EditorGUILayout.PrefixLabel("스킬");
 
-                string prefix = _selectedSource == ConfigCommonSkill.SkillTableSource.Monster ? "[M]" : "[P]";
+                string prefix = _selectedSource == ConfigCommon.SkillTableSource.Monster ? "[M]" : "[P]";
                 string currentText = _selectedData != null
                     ? $"{prefix} {_selectedData.Uid} | {_selectedData.Memo}"
                     : "선택...";

@@ -6,29 +6,48 @@ using UnityEngine;
 namespace GGemCo2DSkill
 {
     /// <summary>
-    /// 런타임 스킬 실행기(Authoring V2).
-    /// - SSOT: skill / skill_monster 테이블(Uid 기반)
-    /// - 연출 타이밍: Addressables로 로드한 <see cref="SkillRuntimeSequence"/>
-    /// - 애니메이션: 클립 이름 규칙 + Playables(Animator 파라미터 미사용)
+    /// 런타임 스킬 실행을 담당하는 실행기입니다.
+    /// 스킬 정의 조회, 이벤트 실행, 피격 판정, 이동, 이펙트, 상태이상 적용, 취소를 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
     public sealed class SkillExecutor : MonoBehaviour
     {
+        /// <summary>
+        /// 피격 판정에 사용할 레이어 마스크입니다.
+        /// </summary>
         [Header("Hit Evaluator")]
         [SerializeField] private LayerMask hitMask = ~0;
 
+        /// <summary>
+        /// 범위 기반 타겟 판정을 수행하는 평가기입니다.
+        /// </summary>
         private IHitEvaluator _hitEvaluator;
 
+        /// <summary>
+        /// 현재 실행 중인 스킬 런타임입니다.
+        /// </summary>
         private SkillRun _current;
+
+        /// <summary>
+        /// 현재 스킬 실행 중인지 여부를 반환합니다.
+        /// </summary>
         public bool IsBusy => _current != null;
 
+        /// <summary>
+        /// 실행기에 필요한 런타임 의존성을 초기화합니다.
+        /// </summary>
         private void Awake()
         {
             _hitEvaluator = new AreaHitEvaluator(hitMask);
         }
 
-
-
+        /// <summary>
+        /// 2D 기준으로 사용할 전방 벡터를 보정합니다.
+        /// 입력 전방이 비어 있거나 Z축 기준 기본값에 가까우면 캐스터의 좌우 방향을 사용합니다.
+        /// </summary>
+        /// <param name="caster">방향 보정 기준이 되는 캐스터 오브젝트입니다.</param>
+        /// <param name="forward">원본 전방 벡터입니다.</param>
+        /// <returns>Z가 제거되고 2D 기준으로 정규화된 전방 벡터를 반환합니다.</returns>
         private static Vector3 ResolveForward2D(GameObject caster, Vector3 forward)
         {
             // 2D 기준: forward가 비어있거나(0), 기본값(Vector3.forward)처럼 Z축 위주로 들어오는 경우를 보정합니다.
@@ -50,6 +69,10 @@ namespace GGemCo2DSkill
             return new Vector3(f2.x, f2.y, 0f);
         }
 
+        /// <summary>
+        /// 현재 실행 중인 스킬 런타임을 프레임 단위로 갱신합니다.
+        /// 실행이 완료되면 현재 런타임 참조를 해제합니다.
+        /// </summary>
         private void Update()
         {
             if (_current == null) return;
@@ -59,9 +82,14 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 스킬 사용을 시도합니다(테이블 Uid 기반).
+        /// 지정한 스킬 UID의 실행을 시도합니다.
+        /// 스킬 정의를 조회하고 실행 컨텍스트를 구성한 뒤 새 <see cref="SkillRun"/>을 시작합니다.
         /// </summary>
-        public bool TryUse(int skillUid, SkillTargetContext targetCtx, ConfigCommonSkill.SkillTableSource source = ConfigCommonSkill.SkillTableSource.Player)
+        /// <param name="skillUid">실행할 스킬의 고유 식별자입니다.</param>
+        /// <param name="targetCtx">캐스터, 타겟, 지면 위치, 방향 정보를 포함한 대상 컨텍스트입니다.</param>
+        /// <param name="source">스킬 정의를 조회할 테이블 출처입니다.</param>
+        /// <returns>스킬 실행이 시작되면 <see langword="true"/>, 실행할 수 없으면 <see langword="false"/>를 반환합니다.</returns>
+        public bool TryUse(int skillUid, SkillTargetContext targetCtx, ConfigCommon.SkillTableSource source = ConfigCommon.SkillTableSource.Player)
         {
             if (_current != null) return false;
 
@@ -74,6 +102,16 @@ namespace GGemCo2DSkill
             return true;
         }
 
+        /// <summary>
+        /// 런타임 이벤트 유형에 따라 실제 스킬 효과를 실행합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="sequence">이벤트 페이로드를 제공하는 런타임 시퀀스입니다.</param>
+        /// <param name="e">실행할 런타임 이벤트 정보입니다.</param>
+        /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         public void ExecuteEvent(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -110,8 +148,34 @@ namespace GGemCo2DSkill
                     break;
             }
         }
-
         
+        private static Vector2 ResolveCurrentFacing2D(GameObject caster)
+        {
+            if (caster == null)
+                return Vector2.right;
+
+            var characterBase = caster.GetComponent<CharacterBase>();
+            if (characterBase != null)
+            {
+                var facing = CharacterConstants.FacingToVector2(characterBase.CurrentFacing);
+                if (facing.sqrMagnitude > 1e-6f)
+                    return facing.normalized;
+            }
+
+            float sign = Mathf.Sign(caster.transform.localScale.x);
+            if (Mathf.Approximately(sign, 0f))
+                sign = 1f;
+
+            return new Vector2(sign, 0f);
+        }
+        
+        /// <summary>
+        /// 돌진 이벤트 정의에 따라 캐릭터 이동을 시작합니다.
+        /// 2D 방향을 보정하고 직선 또는 포물선 이동 요청을 모션 컨트롤러에 전달합니다.
+        /// </summary>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">돌진 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="eventDurationSeconds">이벤트 구간에서 계산된 기본 지속 시간입니다.</param>
         private void HandleLunge(
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -127,28 +191,22 @@ namespace GGemCo2DSkill
             float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds;
             if (duration <= 0f) return;
 
-            // 2D 기준 방향 보정
-            Vector3 fwd3 = def.useSnapshotForward ? ctx.forward : (ctx.forward);
-            Vector2 dir2 = new Vector2(fwd3.x, fwd3.y);
+            Vector2 dir2 = def.useSnapshotForward
+                ? new Vector2(ResolveForward2D(ctx.caster, ctx.forward).x, ResolveForward2D(ctx.caster, ctx.forward).y)
+                : ResolveCurrentFacing2D(ctx.caster);
 
-            // ctx.forward가 기본값(Vector3.forward)인 경우(2D) localScale.x 기반으로 보정
-            if (dir2.sqrMagnitude < 1e-6f || Mathf.Abs(fwd3.z) > 0.5f)
-            {
-                float sign = Mathf.Sign(ctx.caster.transform.localScale.x);
-                if (Mathf.Approximately(sign, 0f)) sign = 1f;
-                dir2 = new Vector2(sign, 0f);
-            }
-            // 뒤로 이동(백스텝/뒤점프 회피)
             if (def.invertForward)
-            {
                 dir2 = -dir2;
-            }
 
-            // 2D 횡스크롤 기준으로 수평 이동을 기본으로 합니다.
             if (Mathf.Abs(dir2.x) < 1e-4f)
             {
-                dir2 = new Vector2(Mathf.Sign(ctx.caster.transform.localScale.x), 0f);
+                float sign = Mathf.Sign(ctx.caster.transform.localScale.x);
+                if (Mathf.Approximately(sign, 0f))
+                    sign = 1f;
+
+                dir2 = new Vector2(sign, 0f);
             }
+
             dir2 = new Vector2(Mathf.Sign(dir2.x), 0f);
 
             var kind = def.useArcMotion && def.arcHeight > 0f ? MotionKind.Arc : MotionKind.Linear;
@@ -169,7 +227,15 @@ namespace GGemCo2DSkill
             motion.TryStartMotion(in req);
         }
 
-        
+        /// <summary>
+        /// 투사체 이벤트 정의를 바탕으로 발사 대상과 좌표를 계산하고 투사체를 생성합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">투사체 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         private void HandleProjectile(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -216,7 +282,6 @@ namespace GGemCo2DSkill
                     usePosOverride = true;
                     posOverride = new Vector2(groundPoint.x, groundPoint.y);
                     break;
-
 
                 case ConfigCommonSkill.SkillTargetingMode.Self:
                     targetChar = casterChar;
@@ -269,6 +334,16 @@ namespace GGemCo2DSkill
             casterChar.LaunchProjectile(meta);
         }
 
+        /// <summary>
+        /// 데미지 이벤트 정의를 바탕으로 피격 대상을 평가하고 실제 데미지 및 OnHit 효과를 적용합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">데미지 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
+        /// <param name="gizmoDurationSeconds">에디터 디버그용 데미지 영역 표시 시간입니다.</param>
         private void HandleDamage(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -348,22 +423,23 @@ namespace GGemCo2DSkill
 
             // 데미지 적용(현재는 로그/샘플 처리: 실제 데미지 모델은 프로젝트에 맞게 연동)
             var castCharacterBase = ctx.caster.GetComponent<CharacterBase>();
-            // todo. 데미지 계산 공식 적용 해야 함
+
+            // TODO: 데미지 계산 공식을 프로젝트 규칙에 맞게 적용해야 합니다.
             long totalDamage = 10;
+
             for (int i = 0; i < hits.Count; i++)
             {
                 var go = hits[i];
                 if (go == null) continue;
-                
+
                 CharacterHitArea characterHitArea = go.GetComponentInChildren<CharacterHitArea>();
                 if (characterHitArea == null) continue;
-                
-                // GcLogger.Log("Player attacked the monster after animation!");
+
                 CharacterBase target = characterHitArea.target;
 
                 // OnHit Affect (BeforeDamage)
                 ApplyOnHitAffects(def.onHitAffects, ctx.caster, target, damageApplied: false, timing: OnHitAffectTiming.BeforeDamage);
-                
+
                 MetadataDamage metadataDamage = new MetadataDamage
                 {
                     damage = totalDamage,
@@ -374,13 +450,13 @@ namespace GGemCo2DSkill
 
                 bool didApplyDamage = false;
 
-                // 몬스터와 마주보고 있으면 공격 
+                // 몬스터와 마주보고 있으면 공격합니다.
                 if (castCharacterBase.AreFacingEachOther(target))
                 {
                     target.TakeDamage(metadataDamage);
                     didApplyDamage = true;
                 }
-                // 몬스터와 같은 곳을 바라보고 있으면,
+                // 같은 방향을 보고 있는 경우에는 상대 위치를 기준으로 피격 여부를 결정합니다.
                 else if (castCharacterBase.CurrentFacing == target.CurrentFacing)
                 {
                     switch (castCharacterBase.CurrentFacing)
@@ -417,6 +493,15 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// 이펙트 이벤트 정의를 바탕으로 생성 위치를 계산하고 이펙트를 생성합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">이펙트 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         private void HandleEffect(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -497,6 +582,15 @@ namespace GGemCo2DSkill
             effect.transform.position = spawnPos;
         }
 
+        /// <summary>
+        /// 상태 적용 이벤트 정의를 바탕으로 대상에게 Affect를 적용합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">상태 적용 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         private void HandleApplyStatus(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -539,6 +633,14 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// OnHit 설정 목록을 순회하며 조건에 맞는 Affect를 대상에게 적용합니다.
+        /// </summary>
+        /// <param name="entries">적용할 OnHit Affect 목록입니다.</param>
+        /// <param name="caster">효과의 출처가 되는 캐스터입니다.</param>
+        /// <param name="target">효과를 적용할 대상입니다.</param>
+        /// <param name="damageApplied">실제 데미지가 적용되었는지 여부입니다.</param>
+        /// <param name="timing">현재 처리 중인 OnHit 적용 시점입니다.</param>
         private static void ApplyOnHitAffects(OnHitAffectEntry[] entries, GameObject caster, CharacterBase target, bool damageApplied, OnHitAffectTiming timing)
         {
             if (entries == null || entries.Length == 0) return;
@@ -565,13 +667,24 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// 상태 식별자를 Affect UID 정수값으로 변환합니다.
+        /// </summary>
+        /// <param name="id">파싱할 상태 식별자입니다.</param>
+        /// <param name="affectUid">파싱에 성공한 Affect UID입니다.</param>
+        /// <returns>유효한 양의 정수 UID로 변환되면 <see langword="true"/>를 반환합니다.</returns>
         private static bool TryParseAffectUid(StatusEffectId id, out int affectUid)
         {
             affectUid = 0;
             if (string.IsNullOrWhiteSpace(id.id)) return false;
             return int.TryParse(id.id, out affectUid) && affectUid > 0;
         }
-        
+
+        /// <summary>
+        /// 캐스터에서 사용할 애니메이션 컨트롤러를 현재 오브젝트, 자식, 부모 순으로 탐색합니다.
+        /// </summary>
+        /// <param name="caster">애니메이션 컨트롤러를 찾을 기준 오브젝트입니다.</param>
+        /// <returns>찾은 애니메이션 컨트롤러 또는 찾지 못한 경우 <see langword="null"/>입니다.</returns>
         private static ICharacterAnimationController ResolveAnimController(GameObject caster)
         {
             if (caster == null) return null;
@@ -585,6 +698,11 @@ namespace GGemCo2DSkill
             return caster.GetComponentInParent<ICharacterAnimationController>();
         }
 
+        /// <summary>
+        /// 캐스터에서 사용할 액션 컨트롤러를 현재 오브젝트, 자식, 부모 순으로 탐색합니다.
+        /// </summary>
+        /// <param name="caster">액션 컨트롤러를 찾을 기준 오브젝트입니다.</param>
+        /// <returns>찾은 액션 컨트롤러 또는 찾지 못한 경우 <see langword="null"/>입니다.</returns>
         private static ICharacterActionController ResolveActionController(GameObject caster)
         {
             if (caster == null) return null;
@@ -597,6 +715,12 @@ namespace GGemCo2DSkill
 
             return caster.GetComponentInParent<ICharacterActionController>();
         }
+
+        /// <summary>
+        /// 현재 실행 중인 스킬의 취소를 시도합니다.
+        /// </summary>
+        /// <param name="reason">스킬 취소 사유입니다.</param>
+        /// <returns>실행 중인 스킬을 취소하면 <see langword="true"/>, 취소할 대상이 없으면 <see langword="false"/>를 반환합니다.</returns>
         public bool TryCancel(SkillCancelReason reason)
         {
             if (_current == null) return false;

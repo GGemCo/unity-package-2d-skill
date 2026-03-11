@@ -72,7 +72,7 @@ namespace GGemCo2DSkillEditor
                                casterCharacter.GetComponentInChildren<SkillExecutor>();
                 if (executor == null)
                 {
-                    EditorUtility.DisplayDialog(Title, "캐스터에 SkillExecutor(또는 MonsterSkillDriverAdapter)가 없습니다.", "OK");
+                    EditorUtility.DisplayDialog(Title, "캐스터에 SkillExecutor 또는 스킬 드라이버가 없습니다.", "OK");
                     return;
                 }
 
@@ -90,7 +90,12 @@ namespace GGemCo2DSkillEditor
                 return;
             }
 
-            var result = driver.TryUseSkill(_selectedData.Uid, target);
+            var request = new GGemCo2DCore.SkillDriverRequest(
+                target.LockedTarget,
+                target.GroundPoint,
+                target.Forward,
+                _selectedData.Source);
+            var result = driver.TryUseSkill(_selectedData.Uid, request);
             ShowNotification(new GUIContent(result == GGemCo2DCore.SkillUseResult.Started ? "스킬 실행" : "스킬 실행 실패"));
         }
 
@@ -348,7 +353,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 캐릭터에서 스킬 드라이버를 찾습니다.
         /// </summary>
-        private static bool TryGetSkillDriver(CharacterBase casterCharacter, out GGemCo2DCore.IMonsterSkillDriver driver)
+        private static bool TryGetSkillDriver(CharacterBase casterCharacter, out GGemCo2DCore.ICharacterSkillDriver driver)
         {
             driver = null;
             if (casterCharacter == null)
@@ -357,7 +362,7 @@ namespace GGemCo2DSkillEditor
             var components = casterCharacter.GetComponents<Component>();
             for (int i = 0; i < components.Length; i++)
             {
-                if (components[i] is GGemCo2DCore.IMonsterSkillDriver resolvedDriver)
+                if (components[i] is GGemCo2DCore.ICharacterSkillDriver resolvedDriver)
                 {
                     driver = resolvedDriver;
                     return true;

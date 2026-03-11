@@ -40,7 +40,7 @@ namespace GGemCo2DSkillEditor
         /// 현재 선택된 테이블 종류에 대응하는 Addressable 테이블 경로를 반환합니다.
         /// </summary>
         private string CurrentTablePath =>
-            _selectedSource == ConfigCommonSkill.SkillTableSource.Monster
+            _selectedSource == ConfigCommon.SkillTableSource.Monster
                 ? ConfigAddressableTableSkill.TableSkillMonster.Path
                 : ConfigAddressableTableSkill.TableSkill.Path;
 
@@ -89,7 +89,7 @@ namespace GGemCo2DSkillEditor
         /// 현재 선택된 테이블 종류에 맞는 Row 편집 필드 목록을 반환합니다.
         /// </summary>
         private IReadOnlyList<TableRowEditorUtility.TableRowEditorField> CurrentRowEditorFields =>
-            _selectedSource == ConfigCommonSkill.SkillTableSource.Monster
+            _selectedSource == ConfigCommon.SkillTableSource.Monster
                 ? RowEditorFieldsMonster
                 : RowEditorFieldsPlayer;
 
@@ -166,7 +166,7 @@ namespace GGemCo2DSkillEditor
             int keepUid = _cachedRow != null ? _cachedRow.Uid : (_selectedData != null ? _selectedData.Uid : 0);
 
             TableLoaderManagerBase.Unload(CurrentTablePath);
-            if (_selectedSource == ConfigCommonSkill.SkillTableSource.Monster)
+            if (_selectedSource == ConfigCommon.SkillTableSource.Monster)
             {
                 _tableSkillMonster = TableLoaderManagerSkill.LoadTableSkillMonster();
                 _monsterDictionary = BuildMonsterDictionary(_tableSkillMonster);
@@ -270,7 +270,7 @@ namespace GGemCo2DSkillEditor
             if (!Application.isPlaying) return;
             if (!GGemCo2DSkill.TableLoaderManagerSkill.Instance) return;
 
-            if (row.Source == ConfigCommonSkill.SkillTableSource.Monster)
+            if (row.Source == ConfigCommon.SkillTableSource.Monster)
             {
                 var info = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkillMonster.GetDataByUid(row.Uid);
                 if (info == null) return;

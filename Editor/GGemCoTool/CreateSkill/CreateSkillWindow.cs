@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
-using Config;
 using GGemCo2DAffectEditor;
+using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using GGemCo2DSkill;
 using UnityEditor;
@@ -62,7 +62,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 현재 선택된 스킬 테이블 종류입니다.
         /// </summary>
-        private ConfigCommonSkill.SkillTableSource _selectedSource = ConfigCommonSkill.SkillTableSource.Player;
+        private ConfigCommon.SkillTableSource _selectedSource = ConfigCommon.SkillTableSource.Player;
 
         /// <summary>
         /// 현재 드롭다운 또는 편집 UI에서 선택된 스킬 데이터입니다.
@@ -139,7 +139,7 @@ namespace GGemCo2DSkillEditor
         /// 현재 선택된 테이블 종류에 따라 사용할 스킬 데이터 사전을 반환합니다.
         /// </summary>
         private Dictionary<int, SkillEditorRow> CurrentDictionary =>
-            _selectedSource == ConfigCommonSkill.SkillTableSource.Monster ? _monsterDictionary : _playerDictionary;
+            _selectedSource == ConfigCommon.SkillTableSource.Monster ? _monsterDictionary : _playerDictionary;
 
         /// <summary>
         /// 플레이어/몬스터 스킬 테이블을 모두 다시 로드하고, 편집용 사전과 드롭다운 목록을 재구성합니다.

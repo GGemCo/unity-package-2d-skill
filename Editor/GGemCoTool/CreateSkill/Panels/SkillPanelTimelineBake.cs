@@ -97,7 +97,7 @@ namespace GGemCo2DSkillEditor
                 groupName: ConfigAddressableGroupNameSkill.SkillRuntimeSequence,
                 label: ConfigAddressableLabelSkill.SkillRuntimeSequence);
 
-            message = $"[SkillAuthoringV2] Bake/등록 완료: uid={selectedSkill.Uid}, source={selectedSkill.Source}, key={runtimeSequenceKey}";
+            message = $"[SkillAuthoringV2] Bake/등록 완료";
             return true;
         }
 
