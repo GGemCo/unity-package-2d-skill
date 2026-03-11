@@ -38,9 +38,7 @@ namespace GGemCo2DSkill
                 return SkillUseResult.Rejected;
 
             // 테이블 조회
-            var table = TableLoaderManagerSkill.Instance != null ? TableLoaderManagerSkill.Instance.TableSkill : null;
-            if (table == null) return SkillUseResult.Rejected;
-            if (!table.GetDatas().TryGetValue(skillUid, out var skill) || skill == null)
+            if (!SkillDefinitionResolver.TryResolve(skillUid, preferMonsterTable: true, out var skill) || skill == null)
                 return SkillUseResult.Rejected;
 
             // 타겟팅 최소 검증(예: LockOnGuaranteedHit 모드면 lockedTarget 필요)
@@ -55,7 +53,7 @@ namespace GGemCo2DSkill
                 forward: new Vector3(target.Forward.x, target.Forward.y, 0f)
             );
 
-            bool started = _executor.TryUse(skillUid, ctx);
+            bool started = _executor.TryUse(skillUid, ctx, preferMonsterTable: true);
             if (!started) return SkillUseResult.Rejected;
 
             float cd = Mathf.Max(0f, skill.CoolTime);

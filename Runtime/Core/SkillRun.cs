@@ -8,7 +8,7 @@ namespace GGemCo2DSkill
     public sealed class SkillRun
     {
         private readonly SkillExecutor _owner;
-        private readonly StruckTableSkill _skill;
+        private readonly RuntimeSkillDefinition _skill;
         private readonly SkillTargetContext _ctx;
 
         private readonly ICharacterAnimationController _animController;
@@ -35,7 +35,7 @@ namespace GGemCo2DSkill
 
         public bool IsDone { get; private set; }
 
-        public SkillRun(SkillExecutor owner, StruckTableSkill skill, SkillTargetContext ctx,
+        public SkillRun(SkillExecutor owner, RuntimeSkillDefinition skill, SkillTargetContext ctx,
             ICharacterAnimationController animController,
             ICharacterActionController actionController)
         {

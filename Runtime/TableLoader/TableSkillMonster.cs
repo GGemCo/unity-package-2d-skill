@@ -58,7 +58,7 @@ namespace GGemCo2DSkill
             return new StruckTableSkillMonster
             {
                 Uid = uid,
-                Name = data["Memo"],
+                Name = data.GetValueOrDefault("Name", data.GetValueOrDefault("Memo")),
                 Memo = data["Memo"],
                 SoFileName = data["SoFileName"],
                 SkillKind = ConfigCommonSkill.SkillKind.Active,

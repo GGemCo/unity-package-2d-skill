@@ -61,14 +61,11 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 스킬 사용을 시도합니다(테이블 Uid 기반).
         /// </summary>
-        public bool TryUse(int skillUid, SkillTargetContext targetCtx)
+        public bool TryUse(int skillUid, SkillTargetContext targetCtx, bool preferMonsterTable = false)
         {
             if (_current != null) return false;
 
-            var table = TableLoaderManager.Instance != null ? TableLoaderManagerSkill.Instance.TableSkill : null;
-            if (table == null) return false;
-
-            if (!table.GetDatas().TryGetValue(skillUid, out var skill) || skill == null) return false;
+            if (!SkillDefinitionResolver.TryResolve(skillUid, preferMonsterTable, out var skill) || skill == null) return false;
 
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
@@ -78,7 +75,7 @@ namespace GGemCo2DSkill
         }
 
         public void ExecuteEvent(
-            StruckTableSkill skill,
+            RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             SkillRuntimeSequence sequence,
             in SkillRuntimeEvent e,
@@ -174,7 +171,7 @@ namespace GGemCo2DSkill
 
         
         private void HandleProjectile(
-            StruckTableSkill skill,
+            RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             Vector3 snapshotCasterPos,
@@ -273,7 +270,7 @@ namespace GGemCo2DSkill
         }
 
         private void HandleDamage(
-            StruckTableSkill skill,
+            RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             Vector3 snapshotCasterPos,
@@ -421,7 +418,7 @@ namespace GGemCo2DSkill
         }
 
         private void HandleEffect(
-            StruckTableSkill skill,
+            RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             Vector3 snapshotCasterPos,
@@ -501,7 +498,7 @@ namespace GGemCo2DSkill
         }
 
         private void HandleApplyStatus(
-            StruckTableSkill skill,
+            RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             Vector3 snapshotCasterPos,

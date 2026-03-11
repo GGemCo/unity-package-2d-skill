@@ -18,7 +18,7 @@ namespace GGemCo2DSkillEditor
 {
     /// <summary>
     /// 스킬 제작 툴(V2)
-    /// - SSOT: skill 테이블
+    /// - SSOT: skill / skill_monster 테이블
     /// - Marker 미사용, 이벤트 클립 기반
     /// - Bake 결과는 SkillRuntimeSequence(Addressables)로 저장
     /// </summary>
@@ -48,13 +48,6 @@ namespace GGemCo2DSkillEditor
 
         private const string Title = "Skill Authoring V2";
 
-        // Skill.txt canonical column order (TableSkill 기준)
-        private static readonly string[] SkillTableHeaders =
-        {
-            "Uid","Category","Memo","UseClip","IconFileName","SoFileName","CastTime","CoolTime","TargetingMode","Range","MaxTargets",
-            "CastStartClip","CastLoopClip","CastEndClip"
-        };
-
         [MenuItem(ConfigEditorSkill.NameToolSettingTestSkill, false, (int)ConfigEditorSkill.ToolOrdering.SettingTestSkill)]
         public static void Open()
         {
@@ -66,6 +59,7 @@ namespace GGemCo2DSkillEditor
         // Skill selection (SearchableDropdownUtility)
         private Button _btnSelectSkill;
         private Label _labelSelectedSkill;
+        private EnumField _tableKindField;
 
         // Editing UI
         private ScrollView _rightScroll;
@@ -74,6 +68,8 @@ namespace GGemCo2DSkillEditor
         private IntegerField _fUid;
         private TextField _fName;
         private TextField _fMemo;
+        private Toggle _fDefaultLearn;
+        private IntegerField _fNeedPlayerLevel;
         private TextField _fIconFileName;
         private FloatField _fCastTime;
         private FloatField _fCoolTime;
@@ -131,12 +127,12 @@ namespace GGemCo2DSkillEditor
 
         private Toggle _forceReload;
 
-        private TableSkill _tableSkill;
-        private System.Collections.Generic.List<StruckTableSkill> _skillListSource;
+        private SkillAuthoringTableKind _selectedTableKind = SkillAuthoringTableKind.Player;
+        private System.Collections.Generic.List<SkillAuthoringModel> _skillListSource;
 
-        private StruckTableSkill _selectedSkill;
-        private StruckTableSkill _cachedSkillOriginal;
-        private StruckTableSkill _editingSkill;
+        private SkillAuthoringModel _selectedSkill;
+        private SkillAuthoringModel _cachedSkillOriginal;
+        private SkillAuthoringModel _editingSkill;
         private bool _editingDirty;
 
         private bool _lastPlayModeState;
@@ -152,6 +148,16 @@ namespace GGemCo2DSkillEditor
             var top = new Toolbar();
             _forceReload = new Toggle("ForceReload") { value = false };
             top.Add(_forceReload);
+
+            _tableKindField = new EnumField("Table", _selectedTableKind);
+            _tableKindField.RegisterValueChangedCallback(evt =>
+            {
+                _selectedTableKind = (SkillAuthoringTableKind)evt.newValue;
+                _selectedSkill = null;
+                LoadSkills();
+                RefreshSelected();
+            });
+            top.Add(_tableKindField);
 
             var reload = new Button(LoadSkills) { text = "Reload" };
             top.Add(reload);
@@ -221,7 +227,7 @@ namespace GGemCo2DSkillEditor
             var editButtons = new VisualElement { style = { flexDirection = FlexDirection.Row, marginTop = 6 } };
             _btnRevert = new Button(RevertEdits) { text = "되돌리기", style = { marginRight = 6 } };
             _btnApplyTest = new Button(ApplyTestEdits) { text = "테스트 적용하기", style = { marginRight = 6 } };
-            _btnSaveTable = new Button(SaveEditsToSkillTxt) { text = "저장하기(skill.txt)" };
+            _btnSaveTable = new Button(SaveEditsToSkillTxt) { text = "저장하기(선택 테이블)" };
             editButtons.Add(_btnRevert);
             editButtons.Add(_btnApplyTest);
             editButtons.Add(_btnSaveTable);
@@ -425,22 +431,8 @@ namespace GGemCo2DSkillEditor
 
         private void LoadSkills()
         {
-            _tableSkill = TableLoaderManagerSkill.LoadTableSkill(_forceReload.value);
-            var list = new System.Collections.Generic.List<StruckTableSkill>(128);
+            _skillListSource = SkillAuthoringRepository.LoadSkills(_selectedTableKind, _forceReload.value);
 
-            if (_tableSkill != null)
-            {
-                foreach (var kv in _tableSkill.GetDatas())
-                {
-                    if (kv.Value == null) continue;
-                    list.Add(kv.Value);
-                }
-            }
-
-            list.Sort((a, b) => a.Uid.CompareTo(b.Uid));
-            _skillListSource = list;
-
-            // 선택 유지(UID 기준)
             if (_selectedSkill != null)
             {
                 int keepUid = _selectedSkill.Uid;
@@ -459,11 +451,11 @@ namespace GGemCo2DSkillEditor
 
             if (_skillListSource == null || _skillListSource.Count == 0)
             {
-                ShowNotification(new GUIContent("skill 테이블이 비어있습니다."));
+                ShowNotification(new GUIContent($"{_selectedTableKind} 스킬 테이블이 비어있습니다."));
                 return;
             }
 
-            var options = new System.Collections.Generic.List<SearchableDropdownUtility.Option<StruckTableSkill>>(_skillListSource.Count);
+            var options = new System.Collections.Generic.List<SearchableDropdownUtility.Option<SkillAuthoringModel>>(_skillListSource.Count);
             for (int i = 0; i < _skillListSource.Count; i++)
             {
                 var s = _skillListSource[i];
@@ -471,7 +463,7 @@ namespace GGemCo2DSkillEditor
                 // Key: UID, Value: 메모/이름
                 string key = s.Uid.ToString();
                 string value = string.IsNullOrEmpty(s.Memo) ? s.Name : s.Memo;
-                options.Add(new SearchableDropdownUtility.Option<StruckTableSkill>(key, value, s));
+                options.Add(new SearchableDropdownUtility.Option<SkillAuthoringModel>(key, value, s));
             }
 
             int selectedIndex = -1;
@@ -539,6 +531,12 @@ namespace GGemCo2DSkillEditor
             _fMemo = new TextField("Memo");
             _editRoot.Add(_fMemo);
 
+            _fDefaultLearn = new Toggle("DefaultLearn");
+            _editRoot.Add(_fDefaultLearn);
+
+            _fNeedPlayerLevel = new IntegerField("NeedPlayerLevel");
+            _editRoot.Add(_fNeedPlayerLevel);
+
             _fIconFileName = new TextField("IconFileName");
             _editRoot.Add(_fIconFileName);
 
@@ -558,6 +556,8 @@ namespace GGemCo2DSkillEditor
             _editRoot.Add(_fMaxTargets);
 
             _fDefaultAreaId = new TextField("DefaultAreaId");
+            _fDefaultAreaId.SetEnabled(false);
+            _fDefaultAreaId.style.display = DisplayStyle.None;
             _editRoot.Add(_fDefaultAreaId);
 
             _fCastStartClip = new TextField("CastStartClip");
@@ -575,6 +575,13 @@ namespace GGemCo2DSkillEditor
             RegisterDirtyTracking(_fName, (v) => _editingSkill.Name = v);
             
             RegisterDirtyTracking(_fMemo, (v) => _editingSkill.Memo = v);
+            _fDefaultLearn.RegisterValueChangedCallback(evt =>
+            {
+                if (_editingSkill == null) return;
+                _editingSkill.DefaultLearn = evt.newValue;
+                MarkDirty();
+            });
+            RegisterDirtyTracking(_fNeedPlayerLevel, (v) => _editingSkill.NeedPlayerLevel = v);
             RegisterDirtyTracking(_fIconFileName, (v) => _editingSkill.IconFileName = v);
             RegisterDirtyTracking(_fCastTime, (v) => _editingSkill.CastTime = v);
             RegisterDirtyTracking(_fCoolTime, (v) => _editingSkill.CoolTime = v);
@@ -633,9 +640,16 @@ namespace GGemCo2DSkillEditor
             _timelineField.SetEnabled(enabled);
             _bakeButton.SetEnabled(enabled);
 
-            _fName.SetEnabled(enabled);
+            bool showPlayerFields = enabled && _selectedTableKind == SkillAuthoringTableKind.Player;
+            _fName.style.display = showPlayerFields ? DisplayStyle.Flex : DisplayStyle.None;
+            _fName.SetEnabled(showPlayerFields);
             _fMemo.SetEnabled(enabled);
-            _fIconFileName.SetEnabled(enabled);
+            _fDefaultLearn.style.display = showPlayerFields ? DisplayStyle.Flex : DisplayStyle.None;
+            _fNeedPlayerLevel.style.display = showPlayerFields ? DisplayStyle.Flex : DisplayStyle.None;
+            _fIconFileName.style.display = showPlayerFields ? DisplayStyle.Flex : DisplayStyle.None;
+            _fDefaultLearn.SetEnabled(showPlayerFields);
+            _fNeedPlayerLevel.SetEnabled(showPlayerFields);
+            _fIconFileName.SetEnabled(showPlayerFields);
             _fCastTime.SetEnabled(enabled);
             _fCoolTime.SetEnabled(enabled);
             _fTargetingMode.SetEnabled(enabled);
@@ -701,7 +715,7 @@ namespace GGemCo2DSkillEditor
             if (_editingDirty)
             {
                 ApplyEditingToSelectedRow();
-                UpdateInGameSkillTableInfo(_editingSkill);
+                SkillAuthoringRepository.UpdateInGameSkillTableInfo(_editingSkill);
             }
 
             // Timeline이 지정되어 있으면, 메모리에서 Bake한 시퀀스를 Repository에 주입하여
@@ -743,7 +757,7 @@ namespace GGemCo2DSkillEditor
                     groundPoint: target.GroundPoint,
                     forward: new Vector3(target.Forward.x, target.Forward.y, 0f));
 
-                bool started = executor.TryUse(_selectedSkill.Uid, ctx);
+                bool started = executor.TryUse(_selectedSkill.Uid, ctx, preferMonsterTable: _selectedTableKind == SkillAuthoringTableKind.Monster);
                 if (!started)
                     ShowNotification(new GUIContent("스킬 실행 실패(진행 중이거나 테이블/시퀀스 누락)"));
                 else
@@ -1387,13 +1401,15 @@ namespace GGemCo2DSkillEditor
             }
         }
 
-        private void SetEditUIValues(StruckTableSkill s, bool withoutNotify)
+        private void SetEditUIValues(SkillAuthoringModel s, bool withoutNotify)
         {
             if (withoutNotify)
             {
                 _fUid.SetValueWithoutNotify(s?.Uid ?? 0);
                 _fName.SetValueWithoutNotify(s?.Name ?? string.Empty);
                 _fMemo.SetValueWithoutNotify(s?.Memo ?? string.Empty);
+                _fDefaultLearn.SetValueWithoutNotify(s?.DefaultLearn ?? false);
+                _fNeedPlayerLevel.SetValueWithoutNotify(s?.NeedPlayerLevel ?? 0);
                 _fIconFileName.SetValueWithoutNotify(s?.IconFileName ?? string.Empty);
                 _fCastTime.SetValueWithoutNotify(s?.CastTime ?? 0f);
                 _fCoolTime.SetValueWithoutNotify(s?.CoolTime ?? 0f);
@@ -1410,6 +1426,8 @@ namespace GGemCo2DSkillEditor
             _fUid.value = s?.Uid ?? 0;
             _fName.value = s?.Name ?? string.Empty;
             _fMemo.value = s?.Memo ?? string.Empty;
+            _fDefaultLearn.value = s?.DefaultLearn ?? false;
+            _fNeedPlayerLevel.value = s?.NeedPlayerLevel ?? 0;
             _fIconFileName.value = s?.IconFileName ?? string.Empty;
             _fCastTime.value = s?.CastTime ?? 0f;
             _fCoolTime.value = s?.CoolTime ?? 0f;
@@ -1438,7 +1456,7 @@ namespace GGemCo2DSkillEditor
                 return;
 
             // 플레이 모드에서는 런타임 TableLoaderManagerSkill에도 적용
-            UpdateInGameSkillTableInfo(_editingSkill);
+            SkillAuthoringRepository.UpdateInGameSkillTableInfo(_editingSkill);
 
             _editingDirty = false;
             UpdateEditButtonsState();
@@ -1450,31 +1468,25 @@ namespace GGemCo2DSkillEditor
             if (!ApplyEditingToSelectedRow())
                 return;
 
-            if (!TrySaveSkillTableFile(out var err))
+            if (!SkillAuthoringRepository.Save(_selectedTableKind, _skillListSource, out var err))
             {
                 EditorUtility.DisplayDialog(Title, err, "OK");
                 return;
             }
 
-            // 저장 후 재로드
             int keepUid = _selectedSkill.Uid;
-
-            // Editor 캐시 언로드 → 재로드
-            TableLoaderManagerBase.Unload(ConfigAddressableTableSkill.TableSkill.Path);
             LoadSkills();
 
-            // UID로 재선택
             _selectedSkill = _skillListSource != null
                 ? _skillListSource.FirstOrDefault(s => s != null && s.Uid == keepUid)
                 : null;
             RefreshSelected();
 
-            // 플레이 모드에서는 런타임 TableLoaderManagerSkill에도 적용
-            UpdateInGameSkillTableInfo(_editingSkill);
+            SkillAuthoringRepository.UpdateInGameSkillTableInfo(_editingSkill);
 
             _editingDirty = false;
             UpdateEditButtonsState();
-            ShowNotification(new GUIContent("skill.txt 저장 완료"));
+            ShowNotification(new GUIContent($"{_selectedTableKind} 저장 완료"));
         }
 
         private bool ApplyEditingToSelectedRow()
@@ -1485,7 +1497,10 @@ namespace GGemCo2DSkillEditor
             // Uid는 키이므로 편집하지 않습니다.
             _selectedSkill.Name = _editingSkill.Name;
             _selectedSkill.Memo = _editingSkill.Memo;
+            _selectedSkill.DefaultLearn = _editingSkill.DefaultLearn;
+            _selectedSkill.NeedPlayerLevel = _editingSkill.NeedPlayerLevel;
             _selectedSkill.IconFileName = _editingSkill.IconFileName;
+            _selectedSkill.SoFileName = _editingSkill.SoFileName;
             _selectedSkill.CastTime = _editingSkill.CastTime;
             _selectedSkill.CoolTime = _editingSkill.CoolTime;
             _selectedSkill.TargetingMode = _editingSkill.TargetingMode;
@@ -1499,115 +1514,11 @@ namespace GGemCo2DSkillEditor
             return true;
         }
 
-        private static StruckTableSkill CloneSkillRow(StruckTableSkill row)
+        private static SkillAuthoringModel CloneSkillRow(SkillAuthoringModel row)
         {
-            if (row == null) return null;
-            return new StruckTableSkill
-            {
-                Uid = row.Uid,
-                Name = row.Name,
-                Memo = row.Memo,
-                IconFileName = row.IconFileName,
-                CastTime = row.CastTime,
-                CoolTime = row.CoolTime,
-                TargetingMode = row.TargetingMode,
-                Range = row.Range,
-                MaxTargets = row.MaxTargets,
-                CastStartClip = row.CastStartClip,
-                CastLoopClip = row.CastLoopClip,
-                CastEndClip = row.CastEndClip,
-                UseClip = row.UseClip,
-            };
+            return row?.Clone();
         }
 
-        private static string FormatFloat(float v) => v.ToString(System.Globalization.CultureInfo.InvariantCulture);
-
-        private bool TrySaveSkillTableFile(out string error)
-        {
-            error = null;
-
-            if (_tableSkill == null)
-            {
-                error = "Skill 테이블이 로드되지 않았습니다.";
-                return false;
-            }
-
-            try
-            {
-                var assetPath = ConfigAddressableTableSkill.TableSkill.Path; // Assets/.../Tables/Skill.txt
-                var projectRoot = Path.GetDirectoryName(Application.dataPath);
-                var fullPath = Path.Combine(projectRoot ?? string.Empty, assetPath);
-
-                var header = string.Join("\t", SkillTableHeaders);
-                var sb = new System.Text.StringBuilder(1024 * 32);
-                sb.AppendLine(header);
-
-                var datas = _tableSkill.GetDatas();
-                var uids = datas.Keys.ToList();
-                uids.Sort();
-
-                foreach (var uid in uids)
-                {
-                    if (!datas.TryGetValue(uid, out var r) || r == null)
-                        continue;
-
-                    sb.Append(r.Uid).Append('\t');
-                    sb.Append(r.Memo ?? string.Empty).Append('\t');
-                    sb.Append(r.UseClip ?? string.Empty);
-                    sb.Append(r.IconFileName ?? string.Empty).Append('\t');
-                    sb.Append(r.SoFileName ?? string.Empty).Append('\t');
-                    sb.Append(FormatFloat(r.CastTime)).Append('\t');
-                    sb.Append(FormatFloat(r.CoolTime)).Append('\t');
-                    sb.Append(r.TargetingMode).Append('\t');
-                    sb.Append(FormatFloat(r.Range)).Append('\t');
-                    sb.Append(r.MaxTargets).Append('\t');
-                    sb.Append(r.CastStartClip ?? string.Empty).Append('\t');
-                    sb.Append(r.CastLoopClip ?? string.Empty).Append('\t');
-                    sb.Append(r.CastEndClip ?? string.Empty).Append('\t');
-                    sb.AppendLine();
-                }
-
-                File.WriteAllText(fullPath, sb.ToString(), new System.Text.UTF8Encoding(false));
-
-                AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
-                AssetDatabase.Refresh();
-                return true;
-            }
-            catch (Exception e)
-            {
-                error = $"Skill 테이블 저장 중 오류: {e.Message}";
-                return false;
-            }
-        }
-
-        private static void UpdateInGameSkillTableInfo(StruckTableSkill row)
-        {
-            if (row == null) return;
-            if (!Application.isPlaying) return;
-            if (!GGemCo2DSkill.TableLoaderManagerSkill.Instance) return;
-
-            var table = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkill;
-            if (table == null) return;
-
-            var datas = table.GetDatas();
-            if (datas == null) return;
-
-            if (!datas.TryGetValue(row.Uid, out var info) || info == null)
-                return;
-
-            info.Name = row.Name;
-            info.Memo = row.Memo;
-            info.IconFileName = row.IconFileName;
-            info.CastTime = row.CastTime;
-            info.CoolTime = row.CoolTime;
-            info.TargetingMode = row.TargetingMode;
-            info.Range = row.Range;
-            info.MaxTargets = row.MaxTargets;
-            info.CastStartClip = row.CastStartClip;
-            info.CastLoopClip = row.CastLoopClip;
-            info.CastEndClip = row.CastEndClip;
-            info.UseClip = row.UseClip;
-        }
         private void BakeRuntimeSequence()
         {
             if (_selectedSkill == null) return;
