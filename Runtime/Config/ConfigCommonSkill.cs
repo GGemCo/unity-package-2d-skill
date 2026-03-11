@@ -1,4 +1,5 @@
-﻿namespace Config
+﻿// todo. 정리 필요. namespace 이름 변경해야 함
+namespace Config
 {
     public static class ConfigCommonSkill
     {
@@ -47,6 +48,14 @@
             Cone = 2,
             Capsule = 3,
             Line = 4,
+        }
+        /// <summary>
+        /// 스킬 정의를 조회할 원본 테이블 종류입니다.
+        /// </summary>
+        public enum SkillTableSource
+        {
+            Player = 0,
+            Monster = 1,
         }
     }
 }

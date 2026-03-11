@@ -42,7 +42,7 @@ namespace GGemCo2DSkillEditor
             }
         }
 
-        private static bool BakeRuntimeSequence(StruckTableSkill selectedSkill, TimelineAsset timeline, out string message)
+        private static bool BakeRuntimeSequence(SkillEditorRow selectedSkill, TimelineAsset timeline, out string message)
         {
             message = null;
 
@@ -79,7 +79,7 @@ namespace GGemCo2DSkillEditor
                 groupName: ConfigAddressableGroupNameSkill.SkillRuntimeSequence,
                 label: ConfigAddressableLabelSkill.SkillRuntimeSequence);
 
-            message = $"[SkillAuthoringV2] Bake/등록 완료: uid={selectedSkill.Uid}, key={runtimeSequenceKey}";
+            message = $"[SkillAuthoringV2] Bake/등록 완료: uid={selectedSkill.Uid}, source={selectedSkill.Source}, key={runtimeSequenceKey}";
             return true;
         }
 

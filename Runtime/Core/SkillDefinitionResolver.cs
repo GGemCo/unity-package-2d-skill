@@ -1,3 +1,5 @@
+using Config;
+
 namespace GGemCo2DSkill
 {
     /// <summary>
@@ -7,10 +9,10 @@ namespace GGemCo2DSkill
     {
         public static bool TryResolve(int skillUid, out RuntimeSkillDefinition definition)
         {
-            return TryResolve(skillUid, false, out definition);
+            return TryResolve(skillUid, ConfigCommonSkill.SkillTableSource.Player, out definition);
         }
 
-        public static bool TryResolve(int skillUid, bool preferMonsterTable, out RuntimeSkillDefinition definition)
+        public static bool TryResolve(int skillUid, ConfigCommonSkill.SkillTableSource source, out RuntimeSkillDefinition definition)
         {
             definition = null;
 
@@ -18,16 +20,9 @@ namespace GGemCo2DSkill
             if (manager == null)
                 return false;
 
-            if (preferMonsterTable)
-            {
-                if (TryResolveMonster(manager, skillUid, out definition)) return true;
-                if (TryResolvePlayer(manager, skillUid, out definition)) return true;
-                return false;
-            }
-
-            if (TryResolvePlayer(manager, skillUid, out definition)) return true;
-            if (TryResolveMonster(manager, skillUid, out definition)) return true;
-            return false;
+            return source == ConfigCommonSkill.SkillTableSource.Monster
+                ? TryResolveMonster(manager, skillUid, out definition)
+                : TryResolvePlayer(manager, skillUid, out definition);
         }
 
         private static bool TryResolvePlayer(TableLoaderManagerSkill manager, int skillUid, out RuntimeSkillDefinition definition)

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Config;
 using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using GGemCo2DSkill;
@@ -10,11 +11,18 @@ namespace GGemCo2DSkillEditor
     public partial class CreateSkillWindow
     {
         private bool _foldRowEdit = true;
-        private StruckTableSkill _cachedRow;
-        private StruckTableSkill _editingRow;
+        private SkillEditorRow _cachedRow;
+        private SkillEditorRow _editingRow;
         private bool _editingDirty;
+        /// <summary>
+        /// 현재 선택된 테이블 종류에 대응하는 Addressable 테이블 경로를 반환합니다.
+        /// </summary>
+        private string CurrentTablePath =>
+            _selectedSource == ConfigCommonSkill.SkillTableSource.Monster
+                ? ConfigAddressableTableSkill.TableSkillMonster.Path
+                : ConfigAddressableTableSkill.TableSkill.Path;
         
-        private static readonly TableRowEditorUtility.TableRowEditorField[] RowEditorFields =
+        private static readonly TableRowEditorUtility.TableRowEditorField[] RowEditorFieldsPlayer =
         {
             new("Uid", readOnly: true),
             new("Memo"),
@@ -33,11 +41,30 @@ namespace GGemCo2DSkillEditor
             new("CastEndClip"),
         };
 
+        private static readonly TableRowEditorUtility.TableRowEditorField[] RowEditorFieldsMonster =
+        {
+            new("Uid", readOnly: true),
+            new("Memo"),
+            new("UseClip"),
+            new("SoFileName"),
+            new("CastTime"),
+            new("CoolTime"),
+            new("TargetingMode"),
+            new("Range"),
+            new("MaxTargets"),
+            new("CastStartClip"),
+            new("CastLoopClip"),
+            new("CastEndClip"),
+        };
+
+        private IReadOnlyList<TableRowEditorUtility.TableRowEditorField> CurrentRowEditorFields =>
+            _selectedSource == ConfigCommonSkill.SkillTableSource.Monster ? RowEditorFieldsMonster : RowEditorFieldsPlayer;
+
         private void OnGUIRowEditor()
         {
             if (_cachedRow == null || _editingRow == null)
             {
-                EditorGUILayout.HelpBox($"선택된 데이터가 없습니다.", MessageType.Info);
+                EditorGUILayout.HelpBox("선택된 데이터가 없습니다.", MessageType.Info);
                 return;
             }
 
@@ -46,7 +73,7 @@ namespace GGemCo2DSkillEditor
 
             using (new EditorGUILayout.VerticalScope("box"))
             {
-                var drawResult = TableRowEditorUtility.DrawObjectEditor(_editingRow, RowEditorFields);
+                var drawResult = TableRowEditorUtility.DrawObjectEditor(_editingRow, CurrentRowEditorFields, NormalizeEditingFieldValue);
                 if (drawResult.Changed)
                 {
                     _editingDirty = true;
@@ -66,11 +93,7 @@ namespace GGemCo2DSkillEditor
                 
                         if (GUILayout.Button("테스트 적용"))
                         {
-                            var info = GGemCo2DCore.TableLoaderManager.Instance.GetProjectileData(_selectedData.Uid);
-                            if (info != null)
-                            {
-                                UpdateInGameTableInfo(_editingRow);
-                            }
+                            UpdateInGameTableInfo(_editingRow);
                         }
 
                         if (GUILayout.Button("저장(테이블 파일)"))
@@ -84,18 +107,8 @@ namespace GGemCo2DSkillEditor
                                 return;
                             }
 
-                            // 저장 후 재로드(툴 테이블)
-                            // int keepUid = crowdControlUid;
-                            TableLoaderManagerBase.Unload(ConfigAddressableTableSkill.TableSkill.Path);
-                            _tableSkill = TableLoaderManagerSkill.LoadTableSkill();
-                            _dictionary = _tableSkill?.GetDatas();
+                            ReloadCurrentTable();
 
-                            // LoadDropdown();
-                            // crowdControlUid = keepUid;
-                            // SyncSelectedIndexByUid();
-                            CacheRow();
-
-                            // 플레이 중이면 인게임에도 반영
                             UpdateInGameTableInfo(_cachedRow);
 
                             _editingDirty = false;
@@ -103,6 +116,31 @@ namespace GGemCo2DSkillEditor
                         }
                     }
                 }
+            }
+        }
+
+        private void ReloadCurrentTable()
+        {
+            int keepUid = _cachedRow != null ? _cachedRow.Uid : (_selectedData != null ? _selectedData.Uid : 0);
+
+            TableLoaderManagerBase.Unload(CurrentTablePath);
+            if (_selectedSource == ConfigCommonSkill.SkillTableSource.Monster)
+            {
+                _tableSkillMonster = TableLoaderManagerSkill.LoadTableSkillMonster();
+                _monsterDictionary = BuildMonsterDictionary(_tableSkillMonster);
+            }
+            else
+            {
+                _tableSkill = TableLoaderManagerSkill.LoadTableSkill();
+                _playerDictionary = BuildPlayerDictionary(_tableSkill);
+            }
+
+            RebuildDropdown();
+
+            if (keepUid > 0 && CurrentDictionary != null && CurrentDictionary.TryGetValue(keepUid, out var selected))
+            {
+                _selectedData = selected;
+                CacheRow();
             }
         }
 
@@ -116,14 +154,14 @@ namespace GGemCo2DSkillEditor
                 return false;
             }
 
-            if (_tableSkill == null)
+            if (!HasCurrentTableLoaded)
             {
                 error = "테이블이 로드되지 않았습니다.";
                 return false;
             }
 
             if (!TableTextRowPatchUtility.TryPatchRowByUid(
-                    ConfigAddressableTableSkill.TableSkill.Path,
+                    CurrentTablePath,
                     _cachedRow.Uid,
                     _cachedRow,
                     SerializeRow,
@@ -136,7 +174,7 @@ namespace GGemCo2DSkillEditor
             return true;
         }
 
-        private static string SerializeRow(StruckTableSkill row, IReadOnlyList<string> headers)
+        private static string SerializeRow(SkillEditorRow row, IReadOnlyList<string> headers)
         {
             var values = new string[headers.Count];
 
@@ -145,12 +183,13 @@ namespace GGemCo2DSkillEditor
                 values[i] = headers[i] switch
                 {
                     "Uid" => row.Uid.ToString(),
+                    "Name" => row.Name ?? string.Empty,
                     "Memo" => row.Memo ?? string.Empty,
                     "DefaultLearn" => MathHelper.FormatBool(row.DefaultLearn),
                     "NeedPlayerLevel" => row.NeedPlayerLevel.ToString(),
-                    "UseClip" => row.UseClip ?? string.Empty,
                     "IconFileName" => row.IconFileName ?? string.Empty,
                     "SoFileName" => row.SoFileName ?? string.Empty,
+                    "SkillKind" => row.SkillKind.ToString(),
                     "CastTime" => MathHelper.FormatFloat(row.CastTime),
                     "CoolTime" => MathHelper.FormatFloat(row.CoolTime),
                     "TargetingMode" => row.TargetingMode.ToString(),
@@ -159,6 +198,7 @@ namespace GGemCo2DSkillEditor
                     "CastStartClip" => row.CastStartClip ?? string.Empty,
                     "CastLoopClip" => row.CastLoopClip ?? string.Empty,
                     "CastEndClip" => row.CastEndClip ?? string.Empty,
+                    "UseClip" => row.UseClip ?? string.Empty,
                     _ => string.Empty,
                 };
             }
@@ -166,30 +206,52 @@ namespace GGemCo2DSkillEditor
             return string.Join("\t", values);
         }
         
-        private static void UpdateInGameTableInfo(StruckTableSkill row)
+        private static void UpdateInGameTableInfo(SkillEditorRow row)
         {
             if (row == null) return;
             if (!Application.isPlaying) return;
             if (!GGemCo2DSkill.TableLoaderManagerSkill.Instance) return;
 
-            var info = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkill.GetDataByUid(row.Uid);
-            if (info == null) return;
+            if (row.Source == ConfigCommonSkill.SkillTableSource.Monster)
+            {
+                var info = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkillMonster.GetDataByUid(row.Uid);
+                if (info == null) return;
+
+                info.Uid = row.Uid;
+                info.Memo = row.Memo;
+                info.SoFileName = row.SoFileName;
+                info.SkillKind = row.SkillKind;
+                info.CastTime = row.CastTime;
+                info.CoolTime = row.CoolTime;
+                info.TargetingMode = row.TargetingMode;
+                info.Range = row.Range;
+                info.MaxTargets = row.MaxTargets;
+                info.CastStartClip = row.CastStartClip;
+                info.CastLoopClip = row.CastLoopClip;
+                info.CastEndClip = row.CastEndClip;
+                info.UseClip = row.UseClip;
+                return;
+            }
+
+            var playerInfo = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkill.GetDataByUid(row.Uid);
+            if (playerInfo == null) return;
             
-            info.Uid = row.Uid;
-            info.Memo = row.Memo;
-            info.DefaultLearn = row.DefaultLearn;
-            info.NeedPlayerLevel = row.NeedPlayerLevel;
-            info.UseClip = row.UseClip;
-            info.IconFileName = row.IconFileName;
-            info.SoFileName = row.SoFileName;
-            info.CastTime = row.CastTime;
-            info.CoolTime = row.CoolTime;
-            info.TargetingMode = row.TargetingMode;
-            info.Range = row.Range;
-            info.MaxTargets = row.MaxTargets;
-            info.CastStartClip = row.CastStartClip;
-            info.CastLoopClip = row.CastLoopClip;
-            info.CastEndClip = row.CastEndClip;
+            playerInfo.Uid = row.Uid;
+            playerInfo.Memo = row.Memo;
+            playerInfo.DefaultLearn = row.DefaultLearn;
+            playerInfo.NeedPlayerLevel = row.NeedPlayerLevel;
+            playerInfo.IconFileName = row.IconFileName;
+            playerInfo.SoFileName = row.SoFileName;
+            playerInfo.SkillKind = row.SkillKind;
+            playerInfo.CastTime = row.CastTime;
+            playerInfo.CoolTime = row.CoolTime;
+            playerInfo.TargetingMode = row.TargetingMode;
+            playerInfo.Range = row.Range;
+            playerInfo.MaxTargets = row.MaxTargets;
+            playerInfo.CastStartClip = row.CastStartClip;
+            playerInfo.CastLoopClip = row.CastLoopClip;
+            playerInfo.CastEndClip = row.CastEndClip;
+            playerInfo.UseClip = row.UseClip;
         }
         
         private void CacheRow()
@@ -198,17 +260,17 @@ namespace GGemCo2DSkillEditor
             _editingRow = null;
             _editingDirty = false;
 
-            if (_dictionary == null) return;
-            if (!_dictionary.TryGetValue(_selectedData.Uid, out var row) || row == null)
+            if (_selectedData == null || CurrentDictionary == null) return;
+            if (!CurrentDictionary.TryGetValue(_selectedData.Uid, out var row) || row == null)
                 return;
 
             _cachedRow = row;
             _editingRow = CloneRow(row);
         }
 
-        private static StruckTableSkill CloneRow(StruckTableSkill row)
+        private static SkillEditorRow CloneRow(SkillEditorRow row)
         {
-            return TableRowEditorUtility.CloneShallow<StruckTableSkill>(row);
+            return TableRowEditorUtility.CloneShallow<SkillEditorRow>(row);
         }
 
         private bool ApplyEditingToCachedRow()
@@ -216,7 +278,7 @@ namespace GGemCo2DSkillEditor
             if (_cachedRow == null || _editingRow == null)
                 return false;
 
-            TableRowEditorUtility.CopyMembers(_editingRow, _cachedRow, RowEditorFields);
+            TableRowEditorUtility.CopyMembers(_editingRow, _cachedRow, CurrentRowEditorFields);
             NormalizeEditingRow();
 
             return true;
@@ -230,19 +292,30 @@ namespace GGemCo2DSkillEditor
 
             switch (memberName)
             {
-                // case nameof(StruckTableCrowdControl.Distance):
-                //     if (_editingRow.Distance < 0f) _editingRow.Distance = 0f;
-                //     break;
-                //
-                // case nameof(StruckTableCrowdControl.Duration):
-                //     if (_editingRow.Duration < 0f) _editingRow.Duration = 0f;
-                //     break;
+                case nameof(SkillEditorRow.CastTime):
+                    if (_editingRow.CastTime < 0f) _editingRow.CastTime = 0f;
+                    break;
+                case nameof(SkillEditorRow.CoolTime):
+                    if (_editingRow.CoolTime < 0f) _editingRow.CoolTime = 0f;
+                    break;
+                case nameof(SkillEditorRow.Range):
+                    if (_editingRow.Range < 0f) _editingRow.Range = 0f;
+                    break;
+                case nameof(SkillEditorRow.MaxTargets):
+                    if (_editingRow.MaxTargets < 0) _editingRow.MaxTargets = 0;
+                    break;
+                case nameof(SkillEditorRow.NeedPlayerLevel):
+                    if (_editingRow.NeedPlayerLevel < 0) _editingRow.NeedPlayerLevel = 0;
+                    break;
             }
         }
         private void NormalizeEditingRow()
         {
-            // NormalizeEditingFieldValue(_editingRow, nameof(StruckTableCrowdControl.Distance));
-            // NormalizeEditingFieldValue(_editingRow, nameof(StruckTableCrowdControl.Duration));
+            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.CastTime));
+            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.CoolTime));
+            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.Range));
+            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.MaxTargets));
+            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.NeedPlayerLevel));
         }
     }
 }

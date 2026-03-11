@@ -7,7 +7,7 @@ namespace GGemCo2DSkill
 {
     /// <summary>
     /// 런타임 스킬 실행기(Authoring V2).
-    /// - SSOT: Core의 skill 테이블(Uid 기반)
+    /// - SSOT: skill / skill_monster 테이블(Uid 기반)
     /// - 연출 타이밍: Addressables로 로드한 <see cref="SkillRuntimeSequence"/>
     /// - 애니메이션: 클립 이름 규칙 + Playables(Animator 파라미터 미사용)
     /// </summary>
@@ -61,11 +61,11 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 스킬 사용을 시도합니다(테이블 Uid 기반).
         /// </summary>
-        public bool TryUse(int skillUid, SkillTargetContext targetCtx, bool preferMonsterTable = false)
+        public bool TryUse(int skillUid, SkillTargetContext targetCtx, ConfigCommonSkill.SkillTableSource source = ConfigCommonSkill.SkillTableSource.Player)
         {
             if (_current != null) return false;
 
-            if (!SkillDefinitionResolver.TryResolve(skillUid, preferMonsterTable, out var skill) || skill == null) return false;
+            if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
 
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),

@@ -34,7 +34,6 @@ namespace GGemCo2DSkillEditor
                 return;
             }
             
-            // 입력값이 바뀐 상태라면, 테스트 적용(테이블 오버라이드)까지 포함해서 즉시 반영한다.
             if (_editingDirty)
             {
                 if (!ApplyEditingToCachedRow())
@@ -42,18 +41,12 @@ namespace GGemCo2DSkillEditor
                 UpdateInGameTableInfo(_editingRow);
             }
 
-            // Timeline이 지정되어 있으면, 메모리에서 Bake한 시퀀스를 Repository에 주입하여
-            // SkillExecutor가 Addressables 로딩 없이 실행하도록 한다.
-            // TryRegisterEditorSequenceOverrideFromTimeline(_selectedSkill.Uid);
-            //
             if (!TryGetPlayModeCasterAndTarget(out var caster, out var target, out string error))
             {
                 EditorUtility.DisplayDialog(Title, error, "OK");
                 return;
             }
 
-            // Skill 시스템이 붙어있는 캐스터에서 실행
-            // Unity의 GetComponent<T>()는 interface를 직접 받을 수 없으므로, Component 스캔으로 찾는다.
             GGemCo2DCore.IMonsterSkillDriver driver = null;
             var comps = selectedCharacter.GetComponents<Component>();
             for (int i = 0; i < comps.Length; i++)
@@ -67,7 +60,6 @@ namespace GGemCo2DSkillEditor
 
             if (driver == null)
             {
-                // 최후: SkillExecutor 직접 실행
                 var executor = selectedCharacter.GetComponent<SkillExecutor>();
                 if (executor == null)
                 {
@@ -81,7 +73,7 @@ namespace GGemCo2DSkillEditor
                     groundPoint: target.GroundPoint,
                     forward: new Vector3(target.Forward.x, target.Forward.y, 0f));
 
-                bool started = executor.TryUse(_selectedData.Uid, ctx, preferMonsterTable: false);
+                bool started = executor.TryUse(_selectedData.Uid, ctx, _selectedData.Source);
                 if (!started)
                     ShowNotification(new GUIContent("스킬 실행 실패(진행 중이거나 테이블/시퀀스 누락)"));
                 else
@@ -116,8 +108,6 @@ namespace GGemCo2DSkillEditor
                 return false;
             }
 
-            // TargetingMode가 Self이면 타겟은 캐스터 자신으로 고정한다.
-            // (이 경우 수동 Target 지정/기본 정책 타겟 결정은 무시한다.)
             var targetingMode = _editingRow?.TargetingMode ?? (_selectedData?.TargetingMode ?? default);
 
             if (targetingMode == ConfigCommonSkill.SkillTargetingMode.Self)
@@ -135,16 +125,10 @@ namespace GGemCo2DSkillEditor
                 return true;
             }
 
-            // 타겟 결정 우선순위
-            // 1) 툴에서 수동 지정한 Target
-            // 2) 기본 정책
-            //    - 캐스터가 Player이면: 타겟은 '스폰/선택된 다른 캐릭터(몬스터)' 우선
-            //    - 그 외(몬스터 등)이면: 타겟은 Player 고정
             Transform lockedTarget = null;
 
             if (hub.UseManualLockedTarget && hub.LockedTarget != null)
             {
-                // 캐스터/타겟 동일이면(자기 자신) 의도치 않은 케이스가 많아 경고 후 기본 정책으로 폴백합니다.
                 if (hub.LockedTarget.gameObject != caster)
                 {
                     lockedTarget = hub.LockedTarget;
@@ -155,7 +139,6 @@ namespace GGemCo2DSkillEditor
             {
                 if (lockedTarget == null)
                 {
-                    // Player 캐스터: Spawned 중 자신이 아닌 첫 대상을 타겟으로 사용
                     for (int i = 0; i < hub.Spawned.Count; i++)
                     {
                         var go = hub.Spawned[i];
@@ -178,7 +161,6 @@ namespace GGemCo2DSkillEditor
             {
                 if (lockedTarget == null)
                 {
-                    // 몬스터 캐스터: Player 타겟
                     if (!hub.TryBindPlayerAsTarget() || hub.LockedTarget == null)
                     {
                         error = "Player를 찾지 못했습니다. SceneGame.player 또는 Tag=Player 오브젝트가 필요합니다.";
@@ -195,7 +177,6 @@ namespace GGemCo2DSkillEditor
             if (forward.sqrMagnitude < 1e-6f) forward = Vector2.right;
 
             hub.SetGroundPoint(groundPoint);
-            // 수동 타겟이 설정된 상태라면, hub 내부 상태도 유지
             if (hub.UseManualLockedTarget)
                 hub.SetManualLockedTarget(lockedTarget);
             else

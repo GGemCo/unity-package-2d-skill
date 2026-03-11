@@ -7,6 +7,10 @@ namespace GGemCo2DSkillEditor
     public partial class CreateSkillWindow
     {
         private const string DummyTargetName = "SkillTest_DummyTarget";
+        private CharacterBase _dummyTargetCharacter;
+        /// <summary>
+        /// 테스트 대상 더미 캐릭터 참조입니다.
+        /// </summary>
         private static readonly Vector3 DummyTargetOffset = new(150f, 0f, 0f);
 
         private void OnGUITarget()
