@@ -6,8 +6,6 @@ using GGemCo2DCore;
 using GGemCo2DSkill;
 using GGemCo2DCoreEditor;
 using UnityEditor;
-using UnityEditor.AddressableAssets;
-using UnityEditor.AddressableAssets.Settings;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.Timeline;
@@ -47,6 +45,11 @@ namespace GGemCo2DSkillEditor
 
 
         private const string Title = "Skill Authoring V2";
+
+        private readonly SkillAuthoringState _state = new();
+        private readonly SkillSelectionPanel _selectionPanel = new();
+        private readonly SkillEditorPanel _editorPanel = new();
+        private readonly SkillPlayModeTesterPanel _playModeTesterPanel = new();
 
         [MenuItem(ConfigEditorSkill.NameToolSettingTestSkill, false, (int)ConfigEditorSkill.ToolOrdering.SettingTestSkill)]
         public static void Open()
@@ -145,111 +148,54 @@ namespace GGemCo2DSkillEditor
             rootVisualElement.style.paddingBottom = 8;
             rootVisualElement.style.flexDirection = FlexDirection.Column;
 
-            var top = new Toolbar();
-            _forceReload = new Toggle("ForceReload") { value = false };
-            top.Add(_forceReload);
-
-            _tableKindField = new EnumField("Table", _selectedTableKind);
-            _tableKindField.RegisterValueChangedCallback(evt =>
-            {
-                _selectedTableKind = (SkillAuthoringTableKind)evt.newValue;
-                _selectedSkill = null;
-                LoadSkills();
-                RefreshSelected();
-            });
-            top.Add(_tableKindField);
-
-            var reload = new Button(LoadSkills) { text = "Reload" };
-            top.Add(reload);
-            rootVisualElement.Add(top);
-
-            // Skill select bar (top)
-            var selectBar = new VisualElement
-            {
-                style =
+            rootVisualElement.Add(_selectionPanel.BuildToolbar(
+                _state,
+                onForceReloadChanged: value =>
                 {
-                    flexDirection = FlexDirection.Column,
-                    // alignItems = Align.Center,
-                    marginTop = 6,
-                    marginBottom = 6,
-                    flexGrow = 1,
-                }
-            };
-            // PlayMode 테스트 UI
-            _playModeHelp = new HelpBox(
-                "Play Mode에서만 동작합니다. '스킬 사용하기'는 현재 Input Field 값 + (선택 시) Timeline 이벤트를 사용해 실행합니다.\n" +
-                "- TimelineAsset이 지정되어 있으면, 런타임 시퀀스를 메모리에서 Bake하여 Addressables 로딩을 우회합니다.",
-                HelpBoxMessageType.Info);
-            selectBar.Add(_playModeHelp);
-
-            _btnSelectSkill = new Button(OpenSkillSearchDropdown)
-            {
-                text = "스킬 선택",
-                style = { marginRight = 8 }
-            };
-            selectBar.Add(_btnSelectSkill);
-
-            _labelSelectedSkill = new Label("선택된 스킬: (없음)")
-            {
-                style =
+                    if (_forceReload == null)
+                        _forceReload = new Toggle();
+                    _forceReload.value = value;
+                },
+                onTableKindChanged: kind =>
                 {
-                    unityFontStyleAndWeight = FontStyle.Bold,
-                    flexGrow = 1
-                }
-            };
-            selectBar.Add(_labelSelectedSkill);
+                    _selectedTableKind = kind;
+                    _state.TableKind = kind;
+                    _selectedSkill = null;
+                    _state.ClearSelection();
+                    LoadSkills();
+                    RefreshSelected();
+                },
+                onReload: LoadSkills));
 
+            var selectBar = _selectionPanel.BuildSkillSelectionBar(OpenSkillSearchDropdown);
+            _labelSelectedSkill = selectBar.Q<Label>("selected-skill-label");
+            _btnSelectSkill = selectBar.Q<Button>();
             rootVisualElement.Add(selectBar);
 
-            _rightScroll = new ScrollView(ScrollViewMode.Vertical)
-            {
-                style =
-                {
-                    flexGrow = 1,
-                }
-            };
+            var monsterSection = BuildPlayModeMonsterUI();
+            var casterSection = BuildPlayModeSceneCasterUI();
+            var targetSection = BuildPlayModeSceneTargetUI();
 
-            _editRoot = new VisualElement
-            {
-                style =
-                {
-                    flexDirection = FlexDirection.Column,
-                    flexGrow = 1,
-                }
-            };
-            _rightScroll.Add(_editRoot);
+            _rightScroll = _editorPanel.Build(
+                onBuildFields: _ => BuildEditFields(),
+                onRevert: RevertEdits,
+                onApplyTest: ApplyTestEdits,
+                onSaveTable: SaveEditsToSkillTxt,
+                onBake: BakeRuntimeSequence,
+                out _editRoot,
+                out _timelineField,
+                out _btnRevert,
+                out _btnApplyTest,
+                out _btnSaveTable,
+                out _bakeButton);
 
-            _timelineField = new ObjectField("TimelineAsset") { objectType = typeof(TimelineAsset) };
-            _editRoot.Add(_timelineField);
-
-            BuildEditFields();
-
-            var editButtons = new VisualElement { style = { flexDirection = FlexDirection.Row, marginTop = 6 } };
-            _btnRevert = new Button(RevertEdits) { text = "되돌리기", style = { marginRight = 6 } };
-            _btnApplyTest = new Button(ApplyTestEdits) { text = "테스트 적용하기", style = { marginRight = 6 } };
-            _btnSaveTable = new Button(SaveEditsToSkillTxt) { text = "저장하기(선택 테이블)" };
-            editButtons.Add(_btnRevert);
-            editButtons.Add(_btnApplyTest);
-            editButtons.Add(_btnSaveTable);
-            _editRoot.Add(editButtons);
-
-            _bakeButton = new Button(BakeRuntimeSequence) { text = "Bake RuntimeSequence + Register Addressables" };
-            _editRoot.Add(_bakeButton);
-
-            BuildPlayModeMonsterUI();
-            BuildPlayModeSceneCasterUI();
-            BuildPlayModeSceneTargetUI();
-
-            _btnUseSkill = new Button(UseSkillInPlayMode) { text = "스킬 사용하기(PlayMode)" };
-            _editRoot.Add(_btnUseSkill);
-
-            var help = new HelpBox(
-                "필수: skill 테이블의 TimelineKey / RuntimeSequenceKey 컬럼을 채워주세요.\n" +
-                "- TimelineKey: 제작용 TimelineAsset Addressables Key\n" +
-                "- RuntimeSequenceKey: 런타임용 SkillRuntimeSequence Addressables Key\n" +
-                "Bake는 Timeline의 이벤트 클립(SkillEventTrack)만 수집합니다.",
-                HelpBoxMessageType.Info);
-            _editRoot.Add(help);
+            _playModeHelp = _playModeTesterPanel.Build(
+                _editRoot,
+                onUseSkill: UseSkillInPlayMode,
+                out _btnUseSkill,
+                monsterSection,
+                casterSection,
+                targetSection);
 
             rootVisualElement.Add(_rightScroll);
 
@@ -259,7 +205,7 @@ namespace GGemCo2DSkillEditor
             _lastPlayModeState = Application.isPlaying;
         }
 
-        private void BuildPlayModeMonsterUI()
+        private VisualElement BuildPlayModeMonsterUI()
         {
             var box = new VisualElement
             {
@@ -306,12 +252,11 @@ namespace GGemCo2DSkillEditor
             box.Add(_btnResetMonsterOrigin);
 
 
-            _editRoot.Add(box);
-
             RefreshMonsterDropdown();
+            return box;
         }
 
-        private void BuildPlayModeSceneCasterUI()
+        private VisualElement BuildPlayModeSceneCasterUI()
         {
             var box = new VisualElement
             {
@@ -361,12 +306,11 @@ namespace GGemCo2DSkillEditor
                 "- 선택한 캐릭터(플레이어/몬스터 모두 가능)를 스킬 실행 캐스터로 지정합니다.",
                 HelpBoxMessageType.Info));
 
-            _editRoot.Add(box);
-
             RefreshSceneCasterDropdown();
+            return box;
         }
 
-        private void BuildPlayModeSceneTargetUI()
+        private VisualElement BuildPlayModeSceneTargetUI()
         {
             var box = new VisualElement
             {
@@ -424,14 +368,15 @@ namespace GGemCo2DSkillEditor
                 "- '수동 Target 해제'를 누르면 기존 기본 정책(캐스터가 Player면 몬스터 우선, 몬스터면 Player 고정)으로 돌아갑니다.",
                 HelpBoxMessageType.Info));
 
-            _editRoot.Add(box);
-
             RefreshSceneTargetDropdown();
+            return box;
         }
 
         private void LoadSkills()
         {
-            _skillListSource = SkillAuthoringRepository.LoadSkills(_selectedTableKind, _forceReload.value);
+            _skillListSource = SkillAuthoringRepository.LoadSkills(_selectedTableKind, _forceReload != null && _forceReload.value);
+            _state.TableKind = _selectedTableKind;
+            _state.SkillListSource = _skillListSource;
 
             if (_selectedSkill != null)
             {
@@ -512,6 +457,7 @@ namespace GGemCo2DSkillEditor
             _cachedSkillOriginal = CloneSkillRow(_selectedSkill);
             _editingSkill = CloneSkillRow(_selectedSkill);
             _editingDirty = false;
+            _state.SetSelection(_selectedSkill);
 
             SetEditUIEnabled(true);
             SetEditUIValues(_editingSkill, withoutNotify: true);
@@ -632,6 +578,8 @@ namespace GGemCo2DSkillEditor
         private void MarkDirty()
         {
             _editingDirty = true;
+            _state.IsDirty = true;
+            _state.Editing = _editingSkill;
             UpdateEditButtonsState();
         }
 
@@ -678,11 +626,12 @@ namespace GGemCo2DSkillEditor
 
         private void UpdatePlayModeButtonsState()
         {
-            bool canUse = Application.isPlaying && _selectedSkill != null;
-            _btnUseSkill?.SetEnabled(canUse);
-
-            if (_btnSpawnMonster != null)
-                _btnSpawnMonster.SetEnabled(Application.isPlaying);
+            SkillPlayModeTesterService.UpdatePlayModeUiState(
+                isPlaying: Application.isPlaying,
+                hasSelection: _selectedSkill != null,
+                playModeHelp: _playModeHelp,
+                useSkillButton: _btnUseSkill,
+                spawnMonsterButton: _btnSpawnMonster);
 
             // PlayMode 진입/종료 시 몬스터 드롭다운 갱신
             if (_lastPlayModeState != Application.isPlaying)
@@ -690,24 +639,12 @@ namespace GGemCo2DSkillEditor
                 _lastPlayModeState = Application.isPlaying;
                 RefreshMonsterDropdown();
             }
-
-            if (_playModeHelp != null)
-            {
-                _playModeHelp.messageType = Application.isPlaying ? HelpBoxMessageType.Info : HelpBoxMessageType.Warning;
-            }
         }
 
         private void UseSkillInPlayMode()
         {
-            if (!Application.isPlaying)
+            if (!SkillPlayModeTesterService.ValidatePlayModeAndSelection(Title, _selectedSkill))
             {
-                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
-                return;
-            }
-
-            if (_selectedSkill == null)
-            {
-                EditorUtility.DisplayDialog(Title, "스킬을 먼저 선택하세요.", "OK");
                 return;
             }
 
@@ -1445,6 +1382,8 @@ namespace GGemCo2DSkillEditor
             if (_selectedSkill == null || _cachedSkillOriginal == null) return;
             _editingSkill = CloneSkillRow(_cachedSkillOriginal);
             _editingDirty = false;
+            _state.Editing = _editingSkill;
+            _state.IsDirty = false;
             SetEditUIValues(_editingSkill, withoutNotify: true);
             UpdateEditButtonsState();
             ShowNotification(new GUIContent("되돌리기 완료"));
@@ -1459,6 +1398,8 @@ namespace GGemCo2DSkillEditor
             SkillAuthoringRepository.UpdateInGameSkillTableInfo(_editingSkill);
 
             _editingDirty = false;
+            _state.IsDirty = false;
+            _state.Editing = _editingSkill;
             UpdateEditButtonsState();
             ShowNotification(new GUIContent("테스트 적용 완료"));
         }
@@ -1521,79 +1462,16 @@ namespace GGemCo2DSkillEditor
 
         private void BakeRuntimeSequence()
         {
-            if (_selectedSkill == null) return;
-
-            var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKey(_selectedSkill.Uid);
-            if (string.IsNullOrEmpty(runtimeSequenceKey))
+            if (SkillBakeService.BakeRuntimeSequence(_selectedSkill, _timelineField.value as TimelineAsset, out var message))
             {
-                Debug.LogWarning("[SkillAuthoringV2] RuntimeSequenceKey가 비어 있습니다.");
+                Debug.Log(message);
                 return;
             }
 
-            var timeline = _timelineField.value as TimelineAsset;
-            if (timeline == null)
+            if (!string.IsNullOrEmpty(message))
             {
-                Debug.LogWarning("[SkillAuthoringV2] TimelineAsset을 지정하세요.");
-                return;
+                Debug.LogWarning(message);
             }
-
-            string folder = ConfigAddressablePathSkill.Skill.RuntimeSequences;
-            Directory.CreateDirectory(folder);
-
-            string assetPath = $"{folder}/SkillRuntimeSequence_{_selectedSkill.Uid}.asset";
-            assetPath = assetPath.Replace('\\', '/');
-
-            var seq = SkillTimelineBaker.BakeOrUpdate(_selectedSkill.Uid, timeline, assetPath);
-
-            EnsureAddressableEntry(
-                assetPath: AssetDatabase.GetAssetPath(seq),
-                addressKey: runtimeSequenceKey,
-                groupName: ConfigAddressableGroupNameSkill.SkillRuntimeSequence,
-                label: ConfigAddressableLabelSkill.SkillRuntimeSequence
-            );
-
-            Debug.Log($"[SkillAuthoringV2] Bake/등록 완료: uid={_selectedSkill.Uid}, key={runtimeSequenceKey}");
-        }
-
-        private static void EnsureAddressableEntry(string assetPath, string addressKey, string groupName, string label)
-        {
-            var settings = AddressableAssetSettingsDefaultObject.Settings;
-            if (settings == null)
-            {
-                Debug.LogWarning("[SkillAuthoringV2] AddressableAssetSettings가 없습니다.");
-                return;
-            }
-
-            if (string.IsNullOrEmpty(assetPath))
-            {
-                Debug.LogWarning("[SkillAuthoringV2] assetPath가 비어 있습니다.");
-                return;
-            }
-
-            var guid = AssetDatabase.AssetPathToGUID(assetPath);
-            if (string.IsNullOrEmpty(guid))
-            {
-                Debug.LogError($"[SkillAuthoringV2] GUID를 찾을 수 없습니다. assetPath={assetPath}");
-                return;
-            }
-
-            var group = settings.FindGroup(groupName);
-            if (group == null)
-            {
-                group = settings.CreateGroup(groupName, false, false, true, settings.DefaultGroup.Schemas);
-            }
-
-            var entry = settings.CreateOrMoveEntry(guid, group);
-            entry.address = addressKey;
-
-            if (!string.IsNullOrEmpty(label))
-            {
-                settings.AddLabel(label, true);
-                entry.SetLabel(label, true);
-            }
-
-            settings.SetDirty(AddressableAssetSettings.ModificationEvent.EntryMoved, entry, true);
-            AssetDatabase.SaveAssets();
         }
     }
 }
