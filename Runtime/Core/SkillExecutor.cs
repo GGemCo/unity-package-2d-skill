@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -38,6 +38,20 @@ namespace GGemCo2DSkill
         /// 현재 스킬 실행 중인지 여부를 반환합니다.
         /// </summary>
         public bool IsBusy => _current != null;
+
+        /// <summary>
+        /// 현재 실행 중인 스킬 UID입니다. 실행 중이 아니면 0입니다.
+        /// </summary>
+        public int CurrentSkillUid => _current != null ? _current.SkillUid : 0;
+
+        /// <summary>
+        /// 스킬 실행 종료 리포트가 발생했을 때 외부 어댑터에 알립니다.
+        /// </summary>
+        public event System.Action<SkillExecutionReport> ExecutionFinished;
+
+        private bool _hasPendingFinishReport;
+        private SkillExecutionReport _pendingFinishReport;
+        private int _executionSequence;
 
         /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
@@ -110,6 +124,7 @@ namespace GGemCo2DSkill
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
                 ResolveActionController(targetCtx.caster));
+            _hasPendingFinishReport = false;
             _current.Start();
             return true;
         }
@@ -751,7 +766,13 @@ namespace GGemCo2DSkill
             if (run == null || !ReferenceEquals(_current, run))
                 return;
 
+            var report = _hasPendingFinishReport
+                ? _pendingFinishReport
+                : new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Succeeded, ++_executionSequence, Time.time);
+
+            _hasPendingFinishReport = false;
             _current = null;
+            ExecutionFinished?.Invoke(report);
         }
 
         private void RegisterSpawnedEffect(DefaultEffect effect)
@@ -804,10 +825,19 @@ namespace GGemCo2DSkill
             ClearDamageAreaGizmo(run.Caster);
             CleanupSpawnedEffects();
 
+            _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
+            _hasPendingFinishReport = true;
+
             run.Cancel(reason);
             if (ReferenceEquals(_current, run))
             {
                 _current = null; // 즉시 종료(추가 Tick/이벤트 전달 방지)
+                if (_hasPendingFinishReport)
+                {
+                    var report = _pendingFinishReport;
+                    _hasPendingFinishReport = false;
+                    ExecutionFinished?.Invoke(report);
+                }
             }
 
             return true;

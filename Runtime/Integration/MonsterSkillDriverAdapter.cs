@@ -10,7 +10,7 @@ namespace GGemCo2DSkill
     /// 몬스터 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitActionCanceler
+    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler
     {
         /// <summary>
         /// 실제 스킬 실행과 취소를 담당하는 런타임 실행기입니다.
@@ -26,7 +26,19 @@ namespace GGemCo2DSkill
         /// 외부에서 사용할 <see cref="SkillExecutor"/> 인스턴스를 설정합니다.
         /// </summary>
         /// <param name="value">이 어댑터가 사용할 스킬 실행기입니다.</param>
-        public void SetSkillExecutor(SkillExecutor value) => _executor = value;
+        public void SetSkillExecutor(SkillExecutor value)
+        {
+            if (ReferenceEquals(_executor, value))
+                return;
+
+            if (_executor != null)
+                _executor.ExecutionFinished -= OnExecutionFinished;
+
+            _executor = value;
+
+            if (_executor != null)
+                _executor.ExecutionFinished += OnExecutionFinished;
+        }
 
         /// <summary>
         /// 스킬 UID별 다음 사용 가능 시각을 저장합니다.
@@ -38,13 +50,26 @@ namespace GGemCo2DSkill
         /// </summary>
         public bool IsSkillBusy => _executor != null && _executor.IsBusy;
 
+        private MonsterSkillExecutionResult _lastSkillResult;
+        private bool _hasLastSkillResult;
+
         /// <summary>
         /// 컴포넌트 초기화 시 동일한 게임 오브젝트에서 <see cref="SkillExecutor"/>를 찾아 연결합니다.
         /// </summary>
         private void Awake()
         {
-            if (_executor == null) _executor = GetComponent<SkillExecutor>();
+            if (_executor == null)
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+            else
+                SetSkillExecutor(_executor);
+
             if (_controllerMonster == null) _controllerMonster = GetComponent<ControllerMonster>();
+        }
+
+        private void OnDestroy()
+        {
+            if (_executor != null)
+                _executor.ExecutionFinished -= OnExecutionFinished;
         }
 
         /// <summary>
@@ -106,7 +131,48 @@ namespace GGemCo2DSkill
             float cd = Mathf.Max(0f, skill.CoolTime);
             if (cd > 0f) _cooldownReadyAt[skillUid] = Time.time + cd;
 
+            _hasLastSkillResult = false;
             return SkillUseResult.Started;
+        }
+
+        public bool IsRunningSkill(int skillUid)
+        {
+            if (skillUid <= 0 || _executor == null || !_executor.IsBusy)
+                return false;
+
+            return _executor.CurrentSkillUid == skillUid;
+        }
+
+        public bool TryGetLastSkillResult(int skillUid, out MonsterSkillExecutionResult result)
+        {
+            if (_hasLastSkillResult && _lastSkillResult.SkillUid == skillUid)
+            {
+                result = _lastSkillResult;
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        public bool ConsumeLastSkillResult(int skillUid, out MonsterSkillExecutionResult result)
+        {
+            if (_hasLastSkillResult && _lastSkillResult.SkillUid == skillUid)
+            {
+                result = _lastSkillResult;
+                _hasLastSkillResult = false;
+                _lastSkillResult = default;
+                return true;
+            }
+
+            result = default;
+            return false;
+        }
+
+        private void OnExecutionFinished(SkillExecutionReport report)
+        {
+            _lastSkillResult = report.ToMonsterSkillExecutionResult();
+            _hasLastSkillResult = _lastSkillResult.SkillUid > 0;
         }
 
         /// <summary>
@@ -131,7 +197,7 @@ namespace GGemCo2DSkill
             _controllerMonster?.StopAttackCoroutine();
 
             if (_executor == null)
-                _executor = GetComponent<SkillExecutor>();
+                SetSkillExecutor(GetComponent<SkillExecutor>());
 
             if (_executor == null || !_executor.IsBusy)
                 return;

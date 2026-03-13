@@ -34,6 +34,7 @@ namespace GGemCo2DSkill
         private bool _isEnded;
 
         public bool IsDone { get; private set; }
+        public int SkillUid => _skill != null ? _skill.Uid : 0;
         public GameObject Caster => _ctx.caster;
 
         public SkillRun(SkillExecutor owner, RuntimeSkillDefinition skill, SkillTargetContext ctx,
