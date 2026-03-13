@@ -3,7 +3,7 @@
   "displayName": "GGemCo 2D Skill",
   "version": "0.0.1",
   "unity": "2022.3",
-  "description": "Skill system for 2D game development. Includes a simple example BT designer.",
+  "description": "캐릭터와 몬스터의 스킬 실행 시스템을 제공하는 패키지입니다.\n스킬 데이터 테이블 관리, 스킬 실행 로직, 타겟팅 처리, Timeline 기반 스킬 이벤트 및 테스트 도구를 포함합니다.\nCore 패키지를 기반으로 동작하며 전투 및 캐릭터 능력 시스템에서 사용됩니다.",
   "dependencies": {
   },
   "samples": [
