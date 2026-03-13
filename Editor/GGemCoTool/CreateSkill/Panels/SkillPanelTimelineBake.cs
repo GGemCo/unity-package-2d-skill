@@ -37,7 +37,7 @@ namespace GGemCo2DSkillEditor
                 {
                     if (GUILayout.Button("런타임 시퀀스 생성 + Addressables 등록", EditorConstants.GUILayoutButtonHeight22))
                     {
-                        if (BakeRuntimeSequence(_selectedData, _timelineField, out var message))
+                        if (BakeRuntimeSequence(GetSelectedUid(), _timelineField, out var message))
                         {
                             Debug.Log(message);
                             return;
@@ -56,21 +56,21 @@ namespace GGemCo2DSkillEditor
         /// 선택한 스킬과 타임라인 정보를 바탕으로 런타임 시퀀스 에셋을 생성하거나 갱신하고,
         /// 해당 에셋을 Addressables에 등록합니다.
         /// </summary>
-        /// <param name="selectedSkill">현재 선택된 스킬 데이터입니다.</param>
+        /// <param name="selectedSkillUid">현재 선택된 스킬 UID입니다.</param>
         /// <param name="timeline">Bake할 원본 타임라인 에셋입니다.</param>
         /// <param name="message">처리 결과 또는 실패 사유를 반환합니다.</param>
         /// <returns>런타임 시퀀스 생성 및 등록에 성공하면 <see langword="true"/>를 반환합니다.</returns>
-        private static bool BakeRuntimeSequence(SkillEditorRow selectedSkill, TimelineAsset timeline, out string message)
+        private static bool BakeRuntimeSequence(int selectedSkillUid, TimelineAsset timeline, out string message)
         {
             message = null;
 
-            if (selectedSkill == null)
+            if (selectedSkillUid <= 0)
             {
                 message = "선택된 스킬이 없습니다.";
                 return false;
             }
 
-            var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKey(selectedSkill.Uid);
+            var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKey(selectedSkillUid);
             if (string.IsNullOrEmpty(runtimeSequenceKey))
             {
                 message = "[SkillAuthoringV2] RuntimeSequenceKey가 비어 있습니다.";
@@ -86,10 +86,10 @@ namespace GGemCo2DSkillEditor
             string folder = ConfigAddressablePathSkill.Skill.RuntimeSequences;
             Directory.CreateDirectory(folder);
 
-            string assetPath = $"{folder}/SkillRuntimeSequence_{selectedSkill.Uid}.asset";
+            string assetPath = $"{folder}/SkillRuntimeSequence_{selectedSkillUid}.asset";
             assetPath = assetPath.Replace('\\', '/');
 
-            var seq = SkillTimelineBaker.BakeOrUpdate(selectedSkill.Uid, timeline, assetPath);
+            var seq = SkillTimelineBaker.BakeOrUpdate(selectedSkillUid, timeline, assetPath);
 
             EnsureAddressableEntry(
                 assetPath: AssetDatabase.GetAssetPath(seq),

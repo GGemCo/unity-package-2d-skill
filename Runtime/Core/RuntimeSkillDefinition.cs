@@ -22,9 +22,6 @@ namespace GGemCo2DSkill
         /// <summary>Projectile/Effect/Damage 중심점 계산에 사용하는 기본 배치 거리입니다.</summary>
         public float PlacementRange;
 
-        /// <summary>구버전 Range 컬럼 값입니다. 신규 컬럼 미지정 시 fallback으로 사용합니다.</summary>
-        public float Range;
-
         public int MaxTargets;
         public string CastStartClip;
         public string CastLoopClip;
@@ -46,7 +43,6 @@ namespace GGemCo2DSkill
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,
-                Range = row.Range,
                 MaxTargets = row.MaxTargets,
                 CastStartClip = row.CastStartClip,
                 CastLoopClip = row.CastLoopClip,
@@ -70,7 +66,6 @@ namespace GGemCo2DSkill
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,
-                Range = row.Range,
                 MaxTargets = row.MaxTargets,
                 CastStartClip = row.CastStartClip,
                 CastLoopClip = row.CastLoopClip,

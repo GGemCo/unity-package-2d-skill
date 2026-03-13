@@ -22,7 +22,7 @@ namespace GGemCo2DSkill
             if (skill.CastRange > 0f)
                 return skill.CastRange;
 
-            return skill.Range > 0f ? skill.Range : 0f;
+            return 0f;
         }
 
         /// <summary>
@@ -36,9 +36,6 @@ namespace GGemCo2DSkill
 
             if (skill.PlacementRange > 0f)
                 return skill.PlacementRange;
-
-            if (skill.Range > 0f)
-                return skill.Range;
 
             return DefaultPlacementRange;
         }

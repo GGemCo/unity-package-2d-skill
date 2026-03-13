@@ -41,7 +41,8 @@ namespace GGemCo2DSkillEditor
                 return;
             }
 
-            if (_selectedData == null || _selectedData.Uid <= 0)
+            int selectedUid = GetSelectedUid();
+            if (_selectedData == null || selectedUid <= 0)
             {
                 EditorUtility.DisplayDialog(Title, "스킬을 먼저 선택하세요.", "OK");
                 return;
@@ -82,7 +83,7 @@ namespace GGemCo2DSkillEditor
                     groundPoint: target.GroundPoint,
                     forward: new Vector3(target.Forward.x, target.Forward.y, 0f));
 
-                bool started = executor.TryUse(_selectedData.Uid, ctx, _selectedData.Source);
+                bool started = executor.TryUse(selectedUid, ctx, _selectedSource);
                 if (!started)
                     ShowNotification(new GUIContent("스킬 실행 실패(진행 중이거나 테이블/시퀀스 누락)"));
                 else
@@ -99,8 +100,8 @@ namespace GGemCo2DSkillEditor
                 target.LockedTarget,
                 target.GroundPoint,
                 target.Forward,
-                _selectedData.Source);
-            var result = driver.TryUseSkill(_selectedData.Uid, request);
+                _selectedSource);
+            var result = driver.TryUseSkill(selectedUid, request);
             ShowNotification(new GUIContent(result == GGemCo2DCore.SkillUseResult.Started ? "스킬 실행" : "스킬 실행 실패"));
         }
 
@@ -185,7 +186,7 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         private ConfigCommonSkill.SkillTargetingMode GetCurrentTargetingMode()
         {
-            return _editingRow?.TargetingMode ?? (_selectedData?.TargetingMode ?? default);
+            return GetCurrentTargetingModeValue();
         }
 
         /// <summary>

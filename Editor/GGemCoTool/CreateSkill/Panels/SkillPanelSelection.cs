@@ -57,10 +57,11 @@ namespace GGemCo2DSkillEditor
                 EditorGUILayout.PrefixLabel("스킬");
 
                 string prefix = _selectedSource == ConfigCommon.SkillTableSource.Monster ? "[M]" : "[P]";
+                string selectedDisplayName = GetSelectedDisplayName();
                 string currentText = _selectedData != null
-                    ? $"{prefix} {_selectedData.Uid} | {_selectedData.Memo}"
+                    ? $"{prefix} {GetSelectedUid()} | {selectedDisplayName}"
                     : "선택...";
-                int selectIndex = _selectedData?.Uid ?? 0;
+                int selectIndex = GetSelectedUid();
 
                 SearchableDropdownUtility.DrawButtonAndShow(
                     buttonText: currentText,

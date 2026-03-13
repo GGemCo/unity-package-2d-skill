@@ -27,14 +27,11 @@ namespace GGemCo2DSkill
         /// <summary>타겟팅 모드(스킬 패키지의 SkillTargetingMode enum 값을 int로 저장).</summary>
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
 
-        /// <summary>스킬 사용 가능 거리입니다. 값이 없으면 Range를 fallback으로 사용합니다.</summary>
+        /// <summary>스킬 사용 가능 거리입니다.</summary>
         public float CastRange;
 
-        /// <summary>이벤트 기본 생성/배치 거리입니다. 값이 없으면 Range를 fallback으로 사용합니다.</summary>
+        /// <summary>이벤트 기본 생성/배치 거리입니다.</summary>
         public float PlacementRange;
-
-        /// <summary>구버전 호환용 거리 값입니다. CastRange/PlacementRange 미지정 시 fallback으로 사용합니다.</summary>
-        public float Range;
 
         /// <summary>최대 타겟 수</summary>
         public int MaxTargets;
@@ -84,7 +81,6 @@ namespace GGemCo2DSkill
                 TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),
                 CastRange = MathHelper.ParseFloat(data["CastRange"]),
                 PlacementRange = MathHelper.ParseFloat(data["PlacementRange"]),
-                Range = MathHelper.ParseFloat(data.GetValueOrDefault("Range")),
                 MaxTargets = MathHelper.ParseInt(data["MaxTargets"]),
                 CastStartClip = data["CastStartClip"],
                 CastLoopClip = data["CastLoopClip"],

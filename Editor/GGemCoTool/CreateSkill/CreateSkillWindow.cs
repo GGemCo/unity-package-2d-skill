@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Config;
 using GGemCo2DAffectEditor;
 using GGemCo2DCore;
 using GGemCo2DCoreEditor;
@@ -47,17 +48,17 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 플레이어 스킬 데이터를 UID 기준으로 조회하기 위한 사전입니다.
         /// </summary>
-        private Dictionary<int, SkillEditorRow> _playerDictionary;
+        private Dictionary<int, StruckTableSkill> _playerDictionary;
 
         /// <summary>
         /// 몬스터 스킬 데이터를 UID 기준으로 조회하기 위한 사전입니다.
         /// </summary>
-        private Dictionary<int, SkillEditorRow> _monsterDictionary;
+        private Dictionary<int, StruckTableSkillMonster> _monsterDictionary;
 
         /// <summary>
         /// 검색 가능한 드롭다운 UI에 표시할 옵션 목록입니다.
         /// </summary>
-        private readonly List<SearchableDropdownUtility.Option<SkillEditorRow>> _dropDownOptions = new();
+        private readonly List<SearchableDropdownUtility.Option<object>> _dropDownOptions = new();
 
         /// <summary>
         /// 현재 선택된 스킬 테이블 종류입니다.
@@ -65,9 +66,9 @@ namespace GGemCo2DSkillEditor
         private ConfigCommon.SkillTableSource _selectedSource = ConfigCommon.SkillTableSource.Player;
 
         /// <summary>
-        /// 현재 드롭다운 또는 편집 UI에서 선택된 스킬 데이터입니다.
+        /// 현재 드롭다운 또는 편집 UI에서 선택된 스킬 원본 Row입니다.
         /// </summary>
-        private SkillEditorRow _selectedData;
+        private object _selectedData;
 
         #endregion
 
@@ -136,12 +137,6 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
-        /// 현재 선택된 테이블 종류에 따라 사용할 스킬 데이터 사전을 반환합니다.
-        /// </summary>
-        private Dictionary<int, SkillEditorRow> CurrentDictionary =>
-            _selectedSource == ConfigCommon.SkillTableSource.Monster ? _monsterDictionary : _playerDictionary;
-
-        /// <summary>
         /// 플레이어/몬스터 스킬 테이블을 모두 다시 로드하고, 편집용 사전과 드롭다운 목록을 재구성합니다.
         /// </summary>
         /// <remarks>
@@ -158,6 +153,7 @@ namespace GGemCo2DSkillEditor
                 _playerDictionary = BuildPlayerDictionary(_tableSkill);
                 _monsterDictionary = BuildMonsterDictionary(_tableSkillMonster);
                 RebuildDropdown();
+                ReloadCurrentTable();
             }
             catch (Exception e)
             {
@@ -168,18 +164,16 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
-        /// 플레이어 스킬 테이블을 편집용 Row 사전으로 변환합니다.
+        /// 플레이어 스킬 테이블을 UID 기반 사전으로 변환합니다.
         /// </summary>
-        /// <param name="table">변환할 플레이어 스킬 테이블입니다.</param>
-        /// <returns>UID를 키로 사용하는 플레이어 스킬 편집용 사전을 반환합니다.</returns>
-        private static Dictionary<int, SkillEditorRow> BuildPlayerDictionary(TableSkill table)
+        private static Dictionary<int, StruckTableSkill> BuildPlayerDictionary(TableSkill table)
         {
-            var result = new Dictionary<int, SkillEditorRow>();
+            var result = new Dictionary<int, StruckTableSkill>();
             if (table == null) return result;
 
             foreach (var pair in table.GetDatas())
             {
-                var row = SkillEditorRow.From(pair.Value);
+                var row = pair.Value;
                 if (row == null || row.Uid <= 0) continue;
                 result[row.Uid] = row;
             }
@@ -188,18 +182,16 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
-        /// 몬스터 스킬 테이블을 편집용 Row 사전으로 변환합니다.
+        /// 몬스터 스킬 테이블을 UID 기반 사전으로 변환합니다.
         /// </summary>
-        /// <param name="table">변환할 몬스터 스킬 테이블입니다.</param>
-        /// <returns>UID를 키로 사용하는 몬스터 스킬 편집용 사전을 반환합니다.</returns>
-        private static Dictionary<int, SkillEditorRow> BuildMonsterDictionary(TableSkillMonster table)
+        private static Dictionary<int, StruckTableSkillMonster> BuildMonsterDictionary(TableSkillMonster table)
         {
-            var result = new Dictionary<int, SkillEditorRow>();
+            var result = new Dictionary<int, StruckTableSkillMonster>();
             if (table == null) return result;
 
             foreach (var pair in table.GetDatas())
             {
-                var row = SkillEditorRow.From(pair.Value);
+                var row = pair.Value;
                 if (row == null || row.Uid <= 0) continue;
                 result[row.Uid] = row;
             }
@@ -210,24 +202,19 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 현재 선택된 테이블 기준으로 드롭다운 옵션 목록을 다시 생성하고 선택 상태를 복원합니다.
         /// </summary>
-        /// <remarks>
-        /// 이전에 선택된 UID가 현재 데이터에도 존재하면 해당 항목을 다시 선택하고,
-        /// 존재하지 않으면 선택 상태를 초기화합니다.
-        /// </remarks>
         private void RebuildDropdown()
         {
-            var previousUid = _selectedData != null && _selectedData.Source == _selectedSource ? _selectedData.Uid : 0;
+            int previousUid = GetSelectedUid();
 
             RebuildDropdownOptions(
-                source: CurrentDictionary?.Values,
+                source: EnumerateCurrentRows(),
                 targetOptions: _dropDownOptions,
-                isValidRow: row => row != null && row.Uid > 0,
-                keySelector: row => row.Uid.ToString(),
-                valueSelector: row => row.Memo,
+                isValidRow: row => row != null && GetUid(row) > 0,
+                keySelector: row => GetUid(row).ToString(),
+                valueSelector: GetDisplayName,
                 assignSelected: row => _selectedData = row);
 
-            // 동일 UID가 현재 데이터에도 존재하면 기존 선택을 복원
-            if (previousUid > 0 && CurrentDictionary != null && CurrentDictionary.TryGetValue(previousUid, out var selected))
+            if (previousUid > 0 && TryGetCurrentRowByUid(previousUid, out var selected))
             {
                 _selectedData = selected;
             }
@@ -237,6 +224,117 @@ namespace GGemCo2DSkillEditor
             }
 
             CacheRow();
+        }
+
+        /// <summary>
+        /// 현재 선택된 source에 대응하는 Row 열거를 반환합니다.
+        /// </summary>
+        private IEnumerable<object> EnumerateCurrentRows()
+        {
+            if (_selectedSource == ConfigCommon.SkillTableSource.Monster)
+            {
+                if (_monsterDictionary == null)
+                    yield break;
+
+                foreach (var row in _monsterDictionary.Values)
+                    yield return row;
+
+                yield break;
+            }
+
+            if (_playerDictionary == null)
+                yield break;
+
+            foreach (var row in _playerDictionary.Values)
+                yield return row;
+        }
+
+        /// <summary>
+        /// 현재 선택된 source 기준으로 UID에 해당하는 Row를 조회합니다.
+        /// </summary>
+        private bool TryGetCurrentRowByUid(int uid, out object row)
+        {
+            row = null;
+            if (uid <= 0)
+                return false;
+
+            if (_selectedSource == ConfigCommon.SkillTableSource.Monster)
+            {
+                if (_monsterDictionary != null && _monsterDictionary.TryGetValue(uid, out var monsterRow))
+                {
+                    row = monsterRow;
+                    return true;
+                }
+
+                return false;
+            }
+
+            if (_playerDictionary != null && _playerDictionary.TryGetValue(uid, out var playerRow))
+            {
+                row = playerRow;
+                return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 현재 선택된 Row의 UID를 반환합니다.
+        /// </summary>
+        private int GetSelectedUid()
+        {
+            return GetUid(_selectedData);
+        }
+
+        /// <summary>
+        /// 현재 선택된 Row의 표시 이름을 반환합니다.
+        /// </summary>
+        private string GetSelectedDisplayName()
+        {
+            return GetDisplayName(_selectedData);
+        }
+
+        /// <summary>
+        /// 현재 편집 중인 Row의 타게팅 모드를 반환합니다.
+        /// </summary>
+        private ConfigCommonSkill.SkillTargetingMode GetCurrentTargetingModeValue()
+        {
+            if (_editingRow is StruckTableSkill editingPlayer)
+                return editingPlayer.TargetingMode;
+            if (_editingRow is StruckTableSkillMonster editingMonster)
+                return editingMonster.TargetingMode;
+            if (_selectedData is StruckTableSkill selectedPlayer)
+                return selectedPlayer.TargetingMode;
+            if (_selectedData is StruckTableSkillMonster selectedMonster)
+                return selectedMonster.TargetingMode;
+
+            return default;
+        }
+
+        /// <summary>
+        /// Row에서 UID를 읽습니다.
+        /// </summary>
+        private static int GetUid(object row)
+        {
+            return row switch
+            {
+                StruckTableSkill player => player.Uid,
+                StruckTableSkillMonster monster => monster.Uid,
+                _ => 0,
+            };
+        }
+
+        /// <summary>
+        /// Row의 표시 문자열을 반환합니다.
+        /// </summary>
+        private static string GetDisplayName(object row)
+        {
+            return row switch
+            {
+                StruckTableSkill player => player.Memo,
+                StruckTableSkillMonster monster => monster.Memo,
+                _ => string.Empty,
+            };
         }
     }
 }

@@ -1,5 +1,6 @@
+using System;
 using System.Collections.Generic;
-using Config;
+using System.Reflection;
 using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using GGemCo2DSkill;
@@ -23,13 +24,13 @@ namespace GGemCo2DSkillEditor
         /// 현재 선택된 원본 Row의 캐시입니다.
         /// 저장 시 기준이 되는 데이터로 사용됩니다.
         /// </summary>
-        private SkillEditorRow _cachedRow;
+        private object _cachedRow;
 
         /// <summary>
         /// 사용자가 편집 중인 Row 복사본입니다.
         /// 원본 데이터와 분리하여 임시 편집 상태를 유지합니다.
         /// </summary>
-        private SkillEditorRow _editingRow;
+        private object _editingRow;
 
         /// <summary>
         /// 편집 중인 Row에 저장되지 않은 변경 사항이 있는지 여부를 나타냅니다.
@@ -146,7 +147,9 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         private void ReloadCurrentTable()
         {
-            int keepUid = _cachedRow != null ? _cachedRow.Uid : (_selectedData != null ? _selectedData.Uid : 0);
+            int keepUid = GetUid(_cachedRow);
+            if (keepUid <= 0)
+                keepUid = GetSelectedUid();
 
             TableLoaderManagerBase.Unload(CurrentTablePath);
             if (_selectedSource == ConfigCommon.SkillTableSource.Monster)
@@ -162,7 +165,7 @@ namespace GGemCo2DSkillEditor
 
             RebuildDropdown();
 
-            if (keepUid > 0 && CurrentDictionary != null && CurrentDictionary.TryGetValue(keepUid, out var selected))
+            if (keepUid > 0 && TryGetCurrentRowByUid(keepUid, out var selected))
             {
                 _selectedData = selected;
                 CacheRow();
@@ -192,7 +195,7 @@ namespace GGemCo2DSkillEditor
 
             if (!TableTextRowPatchUtility.TryPatchRowByUid(
                     CurrentTablePath,
-                    _cachedRow.Uid,
+                    GetUid(_cachedRow),
                     _cachedRow,
                     SerializeRow,
                     out error))
@@ -210,33 +213,13 @@ namespace GGemCo2DSkillEditor
         /// <param name="row">직렬화할 스킬 Row입니다.</param>
         /// <param name="headers">출력 순서를 결정하는 테이블 헤더 목록입니다.</param>
         /// <returns>테이블 한 줄 형식으로 직렬화된 문자열입니다.</returns>
-        private static string SerializeRow(SkillEditorRow row, IReadOnlyList<string> headers)
+        private static string SerializeRow(object row, IReadOnlyList<string> headers)
         {
             var values = new string[headers.Count];
 
             for (int i = 0; i < headers.Count; i++)
             {
-                values[i] = headers[i] switch
-                {
-                    "Uid" => row.Uid.ToString(),
-                    "Name" => row.Name ?? string.Empty,
-                    "Memo" => row.Memo ?? string.Empty,
-                    "DefaultLearn" => MathHelper.FormatBool(row.DefaultLearn),
-                    "NeedPlayerLevel" => row.NeedPlayerLevel.ToString(),
-                    "IconFileName" => row.IconFileName ?? string.Empty,
-                    "SoFileName" => row.SoFileName ?? string.Empty,
-                    "SkillKind" => row.SkillKind.ToString(),
-                    "CastTime" => MathHelper.FormatFloat(row.CastTime),
-                    "CoolTime" => MathHelper.FormatFloat(row.CoolTime),
-                    "TargetingMode" => row.TargetingMode.ToString(),
-                    "Range" => MathHelper.FormatFloat(row.Range),
-                    "MaxTargets" => row.MaxTargets.ToString(),
-                    "CastStartClip" => row.CastStartClip ?? string.Empty,
-                    "CastLoopClip" => row.CastLoopClip ?? string.Empty,
-                    "CastEndClip" => row.CastEndClip ?? string.Empty,
-                    "UseClip" => row.UseClip ?? string.Empty,
-                    _ => string.Empty,
-                };
+                values[i] = SerializeMemberValue(GetMemberValue(row, headers[i]));
             }
 
             return string.Join("\t", values);
@@ -247,52 +230,29 @@ namespace GGemCo2DSkillEditor
         /// 에디터에서 테스트 목적으로 런타임 테이블 값을 갱신할 때 사용됩니다.
         /// </summary>
         /// <param name="row">런타임 테이블에 반영할 스킬 Row입니다.</param>
-        private static void UpdateInGameTableInfo(SkillEditorRow row)
+        private static void UpdateInGameTableInfo(object row)
         {
             if (row == null) return;
             if (!Application.isPlaying) return;
             if (!GGemCo2DSkill.TableLoaderManagerSkill.Instance) return;
 
-            if (row.Source == ConfigCommon.SkillTableSource.Monster)
+            switch (row)
             {
-                var info = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkillMonster.GetDataByUid(row.Uid);
-                if (info == null) return;
-
-                info.Uid = row.Uid;
-                info.Memo = row.Memo;
-                info.SoFileName = row.SoFileName;
-                info.SkillKind = row.SkillKind;
-                info.CastTime = row.CastTime;
-                info.CoolTime = row.CoolTime;
-                info.TargetingMode = row.TargetingMode;
-                info.Range = row.Range;
-                info.MaxTargets = row.MaxTargets;
-                info.CastStartClip = row.CastStartClip;
-                info.CastLoopClip = row.CastLoopClip;
-                info.CastEndClip = row.CastEndClip;
-                info.UseClip = row.UseClip;
-                return;
+                case StruckTableSkillMonster monsterRow:
+                {
+                    var liveRow = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkillMonster.GetDataByUid(monsterRow.Uid);
+                    if (liveRow == null) return;
+                    TableRowEditorUtility.CopyMembers(monsterRow, liveRow, RowEditorFieldsMonster);
+                    break;
+                }
+                case StruckTableSkill playerRow:
+                {
+                    var liveRow = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkill.GetDataByUid(playerRow.Uid);
+                    if (liveRow == null) return;
+                    TableRowEditorUtility.CopyMembers(playerRow, liveRow, RowEditorFieldsPlayer);
+                    break;
+                }
             }
-
-            var playerInfo = GGemCo2DSkill.TableLoaderManagerSkill.Instance.TableSkill.GetDataByUid(row.Uid);
-            if (playerInfo == null) return;
-
-            playerInfo.Uid = row.Uid;
-            playerInfo.Memo = row.Memo;
-            playerInfo.DefaultLearn = row.DefaultLearn;
-            playerInfo.NeedPlayerLevel = row.NeedPlayerLevel;
-            playerInfo.IconFileName = row.IconFileName;
-            playerInfo.SoFileName = row.SoFileName;
-            playerInfo.SkillKind = row.SkillKind;
-            playerInfo.CastTime = row.CastTime;
-            playerInfo.CoolTime = row.CoolTime;
-            playerInfo.TargetingMode = row.TargetingMode;
-            playerInfo.Range = row.Range;
-            playerInfo.MaxTargets = row.MaxTargets;
-            playerInfo.CastStartClip = row.CastStartClip;
-            playerInfo.CastLoopClip = row.CastLoopClip;
-            playerInfo.CastEndClip = row.CastEndClip;
-            playerInfo.UseClip = row.UseClip;
         }
 
         /// <summary>
@@ -304,8 +264,10 @@ namespace GGemCo2DSkillEditor
             _editingRow = null;
             _editingDirty = false;
 
-            if (_selectedData == null || CurrentDictionary == null) return;
-            if (!CurrentDictionary.TryGetValue(_selectedData.Uid, out var row) || row == null)
+            int selectedUid = GetSelectedUid();
+            if (selectedUid <= 0)
+                return;
+            if (!TryGetCurrentRowByUid(selectedUid, out var row) || row == null)
                 return;
 
             _cachedRow = row;
@@ -317,9 +279,14 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         /// <param name="row">복사할 원본 Row입니다.</param>
         /// <returns>편집에 사용할 수 있는 Row 복사본입니다.</returns>
-        private static SkillEditorRow CloneRow(SkillEditorRow row)
+        private static object CloneRow(object row)
         {
-            return TableRowEditorUtility.CloneShallow<SkillEditorRow>(row);
+            return row switch
+            {
+                StruckTableSkill player => TableRowEditorUtility.CloneShallow<StruckTableSkill>(player),
+                StruckTableSkillMonster monster => TableRowEditorUtility.CloneShallow<StruckTableSkillMonster>(monster),
+                _ => null,
+            };
         }
 
         /// <summary>
@@ -350,20 +317,15 @@ namespace GGemCo2DSkillEditor
 
             switch (memberName)
             {
-                case nameof(SkillEditorRow.CastTime):
-                    if (_editingRow.CastTime < 0f) _editingRow.CastTime = 0f;
+                case nameof(StruckTableSkill.CastTime):
+                case nameof(StruckTableSkill.CoolTime):
+                case nameof(StruckTableSkill.CastRange):
+                case nameof(StruckTableSkill.PlacementRange):
+                    ClampFloatMember(target, memberName);
                     break;
-                case nameof(SkillEditorRow.CoolTime):
-                    if (_editingRow.CoolTime < 0f) _editingRow.CoolTime = 0f;
-                    break;
-                case nameof(SkillEditorRow.Range):
-                    if (_editingRow.Range < 0f) _editingRow.Range = 0f;
-                    break;
-                case nameof(SkillEditorRow.MaxTargets):
-                    if (_editingRow.MaxTargets < 0) _editingRow.MaxTargets = 0;
-                    break;
-                case nameof(SkillEditorRow.NeedPlayerLevel):
-                    if (_editingRow.NeedPlayerLevel < 0) _editingRow.NeedPlayerLevel = 0;
+                case nameof(StruckTableSkill.MaxTargets):
+                case nameof(StruckTableSkill.NeedPlayerLevel):
+                    ClampIntMember(target, memberName);
                     break;
             }
         }
@@ -374,11 +336,103 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         private void NormalizeEditingRow()
         {
-            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.CastTime));
-            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.CoolTime));
-            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.Range));
-            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.MaxTargets));
-            NormalizeEditingFieldValue(_editingRow, nameof(SkillEditorRow.NeedPlayerLevel));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.CastTime));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.CoolTime));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.CastRange));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.PlacementRange));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.MaxTargets));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.NeedPlayerLevel));
+        }
+
+        /// <summary>
+        /// 멤버 값을 문자열로 직렬화합니다.
+        /// </summary>
+        private static string SerializeMemberValue(object value)
+        {
+            return value switch
+            {
+                null => string.Empty,
+                bool boolValue => MathHelper.FormatBool(boolValue),
+                float floatValue => MathHelper.FormatFloat(floatValue),
+                double doubleValue => MathHelper.FormatFloat((float)doubleValue),
+                Enum enumValue => enumValue.ToString(),
+                _ => value.ToString() ?? string.Empty,
+            };
+        }
+
+        /// <summary>
+        /// Row의 멤버 값을 읽습니다.
+        /// </summary>
+        private static object GetMemberValue(object row, string memberName)
+        {
+            if (row == null || string.IsNullOrWhiteSpace(memberName))
+                return null;
+
+            var type = row.GetType();
+            var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public);
+            if (property != null && property.CanRead)
+                return property.GetValue(row);
+
+            var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public);
+            if (field != null)
+                return field.GetValue(row);
+
+            return null;
+        }
+
+        /// <summary>
+        /// float 멤버를 0 이상으로 보정합니다.
+        /// </summary>
+        private static void ClampFloatMember(object target, string memberName)
+        {
+            var rawValue = GetMemberValue(target, memberName);
+            if (rawValue == null)
+                return;
+
+            float value = Convert.ToSingle(rawValue);
+            if (value >= 0f)
+                return;
+
+            SetMemberValue(target, memberName, 0f);
+        }
+
+        /// <summary>
+        /// int 멤버를 0 이상으로 보정합니다.
+        /// </summary>
+        private static void ClampIntMember(object target, string memberName)
+        {
+            var rawValue = GetMemberValue(target, memberName);
+            if (rawValue == null)
+                return;
+
+            int value = Convert.ToInt32(rawValue);
+            if (value >= 0)
+                return;
+
+            SetMemberValue(target, memberName, 0);
+        }
+
+        /// <summary>
+        /// Row의 멤버 값을 설정합니다.
+        /// </summary>
+        private static void SetMemberValue(object row, string memberName, object value)
+        {
+            if (row == null || string.IsNullOrWhiteSpace(memberName))
+                return;
+
+            var type = row.GetType();
+            var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public);
+            if (property != null && property.CanWrite)
+            {
+                property.SetValue(row, value);
+                return;
+            }
+
+            var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public);
+            if (field != null)
+            {
+                field.SetValue(row, value);
+            }
         }
     }
 }
