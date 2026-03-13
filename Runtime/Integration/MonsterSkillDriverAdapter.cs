@@ -10,12 +10,17 @@ namespace GGemCo2DSkill
     /// 몬스터 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver
+    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitActionCanceler
     {
         /// <summary>
         /// 실제 스킬 실행과 취소를 담당하는 런타임 실행기입니다.
         /// </summary>
         private SkillExecutor _executor;
+
+        /// <summary>
+        /// 레거시 몬스터 공격 코루틴 정지에 사용하는 몬스터 컨트롤러입니다.
+        /// </summary>
+        private ControllerMonster _controllerMonster;
 
         /// <summary>
         /// 외부에서 사용할 <see cref="SkillExecutor"/> 인스턴스를 설정합니다.
@@ -39,6 +44,7 @@ namespace GGemCo2DSkill
         private void Awake()
         {
             if (_executor == null) _executor = GetComponent<SkillExecutor>();
+            if (_controllerMonster == null) _controllerMonster = GetComponent<ControllerMonster>();
         }
 
         /// <summary>
@@ -112,6 +118,32 @@ namespace GGemCo2DSkill
         {
             if (_executor == null) return false;
             return _executor.TryCancel(reason);
+        }
+
+        /// <summary>
+        /// 피격/사망 인터럽트가 발생했을 때 진행 중인 몬스터 액션을 정리합니다.
+        /// 스킬 실행기 취소와 레거시 공격 코루틴 정지를 함께 처리해 BT/기존 공격 흐름이 엇갈리지 않도록 맞춥니다.
+        /// </summary>
+        /// <param name="reason">외부 인터럽트 사유입니다.</param>
+        public void CancelActionsOnIncomingHit(IncomingHitCancelReason reason)
+        {
+            _controllerMonster ??= GetComponent<ControllerMonster>();
+            _controllerMonster?.StopAttackCoroutine();
+
+            if (_executor == null)
+                _executor = GetComponent<SkillExecutor>();
+
+            if (_executor == null || !_executor.IsBusy)
+                return;
+
+            SkillCancelReason cancelReason = reason switch
+            {
+                IncomingHitCancelReason.Death => SkillCancelReason.Death,
+                IncomingHitCancelReason.Damage => SkillCancelReason.HitStun,
+                _ => SkillCancelReason.ForcedBySystem
+            };
+
+            _executor.TryCancel(cancelReason);
         }
     }
 }

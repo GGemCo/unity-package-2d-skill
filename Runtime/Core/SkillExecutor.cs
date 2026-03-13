@@ -29,6 +29,12 @@ namespace GGemCo2DSkill
         private SkillRun _current;
 
         /// <summary>
+        /// 현재 스킬 실행 중 생성된 취소 가능 이펙트 목록입니다.
+        /// 취소 시 즉시 정리하여 중단 이후의 잔여 연출을 최소화합니다.
+        /// </summary>
+        private readonly List<DefaultEffect> _spawnedEffects = new();
+
+        /// <summary>
         /// 현재 스킬 실행 중인지 여부를 반환합니다.
         /// </summary>
         public bool IsBusy => _current != null;
@@ -77,8 +83,12 @@ namespace GGemCo2DSkill
         {
             if (_current == null) return;
 
-            _current.Tick(Time.deltaTime);
-            if (_current.IsDone) _current = null;
+            var run = _current;
+            run.Tick(Time.deltaTime);
+            if (ReferenceEquals(_current, run) && run.IsDone)
+            {
+                NotifyRunEnded(run);
+            }
         }
 
         /// <summary>
@@ -94,6 +104,8 @@ namespace GGemCo2DSkill
             if (_current != null) return false;
 
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
+
+            CleanupSpawnedEffects();
 
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
@@ -113,6 +125,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         public void ExecuteEvent(
+            SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             SkillRuntimeSequence sequence,
@@ -121,6 +134,9 @@ namespace GGemCo2DSkill
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint)
         {
+            if (!CanProcessEvent(run))
+                return;
+
             var payload = sequence != null ? sequence.GetPayload(e.PayloadIndex) : null;
 
             switch (e.Type)
@@ -582,6 +598,7 @@ namespace GGemCo2DSkill
             }
 
             effect.transform.position = spawnPos;
+            RegisterSpawnedEffect(effect);
         }
 
         /// <summary>
@@ -719,6 +736,62 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 지정한 런이 현재 활성 런과 동일하고 이벤트를 처리 가능한 상태인지 반환합니다.
+        /// </summary>
+        internal bool CanProcessEvent(SkillRun run)
+        {
+            return run != null && ReferenceEquals(_current, run) && !run.IsDone;
+        }
+
+        /// <summary>
+        /// 스킬 런 종료 시 실행기에 남아 있는 참조를 정리합니다.
+        /// </summary>
+        internal void NotifyRunEnded(SkillRun run)
+        {
+            if (run == null || !ReferenceEquals(_current, run))
+                return;
+
+            _current = null;
+        }
+
+        private void RegisterSpawnedEffect(DefaultEffect effect)
+        {
+            if (effect == null)
+                return;
+
+            _spawnedEffects.RemoveAll(x => x == null);
+            _spawnedEffects.Add(effect);
+        }
+
+        private void CleanupSpawnedEffects()
+        {
+            if (_spawnedEffects.Count == 0)
+                return;
+
+            for (int i = _spawnedEffects.Count - 1; i >= 0; i--)
+            {
+                var effect = _spawnedEffects[i];
+                if (effect != null)
+                {
+                    Destroy(effect.gameObject);
+                }
+            }
+
+            _spawnedEffects.Clear();
+        }
+
+        private static void ClearDamageAreaGizmo(GameObject caster)
+        {
+#if UNITY_EDITOR
+            if (caster == null)
+                return;
+
+            var gizmo = caster.GetComponent<GGemCo2DSkillEditor.SkillDamageAreaGizmo>();
+            gizmo?.ClearAll();
+#endif
+        }
+
+        /// <summary>
         /// 현재 실행 중인 스킬의 취소를 시도합니다.
         /// </summary>
         /// <param name="reason">스킬 취소 사유입니다.</param>
@@ -727,8 +800,16 @@ namespace GGemCo2DSkill
         {
             if (_current == null) return false;
 
-            _current.Cancel(reason);
-            _current = null; // 즉시 종료(추가 Tick 방지)
+            var run = _current;
+            ClearDamageAreaGizmo(run.Caster);
+            CleanupSpawnedEffects();
+
+            run.Cancel(reason);
+            if (ReferenceEquals(_current, run))
+            {
+                _current = null; // 즉시 종료(추가 Tick/이벤트 전달 방지)
+            }
+
             return true;
         }
     }

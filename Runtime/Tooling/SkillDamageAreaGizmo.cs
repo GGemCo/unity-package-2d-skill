@@ -55,6 +55,19 @@ namespace GGemCo2DSkillEditor
             });
         }
 
+
+        /// <summary>
+        /// 현재 표시 중인 모든 데미지 영역을 즉시 제거합니다.
+        /// 스킬 취소 시 잔여 Gizmo가 남지 않도록 정리할 때 사용합니다.
+        /// </summary>
+        public void ClearAll()
+        {
+            for (int i = _areas.Count - 1; i >= 0; i--)
+            {
+                ReleaseArea(i);
+            }
+        }
+
         private void LateUpdate()
         {
             if (_areas.Count == 0) return;

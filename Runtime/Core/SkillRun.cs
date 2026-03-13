@@ -34,6 +34,7 @@ namespace GGemCo2DSkill
         private bool _isEnded;
 
         public bool IsDone { get; private set; }
+        public GameObject Caster => _ctx.caster;
 
         public SkillRun(SkillExecutor owner, RuntimeSkillDefinition skill, SkillTargetContext ctx,
             ICharacterAnimationController animController,
@@ -126,7 +127,7 @@ namespace GGemCo2DSkill
                     var ev = _sequence.Events[_nextEventIndex];
                     if (_time + 1e-6f < ev.StartTime) break;
 
-                    _owner.ExecuteEvent(_skill, _ctx, _sequence, ev, _snapshotCasterPos, _snapshotTargetPos,
+                    _owner.ExecuteEvent(this, _skill, _ctx, _sequence, ev, _snapshotCasterPos, _snapshotTargetPos,
                         _snapshotGroundPoint);
                     _nextEventIndex++;
                 }
@@ -282,7 +283,7 @@ namespace GGemCo2DSkill
 
             // 이 아래는 프로젝트 구조에 맞춰 정리 호출을 넣으세요.
             // 예) 이펙트/타임라인 정리, 콜백 호출, SkillExecutor에게 완료 알림 등
-            // _owner?.OnRunEnded(this);
+            _owner?.NotifyRunEnded(this);
         }
         public void Cancel(SkillCancelReason reason)
         {
