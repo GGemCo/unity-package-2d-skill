@@ -10,7 +10,7 @@ namespace GGemCo2DSkill
     /// 몬스터 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler
+    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler, IIncomingHitCombatFeedbackSink
     {
         /// <summary>
         /// 실제 스킬 실행과 취소를 담당하는 런타임 실행기입니다.
@@ -52,6 +52,11 @@ namespace GGemCo2DSkill
 
         private MonsterSkillExecutionResult _lastSkillResult;
         private bool _hasLastSkillResult;
+        private MonsterSkillCombatReport _lastCombatReport;
+        private bool _hasLastCombatReport;
+        private MonsterSkillCombatReport _pendingCombatReport;
+        private bool _hasPendingCombatReport;
+        private int _currentRunningSkillUid;
 
         /// <summary>
         /// 컴포넌트 초기화 시 동일한 게임 오브젝트에서 <see cref="SkillExecutor"/>를 찾아 연결합니다.
@@ -132,6 +137,10 @@ namespace GGemCo2DSkill
             if (cd > 0f) _cooldownReadyAt[skillUid] = Time.time + cd;
 
             _hasLastSkillResult = false;
+            _hasLastCombatReport = false;
+            _hasPendingCombatReport = false;
+            _pendingCombatReport = default;
+            _currentRunningSkillUid = skillUid;
             return SkillUseResult.Started;
         }
 
@@ -173,6 +182,82 @@ namespace GGemCo2DSkill
         {
             _lastSkillResult = report.ToMonsterSkillExecutionResult();
             _hasLastSkillResult = _lastSkillResult.SkillUid > 0;
+
+            if (_hasPendingCombatReport)
+            {
+                _lastCombatReport = new MonsterSkillCombatReport(
+                    _pendingCombatReport.SkillUid,
+                    _pendingCombatReport.Outcome,
+                    _pendingCombatReport.AttackId,
+                    report.Sequence,
+                    _pendingCombatReport.Time > 0f ? _pendingCombatReport.Time : report.EndTime);
+                _hasLastCombatReport = _lastCombatReport.SkillUid > 0;
+            }
+            else if (report.State == MonsterSkillExecutionState.Succeeded)
+            {
+                _lastCombatReport = new MonsterSkillCombatReport(
+                    report.SkillUid,
+                    MonsterSkillCombatOutcome.Missed,
+                    0,
+                    report.Sequence,
+                    report.EndTime);
+                _hasLastCombatReport = _lastCombatReport.SkillUid > 0;
+            }
+            else
+            {
+                _lastCombatReport = default;
+                _hasLastCombatReport = false;
+            }
+
+            _pendingCombatReport = default;
+            _hasPendingCombatReport = false;
+            _currentRunningSkillUid = 0;
+        }
+
+        public bool TryGetLastSkillCombatReport(int skillUid, out MonsterSkillCombatReport report)
+        {
+            if (_hasLastCombatReport && _lastCombatReport.SkillUid == skillUid)
+            {
+                report = _lastCombatReport;
+                return true;
+            }
+
+            report = default;
+            return false;
+        }
+
+        public bool ConsumeLastSkillCombatReport(int skillUid, out MonsterSkillCombatReport report)
+        {
+            if (_hasLastCombatReport && _lastCombatReport.SkillUid == skillUid)
+            {
+                report = _lastCombatReport;
+                _hasLastCombatReport = false;
+                _lastCombatReport = default;
+                return true;
+            }
+
+            report = default;
+            return false;
+        }
+
+        public void NotifyIncomingHitResolved(in IncomingHitCombatFeedback feedback)
+        {
+            if (feedback.SkillUid <= 0)
+                return;
+
+            if (_currentRunningSkillUid > 0 && feedback.SkillUid != _currentRunningSkillUid)
+                return;
+
+            if (_hasPendingCombatReport)
+                return;
+
+            _pendingCombatReport = new MonsterSkillCombatReport(
+                feedback.SkillUid,
+                feedback.Outcome,
+                feedback.AttackId,
+                0,
+                feedback.Time);
+            _hasPendingCombatReport = true;
         }
 
         /// <summary>

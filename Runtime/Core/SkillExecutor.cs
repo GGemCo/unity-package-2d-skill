@@ -52,6 +52,7 @@ namespace GGemCo2DSkill
         private bool _hasPendingFinishReport;
         private SkillExecutionReport _pendingFinishReport;
         private int _executionSequence;
+        private int _attackSequence;
 
         /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
@@ -458,6 +459,8 @@ namespace GGemCo2DSkill
             // TODO: 데미지 계산 공식을 프로젝트 규칙에 맞게 적용해야 합니다.
             long totalDamage = 10;
 
+            int attackId = ++_attackSequence;
+
             for (int i = 0; i < hits.Count; i++)
             {
                 var go = hits[i];
@@ -476,7 +479,9 @@ namespace GGemCo2DSkill
                     damage = totalDamage,
                     attacker = gameObject,
                     damageType = ConfigCommon.DamageType.Physic,
-                    affectUid = 0
+                    affectUid = 0,
+                    AttackId = attackId,
+                    SkillUid = skill.Uid,
                 };
 
                 bool didApplyDamage = false;
