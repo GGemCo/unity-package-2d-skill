@@ -1,5 +1,7 @@
-﻿using GGemCo2DSkill;
+﻿using GGemCo2DCore;
+using GGemCo2DSkill;
 using UnityEditor;
+using UnityEngine;
 
 namespace GGemCo2DSkillEditor
 {
@@ -30,6 +32,18 @@ namespace GGemCo2DSkillEditor
                 EditorGUILayout.LabelField($"{nameof(SkillExecutor)}", component1 != null ? "OK" : "없음");
                 // EditorGUILayout.LabelField("IAffectTarget", hasTarget ? "OK" : "없음");
             }
+        }
+        
+        protected override void OnSelectedCharacterChanged(CharacterBase character)
+        {
+            Repaint();
+            if (!TryGetSkillTestRuntimeHub(out var hub, out var error))
+            {
+                Debug.LogError(error);
+                return;
+            }
+
+            hub.SelectCaster(character.gameObject, true);
         }
     }
 }

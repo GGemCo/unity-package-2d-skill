@@ -43,47 +43,30 @@ namespace GGemCo2DSkillEditor
             _selectedSource == ConfigCommon.SkillTableSource.Monster
                 ? ConfigAddressableTableSkill.TableSkillMonster.Path
                 : ConfigAddressableTableSkill.TableSkill.Path;
-
+        
         /// <summary>
         /// 플레이어 스킬 테이블 Row 편집 시 표시할 필드 정의 목록입니다.
         /// </summary>
         private static readonly TableRowEditorUtility.TableRowEditorField[] RowEditorFieldsPlayer =
+            TableRowEditorUtility.BuildFields<StruckTableSkill>(BuildRowEditorOptionsPlayer());
+        private static TableRowEditorUtility.TableRowEditorBuildOptions BuildRowEditorOptionsPlayer()
         {
-            new("Uid", readOnly: true),
-            new("Memo"),
-            new("DefaultLearn"),
-            new("NeedPlayerLevel"),
-            new("UseClip"),
-            new("IconFileName"),
-            new("SoFileName"),
-            new("CastTime"),
-            new("CoolTime"),
-            new("TargetingMode"),
-            new("Range"),
-            new("MaxTargets"),
-            new("CastStartClip"),
-            new("CastLoopClip"),
-            new("CastEndClip"),
-        };
+            var options = new TableRowEditorUtility.TableRowEditorBuildOptions();
+            options.ReadOnlyMembers.Add(nameof(StruckTableSkill.Uid));
+            return options;
+        }
 
         /// <summary>
         /// 몬스터 스킬 테이블 Row 편집 시 표시할 필드 정의 목록입니다.
         /// </summary>
         private static readonly TableRowEditorUtility.TableRowEditorField[] RowEditorFieldsMonster =
+            TableRowEditorUtility.BuildFields<StruckTableSkillMonster>(BuildRowEditorOptionsMonster());
+        private static TableRowEditorUtility.TableRowEditorBuildOptions BuildRowEditorOptionsMonster()
         {
-            new("Uid", readOnly: true),
-            new("Memo"),
-            new("UseClip"),
-            new("SoFileName"),
-            new("CastTime"),
-            new("CoolTime"),
-            new("TargetingMode"),
-            new("Range"),
-            new("MaxTargets"),
-            new("CastStartClip"),
-            new("CastLoopClip"),
-            new("CastEndClip"),
-        };
+            var options = new TableRowEditorUtility.TableRowEditorBuildOptions();
+            options.ReadOnlyMembers.Add(nameof(StruckTableSkillMonster.Uid));
+            return options;
+        }
 
         /// <summary>
         /// 현재 선택된 테이블 종류에 맞는 Row 편집 필드 목록을 반환합니다.

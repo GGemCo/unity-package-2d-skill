@@ -90,6 +90,11 @@ namespace GGemCo2DSkillEditor
                 return;
             }
 
+            if (TryGetMonsterCombatDriver(casterCharacter, out var combatDriver))
+            {
+                combatDriver.RequestFaceToTarget();
+            }
+
             var request = new GGemCo2DCore.SkillDriverRequest(
                 target.LockedTarget,
                 target.GroundPoint,
@@ -363,6 +368,25 @@ namespace GGemCo2DSkillEditor
             for (int i = 0; i < components.Length; i++)
             {
                 if (components[i] is GGemCo2DCore.ICharacterSkillDriver resolvedDriver)
+                {
+                    driver = resolvedDriver;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static bool TryGetMonsterCombatDriver(CharacterBase casterCharacter, out GGemCo2DCore.IMonsterCombatDriver driver)
+        {
+            driver = null;
+            if (casterCharacter == null)
+                return false;
+
+            var components = casterCharacter.GetComponents<Component>();
+            for (int i = 0; i < components.Length; i++)
+            {
+                if (components[i] is GGemCo2DCore.IMonsterCombatDriver resolvedDriver)
                 {
                     driver = resolvedDriver;
                     return true;

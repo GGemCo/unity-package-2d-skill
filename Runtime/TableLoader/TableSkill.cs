@@ -82,8 +82,8 @@ namespace GGemCo2DSkill
                 CastTime = MathHelper.ParseFloat(data["CastTime"]),
                 CoolTime = MathHelper.ParseFloat(data["CoolTime"]),
                 TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),
-                CastRange = ResolveRangeColumn(data, "CastRange"),
-                PlacementRange = ResolveRangeColumn(data, "PlacementRange"),
+                CastRange = MathHelper.ParseFloat(data["CastRange"]),
+                PlacementRange = MathHelper.ParseFloat(data["PlacementRange"]),
                 Range = MathHelper.ParseFloat(data.GetValueOrDefault("Range")),
                 MaxTargets = MathHelper.ParseInt(data["MaxTargets"]),
                 CastStartClip = data["CastStartClip"],
@@ -91,16 +91,6 @@ namespace GGemCo2DSkill
                 CastEndClip = data["CastEndClip"],
                 UseClip = data["UseClip"],
             };
-        }
-        /// <summary>
-        /// 거리 컬럼을 안전하게 파싱합니다. 컬럼이 비어 있으면 0을 반환하고, 런타임에서 Range fallback을 사용합니다.
-        /// </summary>
-        /// <param name="data">원본 행 데이터입니다.</param>
-        /// <param name="columnName">읽을 컬럼 이름입니다.</param>
-        /// <returns>파싱된 거리 값입니다.</returns>
-        private static float ResolveRangeColumn(Dictionary<string, string> data, string columnName)
-        {
-            return MathHelper.ParseFloat(data.GetValueOrDefault(columnName));
         }
 
     }
