@@ -13,6 +13,8 @@ namespace GGemCo2DSkill
         // 데미지 영역을 Collider로 구성하여 HitArea(CapsuleCollider2D)와의 오버랩으로 판정합니다.
         // - shape 별로 Probe Collider를 1개씩 생성/캐시하고, EvaluateTargets 호출 시 Transform/Size만 갱신합니다.
         private readonly DamageAreaProbeCache _probeCache = new DamageAreaProbeCache();
+        private ContactFilter2D _attackHitFilter;
+        private int _hitAreaLayerMask;
 
         public AreaHitEvaluator(LayerMask mask) => _mask = mask;
 
@@ -45,8 +47,19 @@ namespace GGemCo2DSkill
             
             // Transform/Collider 변경을 물리 엔진에 반영
             Physics2D.SyncTransforms();
-            
-            int count = CompatPhysics2D.OverlapColliderNonAlloc(probe, filter, _buffer);
+
+            _hitAreaLayerMask = -1;
+            if (castCharacterBase.IsPlayer())
+            {
+                _hitAreaLayerMask = LayerMask.GetMask(ConfigLayer.GetValue(ConfigLayer.Keys.HitAreaMonster));
+            }
+            else if (castCharacterBase.IsMonster())
+            {
+                _hitAreaLayerMask = LayerMask.GetMask(ConfigLayer.GetValue(ConfigLayer.Keys.HitAreaPlayer));
+            }
+            _attackHitFilter = CompatPhysics2D.CreateLayerFilter(_hitAreaLayerMask, true);
+          
+            int count = CompatPhysics2D.OverlapColliderNonAlloc(probe, _attackHitFilter, _buffer);
             for (int i = 0; i < count && results.Count < maxTargets; i++)
             {
                 var col = _buffer[i];
