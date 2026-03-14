@@ -130,6 +130,8 @@ namespace GGemCo2DSkill
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
                 return SkillUseResult.Rejected;
 
+            ApplyPreSkillFacing(skill, in target);
+
             bool started = _executor.TryUse(skillUid, ctx, ConfigCommon.SkillTableSource.Monster);
             if (!started) return SkillUseResult.Rejected;
 
@@ -142,6 +144,77 @@ namespace GGemCo2DSkill
             _pendingCombatReport = default;
             _currentRunningSkillUid = skillUid;
             return SkillUseResult.Started;
+        }
+
+        /// <summary>
+        /// 스킬 정의의 방향 정책에 따라 실행 직전 시전자 방향을 보정합니다.
+        /// 기본 몬스터 스킬은 타겟을 바라보도록 동작하며, 예외 스킬은 데이터에서 정책을 덮어쓸 수 있습니다.
+        /// </summary>
+        /// <param name="skill">실행 예정인 런타임 스킬 정의입니다.</param>
+        /// <param name="target">BT가 전달한 타겟/지면/전방 정보입니다.</param>
+        private void ApplyPreSkillFacing(RuntimeSkillDefinition skill, in MonsterSkillTarget target)
+        {
+            if (skill == null)
+                return;
+
+            var characterBase = GetComponent<CharacterBase>();
+            if (characterBase == null)
+                return;
+
+            Vector2 desired = ResolveDesiredFacing(skill.FacingMode, in target);
+            if (desired.sqrMagnitude < 1e-6f)
+                return;
+
+            if (Mathf.Abs(desired.x) > 1e-4f)
+            {
+                characterBase.SetFacing(desired.x >= 0f
+                    ? CharacterConstants.FacingDirection8.Right
+                    : CharacterConstants.FacingDirection8.Left);
+                return;
+            }
+
+            characterBase.SetFacing(desired);
+        }
+
+        /// <summary>
+        /// 방향 정책과 요청 컨텍스트를 기반으로 실제로 바라볼 2D 방향을 계산합니다.
+        /// </summary>
+        /// <param name="facingMode">스킬 정의의 방향 정책입니다.</param>
+        /// <param name="target">BT가 전달한 타겟/전방 정보입니다.</param>
+        /// <returns>자동 보정에 사용할 정규화된 2D 방향입니다. 계산에 실패하면 <see cref="Vector2.zero"/>를 반환합니다.</returns>
+        private Vector2 ResolveDesiredFacing(ConfigCommonSkill.SkillFacingMode facingMode, in MonsterSkillTarget target)
+        {
+            switch (facingMode)
+            {
+                case ConfigCommonSkill.SkillFacingMode.None:
+                    return Vector2.zero;
+
+                case ConfigCommonSkill.SkillFacingMode.FaceForwardInput:
+                    return NormalizeFacing(target.Forward);
+
+                case ConfigCommonSkill.SkillFacingMode.FaceLockedTarget:
+                default:
+                    if (target.LockedTarget != null)
+                    {
+                        var raw = target.LockedTarget.position - transform.position;
+                        return NormalizeFacing(new Vector2(raw.x, raw.y));
+                    }
+
+                    return NormalizeFacing(target.Forward);
+            }
+        }
+
+        /// <summary>
+        /// 입력 벡터를 방향 보정용 정규화 2D 벡터로 변환합니다.
+        /// </summary>
+        /// <param name="raw">원본 방향 벡터입니다.</param>
+        /// <returns>정규화된 방향입니다. 크기가 너무 작으면 <see cref="Vector2.zero"/>를 반환합니다.</returns>
+        private static Vector2 NormalizeFacing(Vector2 raw)
+        {
+            if (raw.sqrMagnitude < 1e-6f)
+                return Vector2.zero;
+
+            return raw.normalized;
         }
 
         public bool IsRunningSkill(int skillUid)

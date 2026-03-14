@@ -112,6 +112,27 @@ namespace Config
         }
 
         /// <summary>
+        /// 스킬 실행 직전에 시전자 방향을 자동으로 보정하는 방식을 정의합니다.
+        /// </summary>
+        public enum SkillFacingMode
+        {
+            /// <summary>
+            /// 실행 전에 방향을 자동 보정하지 않습니다.
+            /// </summary>
+            None = 0,
+
+            /// <summary>
+            /// 고정된 타겟을 우선 바라보며, 타겟이 없으면 전달된 전방 입력을 사용합니다.
+            /// </summary>
+            FaceLockedTarget = 1,
+
+            /// <summary>
+            /// 요청 컨텍스트의 전방 입력만 사용해 방향을 보정합니다.
+            /// </summary>
+            FaceForwardInput = 2,
+        }
+
+        /// <summary>
         /// 범위 판정에 사용하는 영역 형태를 정의합니다.
         /// </summary>
         public enum SkillAreaShape

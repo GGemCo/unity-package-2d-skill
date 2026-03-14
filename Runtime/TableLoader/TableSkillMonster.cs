@@ -45,6 +45,9 @@ namespace GGemCo2DSkill
 
         /// <summary>애니메이션 클립 이름 규칙: 사용</summary>
         public string UseClip;
+
+        /// <summary>스킬 실행 직전에 자동으로 맞출 방향 정책입니다.</summary>
+        public ConfigCommonSkill.SkillFacingMode FacingMode;
     }
 
     /// <summary>
@@ -75,6 +78,7 @@ namespace GGemCo2DSkill
                 CastLoopClip = data["CastLoopClip"],
                 CastEndClip = data["CastEndClip"],
                 UseClip = data["UseClip"],
+                FacingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillFacingMode>(data["FacingMode"])
             };
         }
     }

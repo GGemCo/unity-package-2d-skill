@@ -27,6 +27,7 @@ namespace GGemCo2DSkill
         public string CastLoopClip;
         public string CastEndClip;
         public string UseClip;
+        public ConfigCommonSkill.SkillFacingMode FacingMode;
 
         public static RuntimeSkillDefinition From(StruckTableSkill row)
         {
@@ -48,6 +49,7 @@ namespace GGemCo2DSkill
                 CastLoopClip = row.CastLoopClip,
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
+                FacingMode = row.FacingMode,
             };
         }
 
@@ -71,6 +73,7 @@ namespace GGemCo2DSkill
                 CastLoopClip = row.CastLoopClip,
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
+                FacingMode = row.FacingMode,
             };
         }
     }
