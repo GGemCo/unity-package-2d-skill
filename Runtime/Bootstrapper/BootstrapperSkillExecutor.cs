@@ -77,7 +77,7 @@ namespace GGemCo2DSkill
 
                 playerSkillDriverAdapter.SetSkillExecutor(skillExecutor);
             }
-            else
+            else if (ch.IsMonster())
             {
                 var monsterSkillDriverAdapter = ch.gameObject.GetComponent<MonsterSkillDriverAdapter>();
                 if (monsterSkillDriverAdapter == null)
