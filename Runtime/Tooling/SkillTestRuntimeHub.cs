@@ -1,7 +1,6 @@
 ﻿#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Config;
 using GGemCo2DCore;
 using UnityEngine;
 using Random = UnityEngine.Random;
@@ -16,7 +15,13 @@ namespace GGemCo2DSkill
     public sealed class SkillTestRuntimeHub : MonoBehaviour
     {
         public static SkillTestRuntimeHub Instance { get; private set; }
+        public static GGemCoSkillSettings CurrentSettings { get; private set; }
 
+        public bool IsSkillDebugEnabled => CurrentSettings == null || CurrentSettings.enableSkillDebug;
+        public bool IsDamageAreaGizmoEnabled => IsSkillDebugEnabled && (CurrentSettings == null || CurrentSettings.enableDamageAreaGizmo);
+        public Color DamageAreaGizmoColor => CurrentSettings != null ? CurrentSettings.damageAreaGizmoColor : new Color(1f, 0.35f, 0.2f, 0.9f);
+        public bool DrawOnlyWhenSelectedCaster => CurrentSettings != null && CurrentSettings.drawOnlyWhenSelectedCaster;
+        
         [Header("Spawn")]
         [Tooltip("몬스터 스폰 시 기본으로 사용할 월드 좌표입니다.")]
         [SerializeField] private Vector3 defaultSpawnPoint = Vector3.zero;
@@ -72,14 +77,14 @@ namespace GGemCo2DSkill
             }
 
             Instance = this;
-            ApplySettings();
+            ApplyLoadedSettings(CurrentSettings);
 
-            if (Application.isPlaying && (SkillSettingsRuntime.Current == null || SkillSettingsRuntime.Current.keepBridgeDontDestroyOnLoad))
+            if (Application.isPlaying && (CurrentSettings == null || CurrentSettings.keepBridgeDontDestroyOnLoad))
                 DontDestroyOnLoad(gameObject);
 
             groundPoint = defaultSpawnPoint;
 
-            if (SkillSettingsRuntime.Current == null || SkillSettingsRuntime.Current.autoBindPlayerAsTarget)
+            if (CurrentSettings == null || CurrentSettings.autoBindPlayerAsTarget)
                 TryBindPlayerAsTarget();
         }
 
@@ -95,14 +100,49 @@ namespace GGemCo2DSkill
                 Instance = null;
         }
 
-        private void ApplySettings()
+        private void ApplySettings(GGemCoSkillSettings settings)
         {
-            var settings = SkillSettingsRuntime.Current;
+            CurrentSettings = settings;
+
             if (settings == null)
                 return;
 
             autoResetSelectedMonsterAfterSkill = settings.autoResetSelectedMonsterAfterSkill;
             spawnRadius = Mathf.Max(0f, settings.defaultSpawnRadius);
+        }
+
+        public void ApplyLoadedSettings(GGemCoSkillSettings settings)
+        {
+            CurrentSettings = settings;
+            if (settings == null)
+                return;
+
+            autoResetSelectedMonsterAfterSkill = settings.autoResetSelectedMonsterAfterSkill;
+            spawnRadius = Mathf.Max(0f, settings.defaultSpawnRadius);
+
+            if (Application.isPlaying && settings.autoBindPlayerAsTarget && lockedTarget == null)
+                TryBindPlayerAsTarget();
+        }
+
+        public static void SetCurrentSettings(GGemCoSkillSettings settings)
+        {
+            CurrentSettings = settings;
+            if (Instance != null)
+                Instance.ApplyLoadedSettings(settings);
+        }
+
+        public static bool TryInitializeFromLoadedSettings(GGemCoSkillSettings settings)
+        {
+            if (settings == null)
+                return false;
+
+            SetCurrentSettings(settings);
+            return true;
+        }
+
+        public static void ResetLoadedSettings()
+        {
+            CurrentSettings = null;
         }
 
         private void CleanupExpiredDamageAreas()
@@ -164,10 +204,10 @@ namespace GGemCo2DSkill
             float durationSeconds,
             GameObject caster)
         {
-            if (!SkillSettingsRuntime.IsDamageAreaGizmoEnabled)
+            if (!IsDamageAreaGizmoEnabled)
                 return;
 
-            var settings = SkillSettingsRuntime.Current;
+            var settings = CurrentSettings;
             float resolvedDuration = durationSeconds > 0f
                 ? durationSeconds
                 : settings != null ? settings.defaultDamageAreaGizmoDuration : 0.2f;
@@ -278,7 +318,7 @@ namespace GGemCo2DSkill
 
             await SceneGame.Instance.AddressableLoaderPrefabCharacter.LoadCharacterByMonsterUid(monsterUid);
 
-            if (lockedTarget == null && (SkillSettingsRuntime.Current == null || SkillSettingsRuntime.Current.autoBindPlayerAsTarget))
+            if (lockedTarget == null && (CurrentSettings == null || CurrentSettings.autoBindPlayerAsTarget))
                 TryBindPlayerAsTarget();
 
             if (lockedTarget != null)

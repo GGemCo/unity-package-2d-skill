@@ -1,7 +1,7 @@
 #if UNITY_EDITOR
-using GGemCo2DSkill;
 using UnityEditor;
 using UnityEngine;
+using GGemCo2DSkill;
 
 namespace GGemCo2DSkillEditor
 {
@@ -10,20 +10,20 @@ namespace GGemCo2DSkillEditor
         [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.InSelectionHierarchy)]
         private static void DrawSkillBridgeGizmos(SkillTestRuntimeHub hub, GizmoType gizmoType)
         {
-            if (hub == null || !SkillSettingsRuntime.IsDamageAreaGizmoEnabled)
+            if (hub == null || !hub.IsDamageAreaGizmoEnabled)
                 return;
 
             var areas = hub.ActiveDamageAreas;
             if (areas == null || areas.Count == 0)
                 return;
 
-            var settings = SkillSettingsRuntime.Current;
-            var previousColor = Gizmos.color;
-            var previousMatrix = Gizmos.matrix;
-            Gizmos.color = settings != null ? settings.damageAreaGizmoColor : new Color(1f, 0.35f, 0.2f, 0.9f);
+            var prevColor = Gizmos.color;
+            var prevMatrix = Gizmos.matrix;
+
+            Gizmos.color = hub.DamageAreaGizmoColor;
 
             int selectedCasterId = hub.SelectedMonster != null ? hub.SelectedMonster.GetInstanceID() : 0;
-            bool drawOnlySelectedCaster = settings != null && settings.drawOnlyWhenSelectedCaster;
+            bool drawOnlySelectedCaster = hub.DrawOnlyWhenSelectedCaster;
 
             for (int i = 0; i < areas.Count; i++)
             {
@@ -38,8 +38,8 @@ namespace GGemCo2DSkillEditor
                 DrawArea(area);
             }
 
-            Gizmos.matrix = previousMatrix;
-            Gizmos.color = previousColor;
+            Gizmos.matrix = prevMatrix;
+            Gizmos.color = prevColor;
         }
 
         private static void DrawArea(SkillDebugAreaRecord area)
@@ -52,7 +52,9 @@ namespace GGemCo2DSkillEditor
 
                 case Config.ConfigCommonSkill.SkillAreaShape.Box:
                 case Config.ConfigCommonSkill.SkillAreaShape.Line:
-                    Gizmos.DrawWireCube(new Vector3(area.Offset.x, area.Offset.y, 0f), new Vector3(area.Size.x, area.Size.y, 0.02f));
+                    Gizmos.DrawWireCube(
+                        new Vector3(area.Offset.x, area.Offset.y, 0f),
+                        new Vector3(area.Size.x, area.Size.y, 0.02f));
                     break;
 
                 case Config.ConfigCommonSkill.SkillAreaShape.Capsule:

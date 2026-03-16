@@ -6,6 +6,7 @@ namespace GGemCo2DSkill
     public class SceneLoadingSkill : DefaultScene
     {
         private GameLoaderManager _gameLoaderManager;
+        private AddressableLoaderSettingsSkill _addressableLoaderSettingsSkill;
 
         private void Awake()
         {
@@ -14,6 +15,10 @@ namespace GGemCo2DSkill
                 UnityEngine.SceneManagement.SceneManager.LoadScene(ConfigDefine.SceneNamePreIntro);
                 return;
             }
+
+            _addressableLoaderSettingsSkill = Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
+                                              new GameObject("AddressableLoaderSettingsSkill")
+                                                  .AddComponent<AddressableLoaderSettingsSkill>();
         }
 
         /// <summary>
@@ -23,6 +28,16 @@ namespace GGemCo2DSkill
         {
             // PreIntro 씬/Loading 씬에서 로딩 시작 직전 훅
             GameLoaderManager.BeforeLoadStartInLoadingScene += OnBeforeLoadStartInLoadingScene;
+
+            if (_addressableLoaderSettingsSkill == null)
+            {
+                _addressableLoaderSettingsSkill = Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
+                                                 new GameObject("AddressableLoaderSettingsSkill")
+                                                     .AddComponent<AddressableLoaderSettingsSkill>();
+            }
+
+            _addressableLoaderSettingsSkill.OnLoadSettings -= HandleLoadSettings;
+            _addressableLoaderSettingsSkill.OnLoadSettings += HandleLoadSettings;
         }
 
         /// <summary>
@@ -31,6 +46,23 @@ namespace GGemCo2DSkill
         private void OnDisable()
         {
             GameLoaderManager.BeforeLoadStartInLoadingScene -= OnBeforeLoadStartInLoadingScene;
+
+            if (_addressableLoaderSettingsSkill != null)
+                _addressableLoaderSettingsSkill.OnLoadSettings -= HandleLoadSettings;
+        }
+
+
+        private void OnDestroy()
+        {
+            if (_addressableLoaderSettingsSkill != null)
+                _addressableLoaderSettingsSkill.OnLoadSettings -= HandleLoadSettings;
+        }
+
+        private void HandleLoadSettings(GGemCoSkillSettings settings)
+        {
+#if UNITY_EDITOR
+            SkillTestRuntimeHub.TryInitializeFromLoadedSettings(settings);
+#endif
         }
 
         private void OnBeforeLoadStartInLoadingScene(
@@ -38,9 +70,14 @@ namespace GGemCo2DSkill
             GameLoaderManager.EventArgsBeforeLoadStart e)
         {
             // 설정 스크립터블 오브젝트 
-            var addrSettings = Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
+#if UNITY_EDITOR
+            SkillTestRuntimeHub.ResetLoadedSettings();
+#endif
+            var addrSettings = _addressableLoaderSettingsSkill ??
+                               Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
                                new GameObject("AddressableLoaderSettingsSkill")
                                    .AddComponent<AddressableLoaderSettingsSkill>();
+            _addressableLoaderSettingsSkill = addrSettings;
             var step = new AddressableTaskStep(
                 id: "skill.settings",
                 order: 251,

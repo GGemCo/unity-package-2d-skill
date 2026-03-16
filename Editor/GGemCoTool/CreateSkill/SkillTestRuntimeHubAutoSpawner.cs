@@ -1,12 +1,11 @@
 #if UNITY_EDITOR
-using GGemCo2DSkill;
 using UnityEditor;
-using UnityEngine;
+using GGemCo2DSkill;
 
 namespace GGemCo2DSkillEditor
 {
     /// <summary>
-    /// Unity Editor에서 Play Mode 진입 시 SkillTestRuntimeHub가 필요하면 자동 생성되도록 보장합니다.
+    /// Play Mode 진입 시 SkillTestRuntimeHub가 존재하도록 보장하는 Editor 유틸리티
     /// </summary>
     [InitializeOnLoad]
     internal static class SkillTestRuntimeHubAutoSpawner
@@ -22,8 +21,8 @@ namespace GGemCo2DSkillEditor
             if (state != PlayModeStateChange.EnteredPlayMode)
                 return;
 
-            var settings = AssetDatabase.LoadAssetAtPath<GGemCoSkillSettings>(ConfigAddressableSettingSkill.SkillSettings.Path);
-            SkillSettingsRuntime.SetForEditor(settings);
+            var settings = AssetDatabase.LoadAssetAtPath<GGemCoSkillSettings>(
+                ConfigAddressableSettingSkill.SkillSettings.Path);
 
             if (settings != null && !settings.enableSkillTestRuntimeBridgeAutoSpawn)
                 return;
