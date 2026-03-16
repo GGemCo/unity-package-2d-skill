@@ -11,6 +11,8 @@ namespace GGemCo2DSkill
         public string Name;
         public string Memo;
         public string SoFileName;
+        public ConfigCommonSkill.SkillOwnerType OwnerType;
+        
         public ConfigCommonSkill.SkillKind SkillKind;
         public float CastTime;
         public float CoolTime;
@@ -37,6 +39,7 @@ namespace GGemCo2DSkill
                 Uid = row.Uid,
                 Name = row.Name,
                 Memo = row.Memo,
+                OwnerType = ConfigCommonSkill.SkillOwnerType.Player,
                 SoFileName = row.SoFileName,
                 SkillKind = row.SkillKind,
                 CastTime = row.CastTime,
@@ -61,6 +64,7 @@ namespace GGemCo2DSkill
                 Uid = row.Uid,
                 Name = row.Name,
                 Memo = row.Memo,
+                OwnerType = ConfigCommonSkill.SkillOwnerType.Monster,
                 SoFileName = row.SoFileName,
                 SkillKind = row.SkillKind,
                 CastTime = row.CastTime,

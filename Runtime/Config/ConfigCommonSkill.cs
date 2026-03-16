@@ -162,5 +162,10 @@ namespace Config
             /// </summary>
             Line = 4,
         }
+        public enum SkillOwnerType
+        {
+            Player = 0,
+            Monster = 1,
+        }
     }
 }

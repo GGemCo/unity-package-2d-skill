@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Threading.Tasks;
+using Config;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -64,8 +65,11 @@ namespace GGemCo2DSkill
             {
                 // RuntimeSequenceKey는 Addressables Key 규칙(ConfigAddressableKeySkill)을 사용한다.
                 // (에디터 테스트에서는 SkillRuntimeSequenceRepository.RegisterEditorOverride로 주입 가능)
-                // todo. 정리 필요
-                var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKey(_skill.Uid);
+                var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKeyPlayer(_skill.Uid);
+                if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Monster)
+                {
+                    runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKeyMonster(_skill.Uid);
+                }
                 if (string.IsNullOrEmpty(runtimeSequenceKey))
                 {
                     IsDone = true;

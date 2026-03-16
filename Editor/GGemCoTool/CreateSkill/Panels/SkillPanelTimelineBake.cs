@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using GGemCo2DSkill;
 using UnityEditor;
@@ -60,7 +61,7 @@ namespace GGemCo2DSkillEditor
         /// <param name="timeline">Bake할 원본 타임라인 에셋입니다.</param>
         /// <param name="message">처리 결과 또는 실패 사유를 반환합니다.</param>
         /// <returns>런타임 시퀀스 생성 및 등록에 성공하면 <see langword="true"/>를 반환합니다.</returns>
-        private static bool BakeRuntimeSequence(int selectedSkillUid, TimelineAsset timeline, out string message)
+        private bool BakeRuntimeSequence(int selectedSkillUid, TimelineAsset timeline, out string message)
         {
             message = null;
 
@@ -70,7 +71,12 @@ namespace GGemCo2DSkillEditor
                 return false;
             }
 
-            var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKey(selectedSkillUid);
+            var runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKeyPlayer(selectedSkillUid);
+            if (_selectedSource == ConfigCommon.SkillTableSource.Monster)
+            {
+                runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKeyMonster(selectedSkillUid);
+            }
+
             if (string.IsNullOrEmpty(runtimeSequenceKey))
             {
                 message = "[SkillAuthoringV2] RuntimeSequenceKey가 비어 있습니다.";
@@ -83,7 +89,12 @@ namespace GGemCo2DSkillEditor
                 return false;
             }
 
-            string folder = ConfigAddressablePathSkill.Skill.RuntimeSequences;
+            string folder = ConfigAddressablePathSkill.Skill.RuntimeSequence.Player;
+            if (_selectedSource == ConfigCommon.SkillTableSource.Monster)
+            {
+                folder = ConfigAddressablePathSkill.Skill.RuntimeSequence.Monster;
+            }
+            
             Directory.CreateDirectory(folder);
 
             string assetPath = $"{folder}/SkillRuntimeSequence_{selectedSkillUid}.asset";
@@ -94,7 +105,7 @@ namespace GGemCo2DSkillEditor
             EnsureAddressableEntry(
                 assetPath: AssetDatabase.GetAssetPath(seq),
                 addressKey: runtimeSequenceKey,
-                groupName: ConfigAddressableGroupNameSkill.SkillRuntimeSequence,
+                groupName: ConfigAddressableGroupNameSkill.SkillRuntimeSequencePlayer,
                 label: ConfigAddressableLabelSkill.SkillRuntimeSequence);
 
             message = $"[SkillAuthoringV2] Bake/등록 완료";
