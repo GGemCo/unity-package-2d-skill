@@ -12,7 +12,7 @@ namespace GGemCo2DSkillEditor
 {
     public class SettingSkill : DefaultAddressable
     {
-        private const string Title = "스킬 아이콘/스크립터블 오브젝트 추가하기";
+        private const string Title = "스킬 아이콘/런타임 스크립터블 오브젝트 추가하기";
         private readonly AddressableEditorSkill _addressableEditorSkill;
         private const string TargetGroupNameRuntimeSequence = ConfigAddressableGroupNameSkill.SkillRuntimeSequence;
         private const string TargetGroupNameSkillPassiveIcon = ConfigAddressableGroupNameSkill.SkillPassiveIcon;

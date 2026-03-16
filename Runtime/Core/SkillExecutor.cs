@@ -438,15 +438,16 @@ namespace GGemCo2DSkill
             }
 
 #if UNITY_EDITOR
-            // SkillDamageClip이 처리되는 동안만 데미지 영역을 Gizmo로 표시합니다.
-            // (에디터 PlayMode 테스트 및 씬 디버깅 용도)
-            if (ctx.caster != null)
+            // SkillTestRuntimeHub가 에디터 전용 데미지 영역 데이터를 보관하고,
+            // 실제 Gizmo 그리기는 Editor Drawer가 담당합니다.
+            if (ctx.caster != null && SkillTestRuntimeHub.Instance != null)
             {
-                var gizmo = ctx.caster.GetComponent<GGemCo2DSkillEditor.SkillDamageAreaGizmo>();
-                if (gizmo != null)
-                {
-                    gizmo.Show(center, resolvedForward, areaSpec, range, gizmoDurationSeconds, ctx.caster);
-                }
+                SkillTestRuntimeHub.Instance.RegisterDamageArea(
+                    center,
+                    resolvedForward,
+                    areaSpec,
+                    gizmoDurationSeconds,
+                    ctx.caster);
             }
 #endif
 
@@ -809,11 +810,7 @@ namespace GGemCo2DSkill
         private static void ClearDamageAreaGizmo(GameObject caster)
         {
 #if UNITY_EDITOR
-            if (caster == null)
-                return;
-
-            var gizmo = caster.GetComponent<GGemCo2DSkillEditor.SkillDamageAreaGizmo>();
-            gizmo?.ClearAll();
+            SkillTestRuntimeHub.Instance?.ClearDamageAreas(caster);
 #endif
         }
 

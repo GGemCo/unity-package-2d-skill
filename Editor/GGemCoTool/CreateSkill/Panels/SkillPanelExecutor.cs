@@ -145,18 +145,7 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         private bool TryGetSkillTestRuntimeHub(out SkillTestRuntimeHub hub, out string error)
         {
-            hub = SkillTestRuntimeHub.Instance != null
-                ? SkillTestRuntimeHub.Instance
-                : Object.FindFirstObjectByType<SkillTestRuntimeHub>();
-
-            if (hub != null)
-            {
-                error = null;
-                return true;
-            }
-
-            error = "SkillTestRuntimeHub를 찾지 못했습니다. (Play Mode 진입 시 자동 생성되어야 합니다.)";
-            return false;
+            return SkillTestRuntimeHubEditorFacade.TryGetHub(out hub, out error);
         }
 
         /// <summary>

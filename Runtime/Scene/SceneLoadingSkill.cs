@@ -37,6 +37,19 @@ namespace GGemCo2DSkill
             GameLoaderManager sender,
             GameLoaderManager.EventArgsBeforeLoadStart e)
         {
+            // 설정 스크립터블 오브젝트 
+            var addrSettings = Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
+                               new GameObject("AddressableLoaderSettingsSkill")
+                                   .AddComponent<AddressableLoaderSettingsSkill>();
+            var step = new AddressableTaskStep(
+                id: "skill.settings",
+                order: 251,
+                localizedKey: LocalizationConstants.Keys.Loading.TextTypeSettings(),
+                startTask: () => addrSettings.LoadAllSettingsAsync(),
+                getProgress: () => addrSettings.GetLoadProgress()
+            );
+            sender.Register(step);
+            
             // 테이블 로더 준비 및 테이블 로딩 스텝 등록
             var tableLoader =
                 FindFirstObjectByType<TableLoaderManagerSkill>() ??

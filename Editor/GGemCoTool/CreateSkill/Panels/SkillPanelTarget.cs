@@ -1,4 +1,5 @@
 ﻿using GGemCo2DCore;
+using GGemCo2DSkill;
 using UnityEditor;
 using UnityEngine;
 
@@ -107,9 +108,7 @@ namespace GGemCo2DSkillEditor
             if (dummyCharacter == null)
                 return;
 
-            var hub = SkillTestRuntimeHub.Instance != null
-                ? SkillTestRuntimeHub.Instance
-                : Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+            var hub = SkillTestRuntimeHubEditorFacade.FindHub();
 
             if (hub == null)
                 return;
@@ -123,9 +122,7 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         private void ClearDummyTargetFromHub()
         {
-            var hub = SkillTestRuntimeHub.Instance != null
-                ? SkillTestRuntimeHub.Instance
-                : Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+            var hub = SkillTestRuntimeHubEditorFacade.FindHub();
 
             if (hub == null)
                 return;

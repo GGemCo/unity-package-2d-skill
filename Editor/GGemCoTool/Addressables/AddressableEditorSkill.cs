@@ -19,6 +19,7 @@ namespace GGemCo2DSkillEditor
         // 각 기능별 GUI/로직을 분리한 모듈(Setting*)들
         private SettingSkill _settingSkill;
         private SettingTableSkill _settingTableSkill;
+        private SettingScriptableObjectSkill _settingScriptableObjectSkill;
 
         /// <summary>2열 레이아웃에서 각 모듈 버튼 영역의 폭입니다.</summary>
         public float buttonWidth;
@@ -50,6 +51,7 @@ namespace GGemCo2DSkillEditor
             // 각 Setting* 모듈은 AddressableEditor(본 윈도우)를 통해 공용 상태/테이블/유틸에 접근합니다.
             _settingSkill = new SettingSkill(this);
             _settingTableSkill = new SettingTableSkill(this);
+            _settingScriptableObjectSkill = new SettingScriptableObjectSkill(this);
         }
 
         /// <summary>
@@ -70,7 +72,11 @@ namespace GGemCo2DSkillEditor
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
+                    _settingScriptableObjectSkill?.OnGUI();
                     _settingTableSkill?.OnGUI();
+                }
+                using (new EditorGUILayout.HorizontalScope())
+                {
                     _settingSkill?.OnGUI();
                 }
  

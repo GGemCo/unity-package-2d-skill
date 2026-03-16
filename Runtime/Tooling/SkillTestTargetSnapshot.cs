@@ -2,7 +2,7 @@
 using UnityEngine;
 using GGemCo2DCore;
 
-namespace GGemCo2DSkillEditor
+namespace GGemCo2DSkill
 {
     /// <summary>
     /// 스킬 테스트에서 "선택 몬스터"의 원래 위치/물리 상태를 복원하기 위한 스냅샷입니다.
