@@ -20,7 +20,13 @@ namespace GGemCo2DSkill
         {
             /// <summary>Assets/{SDK}/DataAddressable/Skill</summary>
             private static string RootSkill => ConfigAddressablePath.Combine(ConfigAddressablePath.Root, "Skill");
-            public static string RuntimeSequences => ConfigAddressablePath.Combine(RootSkill, "RuntimeSequences");
+
+            public static class RuntimeSequence
+            {
+                private static string Root => ConfigAddressablePath.Combine(RootSkill, "RuntimeSequences");
+                public static string Player => ConfigAddressablePath.Combine(Root, "Player");
+                public static string Monster => ConfigAddressablePath.Combine(Root, "Monster");
+            }
         }
 
     }

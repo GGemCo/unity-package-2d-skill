@@ -14,7 +14,8 @@ namespace GGemCo2DSkillEditor
     {
         private const string Title = "스킬 아이콘/런타임 스크립터블 오브젝트 추가하기";
         private readonly AddressableEditorSkill _addressableEditorSkill;
-        private const string TargetGroupNameRuntimeSequence = ConfigAddressableGroupNameSkill.SkillRuntimeSequence;
+        private const string TargetGroupNameRuntimeSequencePlayer = ConfigAddressableGroupNameSkill.SkillRuntimeSequencePlayer;
+        private const string TargetGroupNameRuntimeSequenceMonster = ConfigAddressableGroupNameSkill.SkillRuntimeSequenceMonster;
         private const string TargetGroupNameSkillPassiveIcon = ConfigAddressableGroupNameSkill.SkillPassiveIcon;
         
         public SettingSkill(AddressableEditorSkill addressableEditorSkillWindow)
@@ -64,7 +65,7 @@ namespace GGemCo2DSkillEditor
                 settings = CreateAddressableSettings();
             }
             
-            # region 아이콘
+            # region 플레이어 스킬 아이콘
             // GGemCo_Tables 그룹 가져오기 또는 생성
             AddressableAssetGroup group = GetOrCreateGroup(settings, targetGroupName);
             if (!group)
@@ -105,7 +106,7 @@ namespace GGemCo2DSkillEditor
             
             #endregion
 
-            #region 패시브 스킬
+            #region 패시브 스킬 아이콘
 
             Dictionary<int, StruckTableSkillPassive> dictionaryPassive =
                 TableLoaderManagerSkill.LoadTableSkillPassive().GetDatas();
@@ -147,13 +148,13 @@ namespace GGemCo2DSkillEditor
 
             #endregion
 
-            #region 스크립터블 오브젝트
+            #region 플레이어 스킬 런타임 시퀀스
 
             // GGemCo_Tables 그룹 가져오기 또는 생성
-            group = GetOrCreateGroup(settings, TargetGroupNameRuntimeSequence);
+            group = GetOrCreateGroup(settings, TargetGroupNameRuntimeSequencePlayer);
             if (!group)
             {
-                HelperLog.Error($"'{TargetGroupNameRuntimeSequence}' 그룹을 설정할 수 없습니다.", ctx);
+                HelperLog.Error($"'{TargetGroupNameRuntimeSequencePlayer}' 그룹을 설정할 수 없습니다.", ctx);
                 return;
             }
             
@@ -168,8 +169,40 @@ namespace GGemCo2DSkillEditor
                     if (info.Uid <= 0) continue;
                     if (string.IsNullOrEmpty(info.SoFileName)) continue;
                 
-                    string key = $"{ConfigAddressableKeySkill.GetRuntimeSequenceKey(info.Uid)}";
-                    string assetPath = $"{ConfigAddressablePathSkill.Skill.RuntimeSequences}/{info.SoFileName}.asset";
+                    string key = $"{ConfigAddressableKeySkill.GetRuntimeSequenceKeyPlayer(info.Uid)}";
+                    string assetPath = $"{ConfigAddressablePathSkill.Skill.RuntimeSequence.Player}/{info.SoFileName}.asset";
+                
+                    Add(settings, group, key, assetPath);
+                }
+            }
+
+            #endregion
+
+            #region 몬스터 스킬 런타임 시퀀스
+
+            // GGemCo_Tables 그룹 가져오기 또는 생성
+            group = GetOrCreateGroup(settings, TargetGroupNameRuntimeSequenceMonster);
+            if (!group)
+            {
+                HelperLog.Error($"'{TargetGroupNameRuntimeSequenceMonster}' 그룹을 설정할 수 없습니다.", ctx);
+                return;
+            }
+            
+            ClearGroupEntries(settings, group);
+            
+            if (group)
+            {
+                Dictionary<int, StruckTableSkillMonster> dictionaryMonster =
+                    TableLoaderManagerSkill.LoadTableSkillMonster().GetDatas();
+                // foreach 문을 사용하여 딕셔너리 내용을 출력
+                foreach (var data in dictionaryMonster)
+                {
+                    var info = data.Value;
+                    if (info.Uid <= 0) continue;
+                    if (string.IsNullOrEmpty(info.SoFileName)) continue;
+                
+                    string key = $"{ConfigAddressableKeySkill.GetRuntimeSequenceKeyMonster(info.Uid)}";
+                    string assetPath = $"{ConfigAddressablePathSkill.Skill.RuntimeSequence.Monster}/{info.SoFileName}.asset";
                 
                     Add(settings, group, key, assetPath);
                 }
