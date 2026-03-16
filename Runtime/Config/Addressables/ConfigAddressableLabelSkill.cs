@@ -6,6 +6,7 @@ namespace GGemCo2DSkill
     {
         public const string ImageSkillIcon = ConfigDefine.NameSDK + "_Skill_Icon";
         public const string ImageSkillPassiveIcon = ConfigDefine.NameSDK + "_SkillPassive_Icon";
-        public const string SkillRuntimeSequence = ConfigDefine.NameSDK + "_Skill_RuntimeSequence";
+        public const string SkillRuntimeSequencePlayer = ConfigDefine.NameSDK + "_Skill_RuntimeSequence_Player";
+        public const string SkillRuntimeSequenceMonster = ConfigDefine.NameSDK + "_Skill_RuntimeSequence_Monster";
     }
 }

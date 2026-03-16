@@ -90,9 +90,13 @@ namespace GGemCo2DSkillEditor
             }
 
             string folder = ConfigAddressablePathSkill.Skill.RuntimeSequence.Player;
+            var groupName = ConfigAddressableGroupNameSkill.SkillRuntimeSequencePlayer;
+            var label = ConfigAddressableLabelSkill.SkillRuntimeSequencePlayer;
             if (_selectedSource == ConfigCommon.SkillTableSource.Monster)
             {
                 folder = ConfigAddressablePathSkill.Skill.RuntimeSequence.Monster;
+                groupName = ConfigAddressableGroupNameSkill.SkillRuntimeSequenceMonster;
+                label = ConfigAddressableLabelSkill.SkillRuntimeSequenceMonster;
             }
             
             Directory.CreateDirectory(folder);
@@ -105,8 +109,8 @@ namespace GGemCo2DSkillEditor
             EnsureAddressableEntry(
                 assetPath: AssetDatabase.GetAssetPath(seq),
                 addressKey: runtimeSequenceKey,
-                groupName: ConfigAddressableGroupNameSkill.SkillRuntimeSequencePlayer,
-                label: ConfigAddressableLabelSkill.SkillRuntimeSequence);
+                groupName: groupName,
+                label: label);
 
             message = $"[SkillAuthoringV2] Bake/등록 완료";
             return true;

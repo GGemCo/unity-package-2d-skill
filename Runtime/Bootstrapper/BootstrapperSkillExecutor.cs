@@ -95,66 +95,10 @@ namespace GGemCo2DSkill
         /// <returns>프리로드 작업이 완료되면 종료되는 비동기 작업입니다.</returns>
         private async Task OnCharacterSpawnedAsync(CharacterBase ch)
         {
-            if (ch == null) return;
-            if (ch.IsPlayer())
-            {
-                await LoadSkillRuntimeSequencePlayer(ch);
-            }
-            else if (ch.IsMonster())
-            {
-                await LoadSkillRuntimeSequenceMonster(ch);
-            }
+            if (ch == null || !ch.IsMonster()) return;
+            await LoadSkillRuntimeSequenceMonster(ch);
         }
 
-        private async Task LoadSkillRuntimeSequencePlayer(CharacterBase ch)
-        {
-            if (ch == null || !ch.IsPlayer())
-                return;
-
-            if (TableLoaderManager.Instance == null)
-                return;
-
-            var dictionarySkill = TableLoaderManagerSkill.Instance.TableSkill.GetDatas();
-            if (GcLogger.IsNull(dictionarySkill, $"스킬 테이블에 정보가 없습니다."))
-                return;
-
-            // 중복되거나 유효하지 않은 스킬 UID를 제거합니다.
-            var uniqueSkillUids = new HashSet<int>();
-            foreach (var data in dictionarySkill)
-            {
-                var info = data.Value;
-                int uid = info.Uid;
-                if (uid <= 0) continue;
-                uniqueSkillUids.Add(uid);
-                
-            }
-
-            if (uniqueSkillUids.Count == 0)
-                return;
-
-            // 각 스킬의 RuntimeSequence를 병렬로 프리로드합니다.
-            var tasks = new List<Task>(uniqueSkillUids.Count);
-            foreach (var skillUid in uniqueSkillUids)
-            {
-                var key = ConfigAddressableKeySkill.GetRuntimeSequenceKeyPlayer(skillUid);
-                if (string.IsNullOrEmpty(key)) continue;
-
-                tasks.Add(PreloadSequenceSafeAsync(skillUid, key));
-            }
-
-            if (tasks.Count == 0)
-                return;
-
-            try
-            {
-                await Task.WhenAll(tasks);
-            }
-            catch
-            {
-                // 개별 Task 내부에서 예외를 처리하므로 집계 예외는 무시합니다.
-            }
-        }
-        
         private async Task LoadSkillRuntimeSequenceMonster(CharacterBase ch)
         {
             // 몬스터가 아니면 프리로드하지 않습니다.
@@ -189,7 +133,7 @@ namespace GGemCo2DSkill
                 var key = ConfigAddressableKeySkill.GetRuntimeSequenceKeyMonster(skillUid);
                 if (string.IsNullOrEmpty(key)) continue;
 
-                tasks.Add(PreloadSequenceSafeAsync(skillUid, key));
+                tasks.Add(PreloadSequenceSafeAsyncMonster(skillUid, key));
             }
 
             if (tasks.Count == 0)
@@ -205,23 +149,12 @@ namespace GGemCo2DSkill
             }
         }
 
-
-        /// <summary>
-        /// 지정한 스킬의 RuntimeSequence 에셋을 안전하게 프리로드합니다.
-        /// 실패 시 예외를 전파하지 않고 로그만 기록합니다.
-        /// </summary>
-        /// <param name="skillUid">프리로드 대상 스킬의 고유 식별자입니다.</param>
-        /// <param name="key">Addressables에서 사용할 RuntimeSequence 키입니다.</param>
-        /// <returns>프리로드 작업이 완료되면 종료되는 비동기 작업입니다.</returns>
-        /// <exception cref="Exception">
-        /// 내부 로드 과정에서 예외가 발생할 수 있으나, 메서드 내부에서 처리 후 로그만 남깁니다.
-        /// </exception>
-        private static async Task PreloadSequenceSafeAsync(int skillUid, string key)
+        private static async Task PreloadSequenceSafeAsyncMonster(int skillUid, string key)
         {
             try
             {
                 // SkillRun에서 사용 중인 Repository 캐시를 그대로 활용합니다.
-                await AddressableLoaderSkillRuntimeSequence.LoadAsync(key);
+                await AddressableLoaderSkillRuntimeSequenceMonster.LoadAsyncMonster(key);
             }
             catch (Exception e)
             {
@@ -236,7 +169,7 @@ namespace GGemCo2DSkill
         private void OnMapUnload()
         {
             // 정책: 맵 언로드 시 Addressables 핸들을 해제합니다.
-            AddressableLoaderSkillRuntimeSequence.ReleaseAll();
+            AddressableLoaderSkillRuntimeSequenceMonster.ReleaseAllMonster();
         }
 
         /// <summary>

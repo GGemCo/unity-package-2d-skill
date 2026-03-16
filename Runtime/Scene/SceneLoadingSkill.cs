@@ -116,7 +116,7 @@ namespace GGemCo2DSkill
             );
             sender.Register(stepLocalization);
 
-            // 어펙트 이미지(아틀라스 등) 로딩 스텝 등록
+            // 스킬 아이콘 로딩 스텝 등록
             var addrSkill = Object.FindFirstObjectByType<AddressableLoaderSkill>() ??
                              new GameObject("AddressableLoaderSkill").AddComponent<AddressableLoaderSkill>();
 
@@ -128,6 +128,19 @@ namespace GGemCo2DSkill
                 getProgress: () => addrSkill.GetPrefabLoadProgress()
             );
             sender.Register(stepSkill);
+            
+            // 플레이어 스킬 런타임 시퀀스 파일 로드
+            var addrSkillRuntimeSequencePlayer = Object.FindFirstObjectByType<AddressableLoaderSkillRuntimeSequencePlayer>() ??
+                             new GameObject("AddressableLoaderSkillRuntimeSequencePlayer").AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
+
+            var stepSkillRuntimeSequencePlayer = new AddressableTaskStep(
+                id: "skill.runtimesequence.player",
+                order: 345,
+                localizedKey: LocalizationConstants.Keys.Loading.TextTypeSkill(),
+                startTask: () => addrSkillRuntimeSequencePlayer.LoadAsync(),
+                getProgress: () => addrSkillRuntimeSequencePlayer.GetLoadProgress()
+            );
+            sender.Register(stepSkillRuntimeSequencePlayer);
 
             // 스킬 세이브 데이터
             var saveData = Object.FindFirstObjectByType<SaveDataLoaderSkill>() ?? new GameObject("SaveDataLoaderSkill").AddComponent<SaveDataLoaderSkill>();

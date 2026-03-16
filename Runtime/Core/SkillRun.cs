@@ -70,6 +70,7 @@ namespace GGemCo2DSkill
                 {
                     runtimeSequenceKey = ConfigAddressableKeySkill.GetRuntimeSequenceKeyMonster(_skill.Uid);
                 }
+                
                 if (string.IsNullOrEmpty(runtimeSequenceKey))
                 {
                     IsDone = true;
@@ -77,7 +78,17 @@ namespace GGemCo2DSkill
                     return;
                 }
 
-                _sequence = await AddressableLoaderSkillRuntimeSequence.LoadAsync(runtimeSequenceKey);
+                if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Monster)
+                {
+                    _sequence = await AddressableLoaderSkillRuntimeSequenceMonster.LoadAsyncMonster(runtimeSequenceKey);
+                }
+                else if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Player)
+                {
+                    _sequence =
+                        AddressableLoaderSkillRuntimeSequencePlayer.Instance.GetSkillRuntimeSequenceByKey(
+                            runtimeSequenceKey);
+                }
+
                 _nextEventIndex = 0;
                 _time = 0f;
             }

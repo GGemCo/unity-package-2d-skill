@@ -9,9 +9,9 @@ namespace GGemCo2DSkill
     /// <summary>
     /// SkillRuntimeSequence Addressables 로더/캐시.
     /// </summary>
-    public static class AddressableLoaderSkillRuntimeSequence
+    public static class AddressableLoaderSkillRuntimeSequenceMonster
     {
-        private static readonly Dictionary<string, AsyncOperationHandle<SkillRuntimeSequence>> Handles = new(StringComparer.Ordinal);
+        private static readonly Dictionary<string, AsyncOperationHandle<SkillRuntimeSequence>> HandlesMonster = new(StringComparer.Ordinal);
 
 #if UNITY_EDITOR
         /// <summary>
@@ -37,7 +37,8 @@ namespace GGemCo2DSkill
         public static void ClearEditorOverrides() => EditorOverrides.Clear();
 #endif
 
-        public static async Task<SkillRuntimeSequence> LoadAsync(string key)
+
+        public static async Task<SkillRuntimeSequence> LoadAsyncMonster(string key)
         {
             if (string.IsNullOrEmpty(key)) return null;
 
@@ -47,40 +48,26 @@ namespace GGemCo2DSkill
                 return overrideSeq;
 #endif
 
-            if (Handles.TryGetValue(key, out var h) && h.IsValid())
+            if (HandlesMonster.TryGetValue(key, out var h) && h.IsValid())
             {
                 return await h.Task;
             }
 
             var handle = Addressables.LoadAssetAsync<SkillRuntimeSequence>(key);
-            Handles[key] = handle;
+            HandlesMonster[key] = handle;
 
             var asset = await handle.Task;
             return asset;
         }
 
-        public static void Release(string key)
+        public static void ReleaseAllMonster()
         {
-            if (string.IsNullOrEmpty(key)) return;
-            if (Handles.TryGetValue(key, out var h) && h.IsValid())
-            {
-                Addressables.Release(h);
-            }
-            Handles.Remove(key);
-
-#if UNITY_EDITOR
-            EditorOverrides.Remove(key);
-#endif
-        }
-
-        public static void ReleaseAll()
-        {
-            foreach (var kv in Handles)
+            foreach (var kv in HandlesMonster)
             {
                 var h = kv.Value;
                 if (h.IsValid()) Addressables.Release(h);
             }
-            Handles.Clear();
+            HandlesMonster.Clear();
 
 #if UNITY_EDITOR
             EditorOverrides.Clear();

@@ -172,7 +172,7 @@ namespace GGemCo2DSkillEditor
                     string key = $"{ConfigAddressableKeySkill.GetRuntimeSequenceKeyPlayer(info.Uid)}";
                     string assetPath = $"{ConfigAddressablePathSkill.Skill.RuntimeSequence.Player}/{info.SoFileName}.asset";
                 
-                    Add(settings, group, key, assetPath);
+                    Add(settings, group, key, assetPath, ConfigAddressableLabelSkill.SkillRuntimeSequencePlayer);
                 }
             }
 
