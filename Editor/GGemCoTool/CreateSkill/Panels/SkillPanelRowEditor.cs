@@ -299,9 +299,19 @@ namespace GGemCo2DSkillEditor
                 return false;
 
             NormalizeEditingRow();
-            TableRowEditorUtility.CopyMembers(_editingRow, _cachedRow, CurrentRowEditorFields);
 
-            return true;
+            switch (_editingRow)
+            {
+                case StruckTableSkill editingPlayerRow when _cachedRow is StruckTableSkill cachedPlayerRow:
+                    TableRowEditorUtility.CopyMembers(editingPlayerRow, cachedPlayerRow, RowEditorFieldsPlayer);
+                    return true;
+
+                case StruckTableSkillMonster editingMonsterRow when _cachedRow is StruckTableSkillMonster cachedMonsterRow:
+                    TableRowEditorUtility.CopyMembers(editingMonsterRow, cachedMonsterRow, RowEditorFieldsMonster);
+                    return true;
+            }
+
+            return false;
         }
 
         /// <summary>
