@@ -112,12 +112,12 @@ namespace GGemCo2DSkill
             if (GcLogger.IsNull(info, $"몬스터 테이블에 정보가 없습니다. uid: {ch.uid}"))
                 return;
 
-            if (info.SkillUid == null || info.SkillUid.Length == 0)
+            if (info.SkillMonsterUid == null || info.SkillMonsterUid.Length == 0)
                 return;
 
             // 중복되거나 유효하지 않은 스킬 UID를 제거합니다.
             var uniqueSkillUids = new HashSet<int>();
-            foreach (var uid in info.SkillUid)
+            foreach (var uid in info.SkillMonsterUid)
             {
                 if (uid <= 0) continue;
                 uniqueSkillUids.Add(uid);
