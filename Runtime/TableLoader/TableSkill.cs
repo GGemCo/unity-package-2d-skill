@@ -11,7 +11,6 @@ namespace GGemCo2DSkill
     {
         public int Uid { get; set; }
         public string Name { get; set; }
-        public string Memo;
         public bool DefaultLearn;
         public int NeedPlayerLevel;
         public string IconFileName;
@@ -73,7 +72,6 @@ namespace GGemCo2DSkill
             {
                 Uid = uid,
                 Name = name,
-                Memo = data["Memo"],
                 DefaultLearn = ConvertBoolean(data["DefaultLearn"]),
                 NeedPlayerLevel = MathHelper.ParseInt(data["NeedPlayerLevel"]),
                 IconFileName = data["IconFileName"],

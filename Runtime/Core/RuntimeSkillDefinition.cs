@@ -38,7 +38,6 @@ namespace GGemCo2DSkill
             {
                 Uid = row.Uid,
                 Name = row.Name,
-                Memo = row.Memo,
                 OwnerType = ConfigCommonSkill.SkillOwnerType.Player,
                 SoFileName = row.SoFileName,
                 SkillKind = row.SkillKind,
@@ -63,7 +62,6 @@ namespace GGemCo2DSkill
             {
                 Uid = row.Uid,
                 Name = row.Name,
-                Memo = row.Memo,
                 OwnerType = ConfigCommonSkill.SkillOwnerType.Monster,
                 SoFileName = row.SoFileName,
                 SkillKind = row.SkillKind,

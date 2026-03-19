@@ -331,8 +331,8 @@ namespace GGemCo2DSkillEditor
         {
             return row switch
             {
-                StruckTableSkill player => player.Memo,
-                StruckTableSkillMonster monster => monster.Memo,
+                StruckTableSkill player => player.Name,
+                StruckTableSkillMonster monster => monster.Name,
                 _ => string.Empty,
             };
         }

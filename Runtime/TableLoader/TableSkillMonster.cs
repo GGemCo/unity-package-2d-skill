@@ -11,7 +11,6 @@ namespace GGemCo2DSkill
     {
         public int Uid { get; set; }
         public string Name { get; set; }
-        public string Memo;
         public string SoFileName;
 
         /// <summary>스킬 분류(Active/Passive)</summary>
@@ -64,8 +63,7 @@ namespace GGemCo2DSkill
             return new StruckTableSkillMonster
             {
                 Uid = uid,
-                Name = data.GetValueOrDefault("Name", data.GetValueOrDefault("Memo")),
-                Memo = data["Memo"],
+                Name = data.GetValueOrDefault("Name", ""),
                 SoFileName = data["SoFileName"],
                 SkillKind = ConfigCommonSkill.SkillKind.Active,
                 CastTime = MathHelper.ParseFloat(data["CastTime"]),
