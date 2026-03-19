@@ -308,6 +308,11 @@ namespace GGemCo2DSkillEditor
                         def.durationOverrideSeconds = lunge.DurationOverrideSeconds;
                         def.easing = lunge.Easing;
 
+                        def.resolveMode = lunge.ResolveMode;
+                        def.targetResolveRange = lunge.TargetResolveRange;
+                        def.stopOffset = Mathf.Max(0f, lunge.StopOffset);
+                        def.horizontalOnly = lunge.HorizontalOnly;
+
                         def.invertForward = lunge.InvertForward;
 
                         def.useArcMotion = lunge.UseArcMotion;

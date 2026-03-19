@@ -26,6 +26,19 @@ namespace GGemCo2DSkillEditor
         [Tooltip("시간 진행에 따른 거리 보간 방식. Linear, EaseIn, EaseOut 등 이동 감속/가속 패턴을 제어합니다.")]
         [SerializeField] private Easing.EaseType easing = GGemCo2DCore.Easing.EaseType.Linear;
 
+        [Header("Resolve")]
+        [Tooltip("고정 거리 / 타겟 추적 중 어떤 방식으로 실제 이동 거리를 계산할지 결정합니다.")]
+        [SerializeField] private GGemCo2DSkill.SkillLungeResolveMode resolveMode = GGemCo2DSkill.SkillLungeResolveMode.FixedDistance;
+
+        [Tooltip("타겟 추적 허용 최대 거리입니다. 0 이하이면 스킬 CastRange를 사용합니다.")]
+        [SerializeField] private float targetResolveRange = -1f;
+
+        [Tooltip("타겟 중심에 완전히 겹치지 않도록 남길 거리입니다.")]
+        [SerializeField] private float stopOffset = 0.2f;
+
+        [Tooltip("체크 시 X축 기준으로만 타겟 접근 거리를 계산합니다.")]
+        [SerializeField] private bool horizontalOnly = true;
+
         [Header("Direction")]
         [Tooltip("체크 시 현재 Forward 방향의 반대로 이동합니다. (뒤로 회피/백스텝 구현용)")]
         [SerializeField] private bool invertForward = false;
@@ -71,6 +84,26 @@ namespace GGemCo2DSkillEditor
         /// 이동 진행 시 적용되는 보간(Easing) 방식입니다.
         /// </summary>
         public Easing.EaseType Easing => easing;
+
+        /// <summary>
+        /// 실제 이동 거리 계산 방식입니다.
+        /// </summary>
+        public GGemCo2DSkill.SkillLungeResolveMode ResolveMode => resolveMode;
+
+        /// <summary>
+        /// 타겟 추적 허용 최대 거리입니다. 0 이하이면 스킬 CastRange를 사용합니다.
+        /// </summary>
+        public float TargetResolveRange => targetResolveRange;
+
+        /// <summary>
+        /// 타겟 중심에 완전히 겹치지 않도록 남길 거리입니다.
+        /// </summary>
+        public float StopOffset => stopOffset;
+
+        /// <summary>
+        /// X축 기준으로만 타겟 접근 거리를 계산할지 여부입니다.
+        /// </summary>
+        public bool HorizontalOnly => horizontalOnly;
 
         /// <summary>
         /// 이동 방향을 Forward의 반대로 뒤집을지 여부입니다.
