@@ -126,10 +126,7 @@ namespace GGemCo2DSkill
                 if (skillRow == null) continue;
                 if (skillRow.SkillKind != ConfigCommonSkill.SkillKind.Passive) continue;
 
-                var groupUid = skillRow.OptionGroupUid;
-                if (groupUid <= 0) continue;
-
-                var options = tableOption.GetOptions(groupUid, level);
+                var options = tableOption.GetOptions(skillRow.Uid, level);
                 if (options == null || options.Count == 0) continue;
 
                 for (int i = 0; i < options.Count; i++)

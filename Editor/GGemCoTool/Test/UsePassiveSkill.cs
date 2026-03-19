@@ -116,7 +116,7 @@ namespace GGemCo2DSkillEditor
                         return;
                     }
 
-                    string currentText = _selectedData != null ? _selectedData.Memo : "선택...";
+                    string currentText = _selectedData != null ? $"{_selectedData.Uid} | {_selectedData.Name}" : "선택...";
                     int selectIndex = _selectedData?.Uid ?? 0;
 
                     SearchableDropdownUtility.DrawButtonAndShow(
@@ -176,7 +176,7 @@ namespace GGemCo2DSkillEditor
                 {
                     var uid = kv.Key;
                     var row = _tableSkillPassive?.GetDataByUid(uid);
-                    var skillName =  row?.Memo ?? "(Unknown)";
+                    var skillName =  row?.Name ?? "(Unknown)";
                     using (new EditorGUILayout.HorizontalScope())
                     {
                         EditorGUILayout.LabelField($"{uid}  {skillName}", GUILayout.MinWidth(240));
@@ -218,16 +218,10 @@ namespace GGemCo2DSkillEditor
                     return;
                 }
 
-                if (_selectedData.OptionGroupUid <= 0)
-                {
-                    EditorGUILayout.HelpBox("OptionGroupUid가 비어 있습니다. (skill_option 테이블과 연결되지 않음)", MessageType.Info);
-                    return;
-                }
-
-                var options = _tableSkillPassiveOption?.GetOptions(_selectedData.OptionGroupUid, Mathf.Max(1, _equipLevel));
+                var options = _tableSkillPassiveOption?.GetOptions(_selectedData.Uid, Mathf.Max(1, _equipLevel));
                 if (options == null || options.Count == 0)
                 {
-                    EditorGUILayout.HelpBox("해당 레벨의 옵션이 없습니다. (Level=0 옵션만 있거나 데이터 누락)", MessageType.Info);
+                    EditorGUILayout.HelpBox("해당 패시브/레벨에 연결된 옵션이 없습니다. (Level=0 공통 옵션 포함)", MessageType.Info);
                     return;
                 }
 
@@ -325,7 +319,7 @@ namespace GGemCo2DSkillEditor
                 targetOptions: _dropDownOptions,
                 isValidRow: row => row.Uid > 0,
                 keySelector: row => row.Uid.ToString(),
-                valueSelector: row => row.Memo,
+                valueSelector: row => row.Name,
                 assignSelected: row => _selectedData = row);
         }
 

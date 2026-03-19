@@ -60,8 +60,8 @@ namespace GGemCo2DSkillEditor
         {
             switch (headerName)
             {
-                case "OptionGroupUid":
-                    return TableEditorRegistry.FindByKey(ConfigAddressableTableSkill.SkillPassiveOption);
+                case "SkillPassiveUid":
+                    return TableEditorRegistry.FindByKey(ConfigAddressableTableSkill.SkillPassive);
                 case "ApplyAffectUid":
                 case "AffectUid":
                     return TableEditorRegistry.FindByKey("affect");
