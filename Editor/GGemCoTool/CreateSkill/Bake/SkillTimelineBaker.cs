@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using GGemCo2DSkill;
@@ -315,8 +315,6 @@ namespace GGemCo2DSkillEditor
                         def.targetResolveRange = lunge.TargetResolveRange;
                         def.stopOffset = Mathf.Max(0f, lunge.StopOffset);
                         def.horizontalOnly = lunge.HorizontalOnly;
-                        def.targetAnchorMode = lunge.TargetAnchorMode;
-                        def.targetAnchorOffset = lunge.TargetAnchorOffset;
 
                         def.invertForward = lunge.InvertForward;
 
@@ -325,12 +323,9 @@ namespace GGemCo2DSkillEditor
                         def.arcMode = lunge.ArcMode;
                         def.arcRiseEase = lunge.ArcRiseEase;
                         def.arcFallEase = lunge.ArcFallEase;
-                        def.arcApexHoldNormalized = Mathf.Clamp01(lunge.ArcApexHoldNormalized);
-
-                        def.endYMode = lunge.EndYMode;
-                        def.endYOffset = lunge.EndYOffset;
-                        def.groundProbeHeight = Mathf.Max(0.1f, lunge.GroundProbeHeight);
-                        def.groundProbeDistance = Mathf.Max(0.1f, lunge.GroundProbeDistance);
+                        def.arcRiseRatioNormalized = Mathf.Max(0f, lunge.ArcRiseRatioNormalized);
+                        def.arcApexHoldNormalized = Mathf.Max(0f, lunge.ArcApexHoldNormalized);
+                        def.arcFallRatioNormalized = Mathf.Max(0f, lunge.ArcFallRatioNormalized);
 
                         def.stopAtEnd = lunge.StopAtEnd;
                         def.useMovePosition = lunge.UseMovePosition;

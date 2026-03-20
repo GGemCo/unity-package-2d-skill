@@ -246,6 +246,7 @@ namespace GGemCo2DSkill
             if (payloadObj is not LungeEventDefinition def) return;
             if (ctx.caster == null) return;
 
+            // 모션 컨트롤러는 캐릭터(플레이어/몬스터) 공용 컴포넌트에서 제공한다.
             var motion = ctx.caster.GetComponentInParent<ICharacterMotionController>();
             if (motion == null) return;
 
@@ -256,8 +257,25 @@ namespace GGemCo2DSkill
                 ? new Vector2(ResolveForward2D(ctx.caster, ctx.forward).x, ResolveForward2D(ctx.caster, ctx.forward).y)
                 : ResolveCurrentFacing2D(ctx.caster);
 
-            if (!TryResolveLungeMotion(skill, ctx, def, fallbackDirection, out var resolvedDirection, out float resolvedDistance))
+            if (TryResolveLungeMotion(skill, ctx, def, fallbackDirection, out var resolvedDirection, out float resolvedDistance) == false)
                 return;
+
+            if (def.invertForward)
+                resolvedDirection = -resolvedDirection;
+
+            if (Mathf.Abs(resolvedDirection.x) < 1e-4f && def.horizontalOnly)
+            {
+                float sign = Mathf.Sign(ctx.caster.transform.localScale.x);
+                if (Mathf.Approximately(sign, 0f))
+                    sign = 1f;
+
+                resolvedDirection = new Vector2(sign, 0f);
+            }
+
+            if (def.horizontalOnly)
+                resolvedDirection = new Vector2(Mathf.Sign(resolvedDirection.x), 0f);
+            else if (resolvedDirection.sqrMagnitude > 1e-6f)
+                resolvedDirection.Normalize();
 
             if (resolvedDistance <= 0f)
                 return;
@@ -271,15 +289,17 @@ namespace GGemCo2DSkill
                 duration,
                 resolvedDistance,
                 def.easing,
-                stopAtEnd: def.stopAtEnd,
-                useMovePosition: def.useMovePosition,
-                allowReplace: def.allowReplace,
-                holdSecondsAfter: 0f,
                 arcHeight: def.useArcMotion ? def.arcHeight : 0f,
                 arcMode: def.arcMode,
                 arcRiseEaseType: def.arcRiseEase,
                 arcFallEaseType: def.arcFallEase,
-                arcApexHoldNormalized: def.arcApexHoldNormalized);
+                arcApexHoldNormalized: def.arcApexHoldNormalized,
+                arcRiseRatioNormalized: def.arcRiseRatioNormalized,
+                arcFallRatioNormalized: def.arcFallRatioNormalized,
+                holdSecondsAfter: 0f,
+                stopAtEnd: def.stopAtEnd,
+                useMovePosition: def.useMovePosition,
+                allowReplace: def.allowReplace);
 
             motion.TryStartMotion(in req);
         }
@@ -293,244 +313,63 @@ namespace GGemCo2DSkill
             out float resolvedDistance)
         {
             resolvedDirection = fallbackDirection;
-            resolvedDistance = 0f;
-
-            if (ctx.caster == null)
-                return false;
-
-            if (!TryResolveLungeEndPosition(skill, ctx, def, fallbackDirection, out var endPosition))
-                return false;
-
-            Vector2 delta = endPosition - (Vector2)ctx.caster.transform.position;
-            if (delta.sqrMagnitude <= 1e-6f)
-                return false;
-
-            resolvedDirection = delta.normalized;
-            resolvedDistance = delta.magnitude;
-            return true;
-        }
-
-        private static bool TryResolveLungeEndPosition(
-            RuntimeSkillDefinition skill,
-            SkillTargetContext ctx,
-            LungeEventDefinition def,
-            Vector2 fallbackDirection,
-            out Vector2 endPosition)
-        {
-            endPosition = default;
-            Vector2 casterPosition = ctx.caster != null ? (Vector2)ctx.caster.transform.position : Vector2.zero;
-
-            Vector2 rawEndPosition;
-            Vector2? targetAnchorPosition = null;
+            resolvedDistance = Mathf.Max(0f, def.distance);
 
             switch (def.resolveMode)
             {
                 case SkillLungeResolveMode.FixedDistance:
-                    if (!EnsureFallbackDirection(ctx, def, ref fallbackDirection))
-                        return false;
-
-                    if (def.invertForward)
-                        fallbackDirection = -fallbackDirection;
-
-                    rawEndPosition = casterPosition + fallbackDirection * Mathf.Max(0f, def.distance);
-                    break;
+                    return EnsureFallbackDirection(ctx, def, ref resolvedDirection);
 
                 case SkillLungeResolveMode.ToLockedTarget:
-                    if (!TryResolveLockedTargetEndPosition(skill, ctx, def, fallbackDirection, false, false, out rawEndPosition, out targetAnchorPosition))
-                        return false;
-                    break;
+                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: false, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
 
                 case SkillLungeResolveMode.ToLockedTargetIfWithinResolveRange:
-                    if (!TryResolveLockedTargetEndPosition(skill, ctx, def, fallbackDirection, true, false, out rawEndPosition, out targetAnchorPosition))
-                        return false;
-                    break;
+                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
 
                 case SkillLungeResolveMode.ToLockedTargetElseFixedDistance:
-                    if (!TryResolveLockedTargetEndPosition(skill, ctx, def, fallbackDirection, true, true, out rawEndPosition, out targetAnchorPosition))
-                        return false;
-                    break;
+                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: true, out resolvedDirection, out resolvedDistance);
 
                 default:
-                    return false;
+                    return EnsureFallbackDirection(ctx, def, ref resolvedDirection);
             }
-
-            endPosition = ResolveFinalLungeEndPosition(ctx, def, casterPosition, rawEndPosition, targetAnchorPosition);
-            return true;
         }
 
-        private static bool TryResolveLockedTargetEndPosition(
+        private static bool TryResolveLockedTargetMotion(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             LungeEventDefinition def,
             Vector2 fallbackDirection,
             bool requireWithinResolveRange,
             bool fallbackToFixedDistance,
-            out Vector2 rawEndPosition,
-            out Vector2? targetAnchorPosition)
+            out Vector2 resolvedDirection,
+            out float resolvedDistance)
         {
-            rawEndPosition = default;
-            targetAnchorPosition = null;
+            resolvedDirection = fallbackDirection;
+            resolvedDistance = Mathf.Max(0f, def.distance);
 
             if (ctx.caster == null || ctx.lockedTarget == null)
-            {
-                if (!fallbackToFixedDistance || !EnsureFallbackDirection(ctx, def, ref fallbackDirection))
-                    return false;
+                return fallbackToFixedDistance && EnsureFallbackDirection(ctx, def, ref resolvedDirection);
 
-                if (def.invertForward)
-                    fallbackDirection = -fallbackDirection;
-
-                rawEndPosition = (Vector2)ctx.caster.transform.position + fallbackDirection * Mathf.Max(0f, def.distance);
-                return true;
-            }
-
-            Vector2 casterPosition = ctx.caster.transform.position;
-            Vector2 anchorPosition = ResolveTargetAnchorPosition(ctx.lockedTarget, def);
-            targetAnchorPosition = anchorPosition;
-
-            Vector2 delta = ResolveCasterToTargetDelta(casterPosition, anchorPosition, def.horizontalOnly);
+            Vector2 delta = ResolveCasterToTargetDelta(ctx.caster.transform.position, ctx.lockedTarget.transform.position, def.horizontalOnly);
             float targetDistance = delta.magnitude;
             float resolveRange = ResolveTargetResolveRange(skill, def);
 
             bool withinResolveRange = !requireWithinResolveRange || resolveRange <= 0f || targetDistance <= resolveRange;
             if (!withinResolveRange)
-            {
-                if (!fallbackToFixedDistance || !EnsureFallbackDirection(ctx, def, ref fallbackDirection))
-                    return false;
-
-                if (def.invertForward)
-                    fallbackDirection = -fallbackDirection;
-
-                rawEndPosition = casterPosition + fallbackDirection * Mathf.Max(0f, def.distance);
-                return true;
-            }
+                return fallbackToFixedDistance && EnsureFallbackDirection(ctx, def, ref resolvedDirection);
 
             if (targetDistance <= 1e-4f)
+            {
+                resolvedDistance = 0f;
                 return false;
+            }
 
-            Vector2 direction = delta / targetDistance;
+            resolvedDirection = delta / targetDistance;
             if (def.horizontalOnly)
-                direction = new Vector2(Mathf.Sign(direction.x), 0f);
+                resolvedDirection = new Vector2(Mathf.Sign(resolvedDirection.x), 0f);
 
-            if (def.invertForward)
-                direction = -direction;
-
-            float distance = Mathf.Max(0f, targetDistance - Mathf.Max(0f, def.stopOffset));
-            rawEndPosition = casterPosition + direction * distance;
-            return distance > 0f;
-        }
-
-        private static Vector2 ResolveFinalLungeEndPosition(
-            SkillTargetContext ctx,
-            LungeEventDefinition def,
-            Vector2 casterPosition,
-            Vector2 rawEndPosition,
-            Vector2? targetAnchorPosition)
-        {
-            switch (def.endYMode)
-            {
-                case SkillLungeEndYMode.KeepCasterY:
-                    return new Vector2(rawEndPosition.x, casterPosition.y + def.endYOffset);
-
-                case SkillLungeEndYMode.MatchTargetAnchorY:
-                {
-                    float targetY = targetAnchorPosition.HasValue ? targetAnchorPosition.Value.y : rawEndPosition.y;
-                    return new Vector2(rawEndPosition.x, targetY + def.endYOffset);
-                }
-
-                case SkillLungeEndYMode.GroundAtEndX:
-                {
-                    float fallbackY = targetAnchorPosition.HasValue ? targetAnchorPosition.Value.y : casterPosition.y;
-                    float groundY = ResolveGroundYAtEndX(def, rawEndPosition, fallbackY);
-                    return new Vector2(rawEndPosition.x, groundY + def.endYOffset);
-                }
-
-                case SkillLungeEndYMode.None:
-                default:
-                    return rawEndPosition;
-            }
-        }
-
-        private static float ResolveGroundYAtEndX(LungeEventDefinition def, Vector2 rawEndPosition, float fallbackY)
-        {
-            int groundMask = GetGroundProbeMask();
-            if (groundMask == 0)
-                return fallbackY;
-
-            float probeHeight = Mathf.Max(0.1f, def.groundProbeHeight);
-            float probeDistance = Mathf.Max(probeHeight + 0.1f, def.groundProbeDistance);
-            float originY = Mathf.Max(rawEndPosition.y, fallbackY) + probeHeight;
-            Vector2 origin = new Vector2(rawEndPosition.x, originY);
-            var hit = Physics2D.Raycast(origin, Vector2.down, probeDistance, groundMask);
-            if (hit.collider != null)
-                return hit.point.y;
-
-            return fallbackY;
-        }
-
-        private static int GetGroundProbeMask()
-        {
-            int mask = 0;
-            mask |= LayerMask.GetMask(ConfigLayer.GetValue(ConfigLayer.Keys.TileMapGround));
-            mask |= LayerMask.GetMask(ConfigLayer.GetValue(ConfigLayer.Keys.TileMapOneWayPlatform));
-            return mask;
-        }
-
-        private static Vector2 ResolveTargetAnchorPosition(GameObject lockedTarget, LungeEventDefinition def)
-        {
-            if (lockedTarget == null)
-                return Vector2.zero;
-
-            Vector2 anchorPosition = lockedTarget.transform.position;
-            Bounds? bounds = TryResolveTargetBounds(lockedTarget);
-
-            switch (def.targetAnchorMode)
-            {
-                case SkillLungeTargetAnchorMode.HitAreaCenter:
-                    if (bounds.HasValue)
-                    {
-                        var center = bounds.Value.center;
-                        anchorPosition = new Vector2(center.x, center.y);
-                    }
-                    break;
-
-                case SkillLungeTargetAnchorMode.Feet:
-                    if (bounds.HasValue)
-                    {
-                        var b = bounds.Value;
-                        anchorPosition = new Vector2(b.center.x, b.min.y);
-                    }
-                    break;
-
-                case SkillLungeTargetAnchorMode.TargetTransform:
-                default:
-                    break;
-            }
-
-            return anchorPosition + def.targetAnchorOffset;
-        }
-
-        private static Bounds? TryResolveTargetBounds(GameObject lockedTarget)
-        {
-            if (lockedTarget == null)
-                return null;
-
-            var character = lockedTarget.GetComponent<CharacterBase>();
-            if (character != null && character.colliderHitArea != null)
-                return character.colliderHitArea.bounds;
-
-            var hitArea = lockedTarget.GetComponentInChildren<CharacterHitArea>();
-            if (hitArea != null)
-            {
-                var hitCollider = hitArea.GetComponent<Collider2D>();
-                if (hitCollider != null)
-                    return hitCollider.bounds;
-            }
-
-            var collider2D = lockedTarget.GetComponentInChildren<Collider2D>();
-            if (collider2D != null)
-                return collider2D.bounds;
-
-            return null;
+            resolvedDistance = Mathf.Max(0f, targetDistance - Mathf.Max(0f, def.stopOffset));
+            return resolvedDistance > 0f;
         }
 
         private static bool EnsureFallbackDirection(SkillTargetContext ctx, LungeEventDefinition def, ref Vector2 direction)
@@ -581,12 +420,12 @@ namespace GGemCo2DSkill
             return Mathf.Max(0f, def.distance);
         }
 
-        private static Vector2 ResolveCasterToTargetDelta(Vector2 casterPosition, Vector2 targetPosition, bool horizontalOnly)
+        private static Vector2 ResolveCasterToTargetDelta(Vector3 casterPosition, Vector3 targetPosition, bool horizontalOnly)
         {
             if (horizontalOnly)
                 return new Vector2(targetPosition.x - casterPosition.x, 0f);
 
-            return targetPosition - casterPosition;
+            return new Vector2(targetPosition.x - casterPosition.x, targetPosition.y - casterPosition.y);
         }
 
         /// <summary>
