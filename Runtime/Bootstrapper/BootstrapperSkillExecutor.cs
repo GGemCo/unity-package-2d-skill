@@ -75,6 +75,10 @@ namespace GGemCo2DSkill
                 if (playerSkillDriverAdapter == null)
                     playerSkillDriverAdapter = ch.gameObject.AddComponent<PlayerSkillDriverAdapter>();
 
+                var playerLockedTargetProvider = ch.gameObject.GetComponent<PlayerLockedTargetProvider>();
+                if (playerLockedTargetProvider == null)
+                    ch.gameObject.AddComponent<PlayerLockedTargetProvider>();
+
                 var playerSkillTargetingProvider = ch.gameObject.GetComponent<PlayerSkillTargetingProvider>();
                 if (playerSkillTargetingProvider == null)
                     ch.gameObject.AddComponent<PlayerSkillTargetingProvider>();
