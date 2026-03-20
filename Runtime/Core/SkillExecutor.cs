@@ -181,6 +181,34 @@ namespace GGemCo2DSkill
             }
         }
         
+        private static bool TryResolveEffectDuration(EffectEventDefinition def, out float duration)
+        {
+            duration = 0f;
+            if (def == null)
+                return false;
+
+            switch (def.lifetimeMode)
+            {
+                case EffectLifetimeMode.UseEffectDefault:
+                    return false;
+
+                case EffectLifetimeMode.OneShot:
+                    duration = 0f;
+                    return true;
+
+                case EffectLifetimeMode.FixedDuration:
+                    duration = Mathf.Max(0f, def.lifetimeSeconds);
+                    return true;
+
+                case EffectLifetimeMode.Infinite:
+                    duration = -1f;
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+
         private static Vector2 ResolveCurrentFacing2D(GameObject caster)
         {
             if (caster == null)
@@ -744,9 +772,8 @@ namespace GGemCo2DSkill
             // 2) 폴백: 프리팹 직접 Instantiate
             if (effect == null) return;
 
-            // lifetimeSeconds가 지정되면 Core DefaultEffect의 duration을 사용
-            if (def.lifetimeSeconds > 0f)
-                effect.SetDuration(def.lifetimeSeconds);
+            if (TryResolveEffectDuration(def, out float effectDuration))
+                effect.SetDuration(effectDuration);
 
             if (def.attachToTarget && ctx.lockedTarget != null)
             {

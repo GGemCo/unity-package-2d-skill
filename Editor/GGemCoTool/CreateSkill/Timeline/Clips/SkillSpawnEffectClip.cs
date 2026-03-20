@@ -1,5 +1,6 @@
 using System;
 using Config;
+using GGemCo2DSkill;
 using UnityEngine;
 
 namespace GGemCo2DSkillEditor
@@ -46,6 +47,15 @@ namespace GGemCo2DSkillEditor
         [Tooltip("기준 위치로부터 적용할 로컬 오프셋입니다.")]
         [SerializeField] private Vector2 offset;
 
+        [Header("Lifetime")]
+
+        [Tooltip("이펙트 지속시간 해석 정책입니다.")]
+        [SerializeField] private EffectLifetimeMode lifetimeMode = EffectLifetimeMode.FixedDuration;
+
+        [Tooltip("FixedDuration일 때 사용할 유지 시간(초)입니다.")]
+        [Min(0f)]
+        [SerializeField] private float lifetimeSeconds = 2f;
+
         /// <summary>
         /// 이 클립이 생성하는 스킬 이벤트 유형입니다.
         /// </summary>
@@ -68,5 +78,15 @@ namespace GGemCo2DSkillEditor
         /// 기준 위치에 적용할 이펙트 오프셋을 반환합니다.
         /// </summary>
         public Vector2 Offset => offset;
+
+        /// <summary>
+        /// 이펙트 지속시간 정책을 반환합니다.
+        /// </summary>
+        public EffectLifetimeMode LifetimeMode => lifetimeMode;
+
+        /// <summary>
+        /// 이펙트 유지 시간을 반환합니다.
+        /// </summary>
+        public float LifetimeSeconds => lifetimeSeconds;
     }
 }

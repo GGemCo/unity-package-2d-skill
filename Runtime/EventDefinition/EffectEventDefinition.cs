@@ -2,11 +2,40 @@
 
 namespace GGemCo2DSkill
 {
+    /// <summary>
+    /// 스킬 이벤트로 생성되는 이펙트의 지속시간 정책입니다.
+    /// </summary>
+    public enum EffectLifetimeMode
+    {
+        /// <summary>
+        /// 이펙트 프리팹/애니메이션의 기본 재생 정책을 그대로 사용합니다.
+        /// 런타임에서 별도의 duration override를 적용하지 않습니다.
+        /// </summary>
+        UseEffectDefault = 0,
+
+        /// <summary>
+        /// Start/Play/End를 1회 재생하는 기본 one-shot 방식입니다.
+        /// </summary>
+        OneShot = 1,
+
+        /// <summary>
+        /// 지정한 시간 동안 유지되도록 재생합니다.
+        /// </summary>
+        FixedDuration = 2,
+
+        /// <summary>
+        /// 종료 요청 전까지 무한 재생합니다.
+        /// </summary>
+        Infinite = 3
+    }
+
     public sealed class EffectEventDefinition : ScriptableObject
     {
         [Header("Effect")]
         public int effectUid;
-        // public GameObject prefab;
+
+        [Header("Lifetime")]
+        public EffectLifetimeMode lifetimeMode = EffectLifetimeMode.FixedDuration;
         public float lifetimeSeconds = 2f;
 
         [Header("Spawn Rule")]
@@ -15,6 +44,5 @@ namespace GGemCo2DSkill
 
         [Header("Overrides")]
         public TargetingOverride targetingOverride; // 타겟/지점 중심을 이벤트별로 바꿀 수 있음
-
     }
 }

@@ -287,6 +287,8 @@ namespace GGemCo2DSkillEditor
                         def.effectUid = fx.EffectUid;
                         def.attachToTarget = fx.Anchor == (int)SkillSpawnEffectClip.AnchorType.Target;
                         def.localOffset = new Vector3(fx.Offset.x, fx.Offset.y, 0f);
+                        def.lifetimeMode = fx.LifetimeMode;
+                        def.lifetimeSeconds = fx.LifetimeSeconds;
                         return def;
                     };
 
