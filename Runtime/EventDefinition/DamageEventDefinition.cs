@@ -19,6 +19,9 @@ namespace GGemCo2DSkill
         [Header("OnHit Affect")]
         public OnHitAffectEntry[] onHitAffects;
 
+        [Header("OnHit Crowd Control")]
+        public OnHitCrowdControlEntry[] onHitCrowdControls;
+
         [Header("Overrides")]
         public TargetingOverride targetingOverride;
         public AreaOverride areaOverride;

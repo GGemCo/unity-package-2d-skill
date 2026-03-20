@@ -100,6 +100,13 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private OnHitAffectEntry[] onHitAffects;
 
         /// <summary>
+        /// 적중 시 대상(Target)에게 적용되는 Crowd Control 목록입니다.
+        /// 실제 적용은 데미지 파이프라인을 통해 처리됩니다.
+        /// </summary>
+        [Header("OnHit Crowd Control (Target)")]
+        [SerializeField] private OnHitCrowdControlEntry[] onHitCrowdControls;
+
+        /// <summary>
         /// 이 클립의 이벤트 타입을 반환합니다.
         /// </summary>
         /// <returns>데미지 이벤트 타입입니다.</returns>
@@ -154,5 +161,10 @@ namespace GGemCo2DSkillEditor
         /// 적중 시 적용될 추가 효과 목록을 반환합니다.
         /// </summary>
         public OnHitAffectEntry[] OnHitAffects => onHitAffects;
+
+        /// <summary>
+        /// 적중 시 적용될 Crowd Control 목록을 반환합니다.
+        /// </summary>
+        public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
     }
 }

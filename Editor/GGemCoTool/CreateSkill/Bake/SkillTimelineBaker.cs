@@ -277,6 +277,7 @@ namespace GGemCo2DSkillEditor
 
                         // OnHit Affect(피격 대상)
                         def.onHitAffects = dmg.OnHitAffects;
+                        def.onHitCrowdControls = dmg.OnHitCrowdControls;
                         return def;
                     };
 
