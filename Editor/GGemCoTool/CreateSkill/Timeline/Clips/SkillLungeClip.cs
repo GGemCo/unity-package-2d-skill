@@ -11,7 +11,7 @@ namespace GGemCo2DSkillEditor
     /// 실제 스킬 실행 시스템에서 사용됩니다.
     /// 
     /// 이동은 속도 기반이 아니라 총 이동 거리(Distance) 기반으로 설계되며
-    /// 필요 시 아크(Arc) 모션을 사용해 점프형 이동을 표현할 수 있습니다.
+    /// 필요 시 아크(Arc) 모션을 사용해 점프형 이동, 공중 추적(Air Chase)을 표현할 수 있습니다.
     /// </summary>
     [Serializable]
     public sealed class SkillLungeClip : SkillEventClipBase
@@ -39,16 +39,49 @@ namespace GGemCo2DSkillEditor
         [Tooltip("체크 시 X축 기준으로만 타겟 접근 거리를 계산합니다.")]
         [SerializeField] private bool horizontalOnly = true;
 
+        [Header("Target Anchor")]
+        [Tooltip("타겟 추적 시 어떤 기준점을 향해 이동할지 결정합니다.")]
+        [SerializeField] private GGemCo2DSkill.SkillLungeTargetAnchorMode targetAnchorMode = GGemCo2DSkill.SkillLungeTargetAnchorMode.TargetTransform;
+
+        [Tooltip("타겟 기준점에 추가로 더할 오프셋입니다.")]
+        [SerializeField] private Vector2 targetAnchorOffset = Vector2.zero;
+
         [Header("Direction")]
         [Tooltip("체크 시 현재 Forward 방향의 반대로 이동합니다. (뒤로 회피/백스텝 구현용)")]
         [SerializeField] private bool invertForward = false;
 
         [Header("Arc")]
-        [Tooltip("활성화 시 수직 아크 모션을 추가합니다. 점프형 회피/도약 이동에 사용됩니다.")]
+        [Tooltip("활성화 시 수직 아크 모션을 추가합니다. 점프형 회피/도약 이동, 공중 추적에 사용됩니다.")]
         [SerializeField] private bool useArcMotion = false;
 
         [Tooltip("아크의 최고 높이(월드 유닛). useArcMotion이 활성화되어야 적용됩니다.")]
         [SerializeField] private float arcHeight = 0f;
+
+        [Tooltip("Arc 구현 모드입니다. Air Chase는 DistancePhased 권장입니다.")]
+        [SerializeField] private MotionArcMode arcMode = MotionArcMode.LegacyTimeSine;
+
+        [Tooltip("DistancePhased Arc에서 상승 구간 easing입니다.")]
+        [SerializeField] private Easing.EaseType arcRiseEase = GGemCo2DCore.Easing.EaseType.EaseOutQuad;
+
+        [Tooltip("DistancePhased Arc에서 하강 구간 easing입니다.")]
+        [SerializeField] private Easing.EaseType arcFallEase = GGemCo2DCore.Easing.EaseType.EaseInQuad;
+
+        [Range(0f, 1f)]
+        [Tooltip("정점 유지 구간 폭(정규화 0..1). 0이면 즉시 하강합니다.")]
+        [SerializeField] private float arcApexHoldNormalized = 0f;
+
+        [Header("End Position")]
+        [Tooltip("이동 종료 시 Y 좌표를 어떻게 보정할지 결정합니다.")]
+        [SerializeField] private GGemCo2DSkill.SkillLungeEndYMode endYMode = GGemCo2DSkill.SkillLungeEndYMode.None;
+
+        [Tooltip("EndYMode 적용 후 추가 Y 오프셋입니다.")]
+        [SerializeField] private float endYOffset = 0f;
+
+        [Tooltip("GroundAtEndX일 때 레이캐스트 시작 높이입니다.")]
+        [SerializeField] private float groundProbeHeight = 2f;
+
+        [Tooltip("GroundAtEndX일 때 아래 방향 탐색 거리입니다.")]
+        [SerializeField] private float groundProbeDistance = 8f;
 
         [Header("Rigidbody2D")]
         [Tooltip("모션 종료 시 Rigidbody2D의 속도를 0으로 초기화합니다.")]
@@ -64,80 +97,30 @@ namespace GGemCo2DSkillEditor
         [Tooltip("같은 채널의 기존 모션이 실행 중이어도 덮어쓰기를 허용합니다.")]
         [SerializeField] private bool allowReplace = false;
 
-        /// <summary>
-        /// 이 클립이 생성하는 스킬 이벤트 타입입니다.
-        /// </summary>
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.Lunge;
-
-        /// <summary>
-        /// 캐릭터가 이동할 총 거리(월드 유닛)입니다.
-        /// </summary>
         public float Distance => distance;
-
-        /// <summary>
-        /// 타임라인 클립 길이를 대신하여 사용할 이동 지속 시간(초)입니다.
-        /// 0 이하일 경우 타임라인 클립 길이를 사용합니다.
-        /// </summary>
         public float DurationOverrideSeconds => durationOverrideSeconds;
-
-        /// <summary>
-        /// 이동 진행 시 적용되는 보간(Easing) 방식입니다.
-        /// </summary>
         public Easing.EaseType Easing => easing;
-
-        /// <summary>
-        /// 실제 이동 거리 계산 방식입니다.
-        /// </summary>
         public GGemCo2DSkill.SkillLungeResolveMode ResolveMode => resolveMode;
-
-        /// <summary>
-        /// 타겟 추적 허용 최대 거리입니다. 0 이하이면 스킬 CastRange를 사용합니다.
-        /// </summary>
         public float TargetResolveRange => targetResolveRange;
-
-        /// <summary>
-        /// 타겟 중심에 완전히 겹치지 않도록 남길 거리입니다.
-        /// </summary>
         public float StopOffset => stopOffset;
-
-        /// <summary>
-        /// X축 기준으로만 타겟 접근 거리를 계산할지 여부입니다.
-        /// </summary>
         public bool HorizontalOnly => horizontalOnly;
-
-        /// <summary>
-        /// 이동 방향을 Forward의 반대로 뒤집을지 여부입니다.
-        /// </summary>
+        public GGemCo2DSkill.SkillLungeTargetAnchorMode TargetAnchorMode => targetAnchorMode;
+        public Vector2 TargetAnchorOffset => targetAnchorOffset;
         public bool InvertForward => invertForward;
-
-        /// <summary>
-        /// 이동 중 수직 아크 모션을 사용할지 여부입니다.
-        /// </summary>
         public bool UseArcMotion => useArcMotion;
-
-        /// <summary>
-        /// 아크 모션 사용 시 적용되는 최대 높이입니다.
-        /// </summary>
         public float ArcHeight => arcHeight;
-
-        /// <summary>
-        /// 이동 종료 시 Rigidbody2D의 속도를 0으로 초기화할지 여부입니다.
-        /// </summary>
+        public MotionArcMode ArcMode => arcMode;
+        public Easing.EaseType ArcRiseEase => arcRiseEase;
+        public Easing.EaseType ArcFallEase => arcFallEase;
+        public float ArcApexHoldNormalized => arcApexHoldNormalized;
+        public GGemCo2DSkill.SkillLungeEndYMode EndYMode => endYMode;
+        public float EndYOffset => endYOffset;
+        public float GroundProbeHeight => groundProbeHeight;
+        public float GroundProbeDistance => groundProbeDistance;
         public bool StopAtEnd => stopAtEnd;
-
-        /// <summary>
-        /// Rigidbody2D 이동 시 MovePosition을 사용할지 여부입니다.
-        /// </summary>
         public bool UseMovePosition => useMovePosition;
-
-        /// <summary>
-        /// 이동 시작 시점의 Forward 방향을 고정하여 사용할지 여부입니다.
-        /// </summary>
         public bool UseSnapshotForward => useSnapshotForward;
-
-        /// <summary>
-        /// 동일 채널에서 실행 중인 기존 모션을 덮어쓸 수 있는지 여부입니다.
-        /// </summary>
         public bool AllowReplace => allowReplace;
     }
 }
