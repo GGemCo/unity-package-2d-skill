@@ -102,7 +102,7 @@ namespace GGemCo2DSkillEditor
                 target.Forward,
                 _selectedSource);
             var result = driver.TryUseSkill(selectedUid, request);
-            ShowNotification(new GUIContent(result == GGemCo2DCore.SkillUseResult.Started ? "스킬 실행" : "스킬 실행 실패"));
+            ShowNotification(new GUIContent(result.IsStarted ? "스킬 실행" : "스킬 실행 실패"));
         }
 
         /// <summary>

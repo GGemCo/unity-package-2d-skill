@@ -86,7 +86,7 @@ namespace GGemCo2DSkill
         public SkillUseResult TryUseSkill(int skillUid, in SkillDriverRequest request)
         {
             if (request.Source != ConfigCommon.SkillTableSource.Monster)
-                return SkillUseResult.Rejected;
+                return SkillUseResult.Fail(SkillUseFailReason.InvalidSource);
 
             var target = new MonsterSkillTarget(request.LockedTarget, request.GroundPoint, request.Forward);
             return TryUseSkill(skillUid, target);
@@ -101,24 +101,24 @@ namespace GGemCo2DSkill
         /// <returns>스킬 실행이 시작되면 <see cref="SkillUseResult.Started"/>, 실행할 수 없으면 <see cref="SkillUseResult.Rejected"/>를 반환합니다.</returns>
         public SkillUseResult TryUseSkill(int skillUid, in MonsterSkillTarget target)
         {
-            if (_executor == null) return SkillUseResult.Rejected;
-            if (skillUid <= 0) return SkillUseResult.Rejected;
+            if (_executor == null) return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
+            if (skillUid <= 0) return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
 
             // 동시 실행은 허용하지 않으므로 이미 실행 중이면 거부합니다.
-            if (_executor.IsBusy) return SkillUseResult.Rejected;
+            if (_executor.IsBusy) return SkillUseResult.Fail(SkillUseFailReason.Busy);
 
             // 스킬 UID 기준 내부 쿨다운이 남아 있으면 사용을 거부합니다.
             if (_cooldownReadyAt.TryGetValue(skillUid, out float readyAt) && Time.time < readyAt)
-                return SkillUseResult.Rejected;
+                return SkillUseResult.Fail(SkillUseFailReason.Cooldown);
 
             // 몬스터 스킬 정의를 조회할 수 없으면 실행하지 않습니다.
             if (!SkillDefinitionResolver.TryResolve(skillUid, ConfigCommon.SkillTableSource.Monster, out var skill) || skill == null)
-                return SkillUseResult.Rejected;
+                return SkillUseResult.Fail(SkillUseFailReason.InvalidDefinition);
 
             // LockOnGuaranteedHit 모드는 잠금 대상이 반드시 필요합니다.
             var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
             if (mode == ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit && target.LockedTarget == null)
-                return SkillUseResult.Rejected;
+                return SkillUseResult.Fail(SkillUseFailReason.NoTarget);
 
             var ctx = new SkillTargetContext(
                 caster: gameObject,
@@ -128,12 +128,12 @@ namespace GGemCo2DSkill
             );
 
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
-                return SkillUseResult.Rejected;
+                return SkillUseResult.Fail(SkillUseFailReason.OutOfRange);
 
             ApplyPreSkillFacing(skill, in target);
 
             bool started = _executor.TryUse(skillUid, ctx, ConfigCommon.SkillTableSource.Monster);
-            if (!started) return SkillUseResult.Rejected;
+            if (!started) return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
 
             float cd = Mathf.Max(0f, skill.CoolTime);
             if (cd > 0f) _cooldownReadyAt[skillUid] = Time.time + cd;

@@ -26,13 +26,26 @@ namespace GGemCo2DSkill
         public bool TryBuildSkillRequest(GameObject caster, int skillUid, ConfigCommon.SkillTableSource source,
             out SkillDriverRequest request)
         {
+            return TryBuildSkillRequest(caster, skillUid, source, out request, out _);
+        }
+
+        public bool TryBuildSkillRequest(GameObject caster, int skillUid, ConfigCommon.SkillTableSource source,
+            out SkillDriverRequest request, out SkillUseFailReason failReason)
+        {
             request = default;
+            failReason = SkillUseFailReason.None;
 
             if (caster == null || skillUid <= 0)
+            {
+                failReason = SkillUseFailReason.InvalidInput;
                 return false;
+            }
 
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null)
+            {
+                failReason = SkillUseFailReason.InvalidDefinition;
                 return false;
+            }
 
             Vector2 forward = ResolveBaseForward(caster);
             var casterTransform = caster.transform;
@@ -91,7 +104,10 @@ namespace GGemCo2DSkill
                     if (lockedTarget == null || !IsTargetWithinCastRange(casterPosition, lockedTarget.position, castRange))
                     {
                         if (!TryFindSoftTarget(caster, forward, castRange, out var softTarget))
+                        {
+                            failReason = SkillUseFailReason.NoTarget;
                             return false;
+                        }
 
                         lockedTarget = softTarget.transform;
                     }
