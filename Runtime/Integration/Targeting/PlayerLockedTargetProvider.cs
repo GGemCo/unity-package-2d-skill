@@ -231,7 +231,6 @@ namespace GGemCo2DSkill
             var ownerPosition = (Vector2)transform.position;
             var forward = ResolveOwnerForward();
             float range = Mathf.Max(0.01f, searchRange);
-            float rangeSqr = range * range;
             float halfAngle = Mathf.Max(0f, searchConeAngle) * 0.5f;
             float cosThreshold = Mathf.Cos(halfAngle * Mathf.Deg2Rad);
 
@@ -243,11 +242,11 @@ namespace GGemCo2DSkill
                     continue;
 
                 Vector2 toTarget = (Vector2)candidate.transform.position - ownerPosition;
-                float distanceSqr = toTarget.sqrMagnitude;
-                if (distanceSqr <= 1e-6f || distanceSqr > rangeSqr)
+                float horizontalDistance = Mathf.Abs(toTarget.x);
+                if (horizontalDistance <= 1e-6f || horizontalDistance > range)
                     continue;
 
-                Vector2 directionToTarget = toTarget.normalized;
+                Vector2 directionToTarget = ResolveHorizontalDirection(toTarget, forward);
                 float alignment = Vector2.Dot(forward, directionToTarget);
                 if (alignment < cosThreshold)
                     continue;
@@ -279,20 +278,20 @@ namespace GGemCo2DSkill
             if (compare != 0)
                 return compare;
 
-            float distA = ((Vector2)a.transform.position - ownerPosition).sqrMagnitude;
-            float distB = ((Vector2)b.transform.position - ownerPosition).sqrMagnitude;
+            float distA = Mathf.Abs(a.transform.position.x - ownerPosition.x);
+            float distB = Mathf.Abs(b.transform.position.x - ownerPosition.x);
             return distA.CompareTo(distB);
         }
 
         private static float CalculateCandidateScore(Vector2 ownerPosition, Vector2 forward, CharacterBase candidate)
         {
             Vector2 toTarget = (Vector2)candidate.transform.position - ownerPosition;
-            float distance = Mathf.Sqrt(toTarget.sqrMagnitude);
-            if (distance < 1e-6f)
+            float horizontalDistance = Mathf.Abs(toTarget.x);
+            if (horizontalDistance < 1e-6f)
                 return float.MinValue;
 
-            float alignment = Vector2.Dot(forward, toTarget / distance);
-            return alignment * 1000f - distance;
+            float alignment = Vector2.Dot(forward, ResolveHorizontalDirection(toTarget, forward));
+            return alignment * 1000f - horizontalDistance;
         }
 
         private static float CalculateSignedAngle(Vector2 ownerPosition, Vector2 forward, Vector3 targetPosition)
@@ -301,7 +300,7 @@ namespace GGemCo2DSkill
             if (toTarget.sqrMagnitude < 1e-6f)
                 return 0f;
 
-            return Vector2.SignedAngle(forward, toTarget.normalized);
+            return Vector2.SignedAngle(forward, ResolveHorizontalDirection(toTarget, forward));
         }
 
         private bool IsValidTarget(Transform candidate)
@@ -339,8 +338,7 @@ namespace GGemCo2DSkill
             if (range <= 0f)
                 return true;
 
-            Vector2 delta = (Vector2)(target.position - transform.position);
-            return delta.sqrMagnitude <= range * range;
+            return Mathf.Abs(target.position.x - transform.position.x) <= range;
         }
 
         private bool IsWithinSearchCone(Vector3 targetPosition)
@@ -354,7 +352,7 @@ namespace GGemCo2DSkill
             if (toTarget.sqrMagnitude < 1e-6f)
                 return true;
 
-            float alignment = Vector2.Dot(forward, toTarget.normalized);
+            float alignment = Vector2.Dot(forward, ResolveHorizontalDirection(toTarget, forward));
             float cosThreshold = Mathf.Cos(halfAngle * Mathf.Deg2Rad);
             return alignment >= cosThreshold;
         }
@@ -370,6 +368,15 @@ namespace GGemCo2DSkill
 
             Vector3 right = transform.right;
             Vector2 fallback = new Vector2(right.x, right.y);
+            return fallback.sqrMagnitude < 1e-6f ? Vector2.right : fallback.normalized;
+        }
+
+        private static Vector2 ResolveHorizontalDirection(Vector2 toTarget, Vector2 fallback)
+        {
+            float sign = Mathf.Sign(toTarget.x);
+            if (Mathf.Abs(sign) > 1e-6f)
+                return new Vector2(sign, 0f);
+
             return fallback.sqrMagnitude < 1e-6f ? Vector2.right : fallback.normalized;
         }
 

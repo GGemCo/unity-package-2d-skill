@@ -101,7 +101,7 @@ namespace GGemCo2DSkill
                 case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
                 case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
                 {
-                    if (lockedTarget == null || !IsTargetWithinCastRange(casterPosition, lockedTarget.position, castRange))
+                    if (lockedTarget == null || !SkillRangeResolver.IsWithinCastRange(mode, casterPosition, lockedTarget.position, castRange))
                     {
                         if (!TryFindSoftTarget(caster, forward, castRange, out var softTarget))
                         {
@@ -212,7 +212,6 @@ namespace GGemCo2DSkill
 
             var casterCharacter = caster.GetComponent<CharacterBase>();
             float range = castRange > 0f ? castRange : defaultSoftTargetSearchRange;
-            float rangeSqr = range * range;
             float halfAngle = Mathf.Max(0f, softTargetConeAngle) * 0.5f;
             float cosThreshold = Mathf.Cos(halfAngle * Mathf.Deg2Rad);
             Vector2 origin = caster.transform.position;
@@ -227,17 +226,17 @@ namespace GGemCo2DSkill
                 if (!IsValidCandidate(casterCharacter, candidate))
                     continue;
 
-                Vector2 toTarget = (Vector2)(candidate.transform.position - caster.transform.position);
-                float distanceSqr = toTarget.sqrMagnitude;
-                if (distanceSqr > rangeSqr || distanceSqr < 1e-6f)
+                Vector2 toTarget = candidate.transform.position - caster.transform.position;
+                float horizontalDistance = Mathf.Abs(toTarget.x);
+                if (horizontalDistance > range || horizontalDistance < 1e-6f)
                     continue;
 
-                Vector2 dirToTarget = toTarget.normalized;
+                Vector2 dirToTarget = ResolveHorizontalDirection(toTarget, resolvedForward);
                 float alignment = Vector2.Dot(resolvedForward, dirToTarget);
                 if (alignment < cosThreshold)
                     continue;
 
-                float score = alignment * directionWeight - Mathf.Sqrt(distanceSqr);
+                float score = alignment * directionWeight - horizontalDistance;
                 if (score <= bestScore)
                     continue;
 
@@ -305,20 +304,16 @@ namespace GGemCo2DSkill
 
         private static bool IsGroundPointValid(Vector3 origin, Vector3 groundPoint, float castRange)
         {
-            if (castRange <= 0f)
-                return true;
-
-            Vector2 delta = new Vector2(groundPoint.x - origin.x, groundPoint.y - origin.y);
-            return delta.sqrMagnitude <= castRange * castRange;
+            return SkillRangeResolver.IsWithinGroundTargetRange(origin, groundPoint, castRange);
         }
 
-        private static bool IsTargetWithinCastRange(Vector3 origin, Vector3 target, float castRange)
+        private static Vector2 ResolveHorizontalDirection(Vector2 toTarget, Vector2 fallback)
         {
-            if (castRange <= 0f)
-                return true;
+            float sign = Mathf.Sign(toTarget.x);
+            if (Mathf.Abs(sign) > 1e-6f)
+                return new Vector2(sign, 0f);
 
-            Vector2 delta = new Vector2(target.x - origin.x, target.y - origin.y);
-            return delta.sqrMagnitude <= castRange * castRange;
+            return fallback.sqrMagnitude < 1e-6f ? Vector2.right : fallback.normalized;
         }
 
         private static float ResolveGroundFallbackDistance(float castRange, float placementRange)
