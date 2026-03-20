@@ -1,4 +1,5 @@
-﻿using GGemCo2DCore;
+﻿using System.Collections.Generic;
+using GGemCo2DCore;
 
 namespace GGemCo2DSkill
 {
@@ -10,6 +11,7 @@ namespace GGemCo2DSkill
         private TableSkill _tableSkill;
         private AddressableLoaderSkill _addressableLoaderSkill;
         private QuickSlotData _quickSlotData;
+        private PlayerPassiveSkillController _playerPassiveSkillController;
         
         public void OnSetIcon(UIWindow window, int slotIndex, int iconUid, int iconCount, int iconLevel, bool isLearned, IconConstants.Type iconType)
         {
@@ -24,6 +26,8 @@ namespace GGemCo2DSkill
             _tableSkill ??= TableLoaderManagerSkill.Instance.TableSkill;
             _addressableLoaderSkill ??= AddressableLoaderSkill.Instance;
             _quickSlotData ??= SceneGame.Instance.saveDataManager.QuickSlot;
+            if (SceneGame.Instance && SceneGame.Instance.player)
+                _playerPassiveSkillController ??= SceneGame.Instance.player.GetComponent<PlayerPassiveSkillController>();
             
             var info = _tableSkill.GetDataByUid(iconUid);
             if (info == null) return;
@@ -42,6 +46,14 @@ namespace GGemCo2DSkill
             var sprite = _addressableLoaderSkill.GetSkillIconImageByName(info.IconFileName);
             // 아이콘 이미지 변경하기
             uiIconQuickSlot.ChangeIconImage(sprite);
+            
+            // 패시브 새로고침
+            var dict = new Dictionary<int, int>();
+            foreach (var kv in _quickSlotData.GetAllSkillPassive())
+            {
+                dict[kv.Key] = kv.Value;
+            }
+            _playerPassiveSkillController?.ApplyEquippedPassives(dict);
         }
         public void OnDetachIcon(UIWindow window, int slotIndex)
         {
@@ -49,6 +61,14 @@ namespace GGemCo2DSkill
             if (icon == null) return;
             _quickSlotData ??= SceneGame.Instance.saveDataManager.QuickSlot;
             _quickSlotData.Remove(slotIndex);
+            
+            // 패시브 새로고침
+            var dict = new Dictionary<int, int>();
+            foreach (var kv in _quickSlotData.GetAllSkillPassive())
+            {
+                dict[kv.Key] = kv.Value;
+            }
+            _playerPassiveSkillController?.ApplyEquippedPassives(dict);
         }
     }
 }
