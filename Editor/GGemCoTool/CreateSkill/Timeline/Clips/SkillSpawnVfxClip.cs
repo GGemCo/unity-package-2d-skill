@@ -6,14 +6,14 @@ using UnityEngine;
 namespace GGemCo2DSkillEditor
 {
     /// <summary>
-    /// 스킬 실행 중 이펙트(Effect)를 생성하는 Timeline 이벤트 클립입니다.
+    /// 스킬 실행 중 이펙트(Vfx)를 생성하는 Timeline 이벤트 클립입니다.
     /// </summary>
     /// <remarks>
     /// 이 클립은 Bake 과정에서 런타임 이벤트(<c>SkillRuntimeEvent</c>)로 변환되며,
     /// 지정된 Anchor 위치를 기준으로 이펙트를 생성합니다.
     /// </remarks>
     [Serializable]
-    public sealed class SkillSpawnEffectClip : SkillEventClipBase
+    public sealed class SkillSpawnVfxClip : SkillEventClipBase
     {
         /// <summary>
         /// 이펙트를 생성할 기준 위치 유형입니다.
@@ -36,10 +36,10 @@ namespace GGemCo2DSkillEditor
             Ground = 2
         }
 
-        [Header("Effect")]
+        [Header("Vfx")]
 
-        [Tooltip("생성할 이펙트 리소스의 UID입니다. effect 테이블 또는 Addressables Effect 식별자와 매칭됩니다.")]
-        [SerializeField] private int effectUid;
+        [Tooltip("생성할 이펙트 리소스의 UID입니다. vfx 테이블 또는 Addressables Vfx 식별자와 매칭됩니다.")]
+        [SerializeField] private int vfxUid;
 
         [Tooltip("이펙트를 생성할 기준 위치입니다. (Caster / Target / Ground)")]
         [SerializeField] private AnchorType anchor = AnchorType.Caster;
@@ -50,7 +50,7 @@ namespace GGemCo2DSkillEditor
         [Header("Lifetime")]
 
         [Tooltip("이펙트 지속시간 해석 정책입니다.")]
-        [SerializeField] private EffectLifetimeMode lifetimeMode = EffectLifetimeMode.FixedDuration;
+        [SerializeField] private VfxLifetimeMode lifetimeMode = VfxLifetimeMode.FixedDuration;
 
         [Tooltip("FixedDuration일 때 사용할 유지 시간(초)입니다.")]
         [Min(0f)]
@@ -59,12 +59,12 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 이 클립이 생성하는 스킬 이벤트 유형입니다.
         /// </summary>
-        public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.SpawnEffect;
+        public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.SpawnVfx;
 
         /// <summary>
         /// 생성할 이펙트의 UID를 반환합니다.
         /// </summary>
-        public int EffectUid => effectUid;
+        public int VFXUid => vfxUid;
 
         /// <summary>
         /// 이펙트 생성 기준 위치 타입을 정수 값으로 반환합니다.
@@ -82,7 +82,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 이펙트 지속시간 정책을 반환합니다.
         /// </summary>
-        public EffectLifetimeMode LifetimeMode => lifetimeMode;
+        public VfxLifetimeMode LifetimeMode => lifetimeMode;
 
         /// <summary>
         /// 이펙트 유지 시간을 반환합니다.

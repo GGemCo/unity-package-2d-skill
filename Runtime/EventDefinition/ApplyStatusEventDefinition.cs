@@ -12,7 +12,7 @@ namespace GGemCo2DSkill
     {
         [Header("Status")]
         public ApplyAffectTarget applyTo = ApplyAffectTarget.Caster;
-        public StatusEffectId statusId;
+        public StatusVfxId statusId;
         public int stacks = 1;
         public float durationOverrideSeconds = -1f;
         [Range(0f, 1f)] public float chance01 = 1f;

@@ -50,7 +50,7 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private RuntimeAnimatorController visualAnimatorController;
 
         [Tooltip("기본 이펙트 대신 사용할 Effect UID 오버라이드입니다.")]
-        [SerializeField] private int visualEffectUidOverride = 0;
+        [SerializeField] private int visualVfxUidOverride = 0;
 
         [Header("Targeting Overrides")]
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
@@ -104,7 +104,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 프로젝타일 비주얼 이펙트를 대체할 UID입니다.
         /// </summary>
-        public int VisualEffectUidOverride => visualEffectUidOverride;
+        public int VisualVfxUidOverride => visualVfxUidOverride;
 
         /// <summary>
         /// 프로젝타일의 타게팅 규칙을 보정하는 오버라이드 설정입니다.

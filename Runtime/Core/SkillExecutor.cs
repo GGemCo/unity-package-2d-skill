@@ -32,7 +32,7 @@ namespace GGemCo2DSkill
         /// 현재 스킬 실행 중 생성된 취소 가능 이펙트 목록입니다.
         /// 취소 시 즉시 정리하여 중단 이후의 잔여 연출을 최소화합니다.
         /// </summary>
-        private readonly List<DefaultEffect> _spawnedEffects = new();
+        private readonly List<VfxBehaviourBase> _spawnedVfxs = new();
 
         /// <summary>
         /// 현재 스킬 실행 중인지 여부를 반환합니다.
@@ -120,7 +120,7 @@ namespace GGemCo2DSkill
 
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
 
-            CleanupSpawnedEffects();
+            CleanupSpawnedVfxs();
 
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
@@ -163,8 +163,8 @@ namespace GGemCo2DSkill
                     float damageGizmoDuration = Mathf.Max(0.05f, e.EndTime - e.StartTime);
                     HandleDamage(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint, damageGizmoDuration);
                     break;
-                case ConfigCommonSkill.SkillEventType.SpawnEffect:
-                    HandleEffect(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+                case ConfigCommonSkill.SkillEventType.SpawnVfx:
+                    HandleVfx(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
                 case ConfigCommonSkill.SkillEventType.ApplyAffect:
                     HandleApplyStatus(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
@@ -181,7 +181,7 @@ namespace GGemCo2DSkill
             }
         }
         
-        private static bool TryResolveEffectDuration(EffectEventDefinition def, out float duration)
+        private static bool TryResolveVfxDuration(VfxEventDefinition def, out float duration)
         {
             duration = 0f;
             if (def == null)
@@ -189,18 +189,18 @@ namespace GGemCo2DSkill
 
             switch (def.lifetimeMode)
             {
-                case EffectLifetimeMode.UseEffectDefault:
+                case VfxLifetimeMode.UseVfxDefault:
                     return false;
 
-                case EffectLifetimeMode.OneShot:
+                case VfxLifetimeMode.OneShot:
                     duration = 0f;
                     return true;
 
-                case EffectLifetimeMode.FixedDuration:
+                case VfxLifetimeMode.FixedDuration:
                     duration = Mathf.Max(0f, def.lifetimeSeconds);
                     return true;
 
-                case EffectLifetimeMode.Infinite:
+                case VfxLifetimeMode.Infinite:
                     duration = -1f;
                     return true;
 
@@ -452,7 +452,7 @@ namespace GGemCo2DSkill
             if (casterChar == null) return;
 
             // ----------------------
-            // Center/Target resolve (Effect와 동일한 정책)
+            // Center/Target resolve (Vfx와 동일한 정책)
             // ----------------------
             Vector3 casterPos = ctx.caster.transform.position;
             Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
@@ -528,7 +528,7 @@ namespace GGemCo2DSkill
                 visualType: def.visualType,
                 visualSprite: def.visualSprite,
                 visualAnimatorController: def.visualAnimatorController,
-                visualEffectUidOverride: def.visualEffectUidOverride,
+                visualVfxUidOverride: def.visualVfxUidOverride,
                 useTargetPositionOverride: usePosOverride,
                 targetPositionOverride: posOverride);
 
@@ -734,7 +734,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
-        private void HandleEffect(
+        private void HandleVfx(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -742,7 +742,7 @@ namespace GGemCo2DSkill
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint)
         {
-            if (payloadObj is not EffectEventDefinition def) return;
+            if (payloadObj is not VfxEventDefinition def) return;
 
             // ----------------------
             // Spawn position resolve
@@ -790,30 +790,30 @@ namespace GGemCo2DSkill
             spawnPos += def.localOffset;
 
             // ----------------------
-            // Effect create
+            // Vfx create
             // ----------------------
-            DefaultEffect effect = null;
+            VfxBehaviourBase vfx = null;
             var sceneGame = SceneGame.Instance;
 
-            // 1) Core EffectManager 기반 생성(권장)
-            if (sceneGame != null && sceneGame.EffectManager != null)
+            // 1) Core VfxManager 기반 생성(권장)
+            if (sceneGame != null && sceneGame.VfxManager != null)
             {
-                effect = sceneGame.EffectManager.CreateEffect(def.effectUid);
+                vfx = sceneGame.VfxManager.CreateVfx(def.vfxUid);
             }
 
             // 2) 폴백: 프리팹 직접 Instantiate
-            if (effect == null) return;
+            if (vfx == null) return;
 
-            if (TryResolveEffectDuration(def, out float effectDuration))
-                effect.SetDuration(effectDuration);
+            if (TryResolveVfxDuration(def, out float vfxDuration))
+                vfx.SetDuration(vfxDuration);
 
             if (def.attachToTarget && ctx.lockedTarget != null)
             {
-                effect.transform.SetParent(ctx.lockedTarget.transform, worldPositionStays: true);
+                vfx.transform.SetParent(ctx.lockedTarget.transform, worldPositionStays: true);
             }
 
-            effect.transform.position = spawnPos;
-            RegisterSpawnedEffect(effect);
+            vfx.transform.position = spawnPos;
+            RegisterSpawnedVfx(vfx);
         }
 
         /// <summary>
@@ -943,7 +943,7 @@ namespace GGemCo2DSkill
         /// <param name="id">파싱할 상태 식별자입니다.</param>
         /// <param name="affectUid">파싱에 성공한 Affect UID입니다.</param>
         /// <returns>유효한 양의 정수 UID로 변환되면 <see langword="true"/>를 반환합니다.</returns>
-        private static bool TryParseAffectUid(StatusEffectId id, out int affectUid)
+        private static bool TryParseAffectUid(StatusVfxId id, out int affectUid)
         {
             affectUid = 0;
             if (string.IsNullOrWhiteSpace(id.id)) return false;
@@ -1011,30 +1011,30 @@ namespace GGemCo2DSkill
             ExecutionFinished?.Invoke(report);
         }
 
-        private void RegisterSpawnedEffect(DefaultEffect effect)
+        private void RegisterSpawnedVfx(VfxBehaviourBase vfx)
         {
-            if (effect == null)
+            if (vfx == null)
                 return;
 
-            _spawnedEffects.RemoveAll(x => x == null);
-            _spawnedEffects.Add(effect);
+            _spawnedVfxs.RemoveAll(x => x == null);
+            _spawnedVfxs.Add(vfx);
         }
 
-        private void CleanupSpawnedEffects()
+        private void CleanupSpawnedVfxs()
         {
-            if (_spawnedEffects.Count == 0)
+            if (_spawnedVfxs.Count == 0)
                 return;
 
-            for (int i = _spawnedEffects.Count - 1; i >= 0; i--)
+            for (int i = _spawnedVfxs.Count - 1; i >= 0; i--)
             {
-                var effect = _spawnedEffects[i];
-                if (effect != null)
+                var vfx = _spawnedVfxs[i];
+                if (vfx != null)
                 {
-                    Destroy(effect.gameObject);
+                    Destroy(vfx.gameObject);
                 }
             }
 
-            _spawnedEffects.Clear();
+            _spawnedVfxs.Clear();
         }
 
         private static void ClearDamageAreaGizmo(GameObject caster)
@@ -1055,7 +1055,7 @@ namespace GGemCo2DSkill
 
             var run = _current;
             ClearDamageAreaGizmo(run.Caster);
-            CleanupSpawnedEffects();
+            CleanupSpawnedVfxs();
 
             _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
             _hasPendingFinishReport = true;

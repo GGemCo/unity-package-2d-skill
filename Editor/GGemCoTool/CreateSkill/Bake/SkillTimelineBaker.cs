@@ -281,12 +281,12 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
-                case SkillSpawnEffectClip fx:
+                case SkillSpawnVfxClip fx:
                     return () =>
                     {
-                        var def = ScriptableObject.CreateInstance<EffectEventDefinition>();
-                        def.effectUid = fx.EffectUid;
-                        def.attachToTarget = fx.Anchor == (int)SkillSpawnEffectClip.AnchorType.Target;
+                        var def = ScriptableObject.CreateInstance<VfxEventDefinition>();
+                        def.vfxUid = fx.VFXUid;
+                        def.attachToTarget = fx.Anchor == (int)SkillSpawnVfxClip.AnchorType.Target;
                         def.localOffset = new Vector3(fx.Offset.x, fx.Offset.y, 0f);
                         def.lifetimeMode = fx.LifetimeMode;
                         def.lifetimeSeconds = fx.LifetimeSeconds;
@@ -297,7 +297,7 @@ namespace GGemCo2DSkillEditor
                     return () =>
                     {
                         var def = ScriptableObject.CreateInstance<ApplyStatusEventDefinition>();
-                        def.statusId = new StatusEffectId { id = aff.AffectUid.ToString() };
+                        def.statusId = new StatusVfxId { id = aff.AffectUid.ToString() };
                         def.durationOverrideSeconds = aff.AffectDuration;
                         TrySetApplyStatusApplyTo(def, (int)aff.ApplyTo);
                         return def;
@@ -347,7 +347,7 @@ namespace GGemCo2DSkillEditor
                         def.visualType = proj.VisualType;
                         def.visualSprite = proj.VisualSprite;
                         def.visualAnimatorController = proj.VisualAnimatorController;
-                        def.visualEffectUidOverride = proj.VisualEffectUidOverride;
+                        def.visualVfxUidOverride = proj.VisualVfxUidOverride;
                         def.targetingOverride = proj.TargetingOverride;
                         return def;
                     };

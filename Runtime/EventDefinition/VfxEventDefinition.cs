@@ -5,13 +5,13 @@ namespace GGemCo2DSkill
     /// <summary>
     /// 스킬 이벤트로 생성되는 이펙트의 지속시간 정책입니다.
     /// </summary>
-    public enum EffectLifetimeMode
+    public enum VfxLifetimeMode
     {
         /// <summary>
         /// 이펙트 프리팹/애니메이션의 기본 재생 정책을 그대로 사용합니다.
         /// 런타임에서 별도의 duration override를 적용하지 않습니다.
         /// </summary>
-        UseEffectDefault = 0,
+        UseVfxDefault = 0,
 
         /// <summary>
         /// Start/Play/End를 1회 재생하는 기본 one-shot 방식입니다.
@@ -29,13 +29,13 @@ namespace GGemCo2DSkill
         Infinite = 3
     }
 
-    public sealed class EffectEventDefinition : ScriptableObject
+    public sealed class VfxEventDefinition : ScriptableObject
     {
-        [Header("Effect")]
-        public int effectUid;
+        [Header("Vfx")]
+        public int vfxUid;
 
         [Header("Lifetime")]
-        public EffectLifetimeMode lifetimeMode = EffectLifetimeMode.FixedDuration;
+        public VfxLifetimeMode lifetimeMode = VfxLifetimeMode.FixedDuration;
         public float lifetimeSeconds = 2f;
 
         [Header("Spawn Rule")]

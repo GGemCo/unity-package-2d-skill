@@ -29,7 +29,7 @@ namespace GGemCo2DSkill
         public ProjectileConstants.ProjectileVisualType visualType = ProjectileConstants.ProjectileVisualType.Default;
         public Sprite visualSprite;
         public RuntimeAnimatorController visualAnimatorController;
-        public int visualEffectUidOverride = 0;
+        public int visualVfxUidOverride = 0;
 
         [Header("Targeting Overrides")]
         [Tooltip("스킬 기본 TargetingMode 대신, 이벤트 별 TargetingMode를 강제할 수 있습니다.")]

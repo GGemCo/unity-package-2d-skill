@@ -21,7 +21,7 @@ namespace Config
             /// <summary>
             /// 이펙트를 생성합니다.
             /// </summary>
-            SpawnEffect = 1,
+            SpawnVfx = 1,
 
             /// <summary>
             /// Affect 또는 상태이상을 적용합니다.
