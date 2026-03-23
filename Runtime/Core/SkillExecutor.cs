@@ -798,14 +798,12 @@ namespace GGemCo2DSkill
             // 1) Core VfxManager 기반 생성(권장)
             if (sceneGame != null && sceneGame.VfxManager != null)
             {
-                vfx = sceneGame.VfxManager.CreateVfx(def.vfxUid);
+                TryResolveVfxDuration(def, out var vfxDuration);
+                vfx = sceneGame.VfxManager.CreateVfx(def.vfxUid, vfxDuration);
             }
 
             // 2) 폴백: 프리팹 직접 Instantiate
             if (vfx == null) return;
-
-            if (TryResolveVfxDuration(def, out float vfxDuration))
-                vfx.SetDuration(vfxDuration);
 
             if (def.attachToTarget && ctx.lockedTarget != null)
             {
