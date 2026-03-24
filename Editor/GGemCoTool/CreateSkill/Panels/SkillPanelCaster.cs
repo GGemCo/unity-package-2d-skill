@@ -34,9 +34,36 @@ namespace GGemCo2DSkillEditor
             }
         }
         
+        protected override void ApplyPostRefreshCharacterSelectionPolicy()
+        {
+            if (_selectedSource != ConfigCommon.SkillTableSource.Player)
+                return;
+
+            for (int i = 0; i < sceneCharacters.Count; i++)
+            {
+                var character = sceneCharacters[i];
+                if (character == null || !character.IsPlayer())
+                    continue;
+
+                if (selectedCharacter == character)
+                {
+                    selectedCharacterIndex = i;
+                    return;
+                }
+
+                selectedCharacter = character;
+                selectedCharacterIndex = i;
+                OnSelectedCharacterChanged(selectedCharacter);
+                return;
+            }
+        }
+
         protected override void OnSelectedCharacterChanged(CharacterBase character)
         {
             Repaint();
+            if (character == null)
+                return;
+
             if (!TryGetSkillTestRuntimeHub(out var hub, out var error))
             {
                 Debug.LogError(error);
