@@ -17,6 +17,8 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private float durationOverrideSeconds = 0f;
         [Tooltip("공중에서 잠시 머무르는 시간입니다. 0 이하이면 즉시 하강을 시작합니다.")]
         [SerializeField] private float airHoldDurationSeconds = 0f;
+        [Tooltip("공중 대기 시간 동안 시작 위치를 유지할지 여부입니다. true면 대기 시작 순간의 위치에 고정됩니다.")]
+        public bool holdPositionDuringAirHold = true;
         [Tooltip("실제 내려가는 시간입니다. 0 이하이면 durationOverrideSeconds, 그것도 0 이하이면 이벤트 구간 길이를 사용합니다.")]
         [SerializeField] private float fallDurationSeconds = 0f;
         [Tooltip("하강 이동의 진행 곡선을 결정합니다.")]
@@ -68,6 +70,7 @@ namespace GGemCo2DSkillEditor
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.GroundSlam;
         public float DurationOverrideSeconds => durationOverrideSeconds;
         public float AirHoldDurationSeconds => airHoldDurationSeconds;
+        public bool HoldPositionDuringAirHold => holdPositionDuringAirHold;
         public float FallDurationSeconds => fallDurationSeconds;
         public Easing.EaseType Easing => easing;
         public GroundSlamLandingMode LandingMode => landingMode;

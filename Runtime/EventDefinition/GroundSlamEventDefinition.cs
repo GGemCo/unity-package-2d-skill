@@ -48,6 +48,9 @@ namespace GGemCo2DSkill
         [Tooltip("공중에서 잠시 머무르는 시간(<=0 이면 체공 없이 즉시 하강 시작)")]
         public float airHoldDurationSeconds = 0f;
 
+        [Tooltip("공중 대기 시간 동안 시작 위치를 유지할지 여부입니다. true면 대기 시작 순간의 위치에 고정됩니다.")]
+        public bool holdPositionDuringAirHold = true;
+
         [Tooltip("실제 내려가는 시간(<=0 이면 durationOverrideSeconds, 그것도 <=0 이면 이벤트 구간 Start~End 사용)")]
         public float fallDurationSeconds = -1f;
 

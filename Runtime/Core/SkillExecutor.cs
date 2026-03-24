@@ -527,6 +527,9 @@ namespace GGemCo2DSkill
 
             if (holdDuration > 0f)
             {
+                if (def.holdPositionDuringAirHold && !TryStartGroundSlamHoldMotion(motion, def, startPosition, holdDuration))
+                    return;
+
                 ClearPendingGroundSlamState();
                 BeginGroundSlamAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: true);
                 _pendingGroundSlamState = new PendingGroundSlamState
@@ -595,6 +598,33 @@ namespace GGemCo2DSkill
             }
         }
 
+
+        private static bool TryStartGroundSlamHoldMotion(
+            ICharacterMotionController motion,
+            GroundSlamEventDefinition def,
+            Vector2 holdPosition,
+            float holdDurationSeconds)
+        {
+            if (motion == null || def == null || holdDurationSeconds <= 0f)
+                return false;
+
+            var req = new MotionRequest(
+                MotionChannel.Skill,
+                MotionKind.PositionHold,
+                Vector2.zero,
+                holdDurationSeconds,
+                0f,
+                Easing.EaseType.Linear,
+                stopAtEnd: true,
+                useMovePosition: def.useMovePosition,
+                allowReplace: def.allowReplace,
+                startPosition: holdPosition,
+                targetPosition: holdPosition,
+                groundSnapDistance: 0f);
+
+            return motion.TryStartMotion(in req);
+        }
+
         private static bool TryStartGroundSlamMotion(
             ICharacterMotionController motion,
             GroundSlamEventDefinition def,
@@ -618,7 +648,7 @@ namespace GGemCo2DSkill
                 def.easing,
                 stopAtEnd: def.stopAtEnd,
                 useMovePosition: def.useMovePosition,
-                allowReplace: def.allowReplace,
+                allowReplace: true,
                 startPosition: startPosition,
                 targetPosition: targetPosition,
                 groundSnapDistance: def.groundSnapDistance);
