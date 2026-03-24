@@ -99,6 +99,11 @@ namespace GGemCo2DSkill
             _hitEvaluator = new AreaHitEvaluator(hitMask);
         }
 
+        private void OnDisable()
+        {
+            TryCancel(SkillCancelReason.ForcedBySystem);
+        }
+
         /// <summary>
         /// 2D 기준으로 사용할 전방 벡터를 보정합니다.
         /// 입력 전방이 비어 있거나 Z축 기준 기본값에 가까우면 캐스터의 좌우 방향을 사용합니다.

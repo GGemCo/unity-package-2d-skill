@@ -15,6 +15,7 @@ namespace GGemCo2DSkill
         private readonly ICharacterAnimationController _animController;
         private readonly ICharacterActionController _actionController;
         private readonly ICharacterMotionController _motionController;
+        private readonly Rigidbody2D _casterRigidbody2D;
 
         private SkillRuntimeSequence _sequence;
         private float _time;
@@ -33,6 +34,8 @@ namespace GGemCo2DSkill
 
         private bool _isLoading;
         private bool _isEnded;
+        private bool _isGravityScaleOverridden;
+        private float _savedGravityScale;
 
         public bool IsDone { get; private set; }
         public int SkillUid => _skill != null ? _skill.Uid : 0;
@@ -48,12 +51,14 @@ namespace GGemCo2DSkill
             _animController = animController;
             _actionController = actionController;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
+            _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
         }
 
         public void Start()
         {
             SnapshotContext();
 
+            TryApplyGravityScaleOverride();
             ApplyInitialActionState();
             _isLoading = true;
             _ = LoadSequenceAsync();
@@ -280,6 +285,36 @@ namespace GGemCo2DSkill
             _actionController.RequestAction(in request);
         }
         
+        private void TryApplyGravityScaleOverride()
+        {
+            if (_skill == null || !_skill.UseGravityScaleOverride)
+                return;
+
+            if (_casterRigidbody2D == null)
+                return;
+
+            if (_isGravityScaleOverridden)
+                return;
+
+            _savedGravityScale = _casterRigidbody2D.gravityScale;
+            _casterRigidbody2D.gravityScale = _skill.GravityScaleOverride;
+            _isGravityScaleOverridden = true;
+        }
+
+        private void RestoreGravityScaleOverride()
+        {
+            if (!_isGravityScaleOverridden)
+                return;
+
+            if (_casterRigidbody2D != null)
+            {
+                _casterRigidbody2D.gravityScale = _savedGravityScale;
+            }
+
+            _savedGravityScale = 0f;
+            _isGravityScaleOverridden = false;
+        }
+
         /// <summary>
         /// 스킬 런 종료 처리(상태 해제 + 정리). 중복 호출 방지 포함.
         /// </summary>
@@ -289,6 +324,8 @@ namespace GGemCo2DSkill
                 return;
 
             _isEnded = true;
+
+            RestoreGravityScaleOverride();
 
             // 액션 상태 해제
             if (_actionController != null)

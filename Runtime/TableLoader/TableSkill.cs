@@ -49,6 +49,12 @@ namespace GGemCo2DSkill
 
         /// <summary>스킬 실행 직전에 자동으로 맞출 방향 정책입니다.</summary>
         public ConfigCommonSkill.SkillFacingMode FacingMode;
+
+        /// <summary>스킬 실행 시작 시 Rigidbody2D.gravityScale을 지정한 값으로 덮어쓸지 여부입니다.</summary>
+        public bool UseGravityScaleOverride;
+
+        /// <summary>UseGravityScaleOverride가 활성화된 동안 적용할 gravityScale 값입니다.</summary>
+        public float GravityScaleOverride;
     }
 
     /// <summary>
@@ -87,7 +93,9 @@ namespace GGemCo2DSkill
                 CastLoopClip = data["CastLoopClip"],
                 CastEndClip = data["CastEndClip"],
                 UseClip = data["UseClip"],
-                FacingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillFacingMode>(data["FacingMode"])
+                FacingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillFacingMode>(data["FacingMode"]),
+                UseGravityScaleOverride = ConvertBoolean(data.GetValueOrDefault("UseGravityScaleOverride", "false")),
+                GravityScaleOverride = MathHelper.ParseFloat(data.GetValueOrDefault("GravityScaleOverride", "0"))
             };
         }
 
