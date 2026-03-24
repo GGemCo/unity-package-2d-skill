@@ -187,6 +187,10 @@ namespace GGemCo2DSkill
                 case ConfigCommonSkill.SkillEventType.Projectile:
                     HandleProjectile(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
+                case ConfigCommonSkill.SkillEventType.GroundSlam:
+                    float groundSlamDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
+                    HandleGroundSlam(ctx, payload, groundSlamDuration);
+                    break;
                 default:
                     break;
             }
@@ -437,6 +441,132 @@ namespace GGemCo2DSkill
                 return new Vector2(targetPosition.x - casterPosition.x, 0f);
 
             return new Vector2(targetPosition.x - casterPosition.x, targetPosition.y - casterPosition.y);
+        }
+
+        /// <summary>
+        /// Ground Slam 이벤트 정의에 따라 착지 지점을 계산하고 내려치기 이동을 시작합니다.
+        /// </summary>
+        private void HandleGroundSlam(
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            float eventDurationSeconds)
+        {
+            if (payloadObj is not GroundSlamEventDefinition def) return;
+            if (ctx.caster == null) return;
+
+            var motion = ctx.caster.GetComponentInParent<ICharacterMotionController>();
+            if (motion == null) return;
+
+            float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds;
+            if (duration <= 0f) return;
+
+            Vector2 startPosition = ctx.caster.transform.position;
+            Vector2 forward = def.useSnapshotForward
+                ? new Vector2(ResolveForward2D(ctx.caster, ctx.forward).x, ResolveForward2D(ctx.caster, ctx.forward).y)
+                : ResolveCurrentFacing2D(ctx.caster);
+            if (forward.sqrMagnitude <= 1e-6f)
+                forward = Vector2.right;
+            else
+                forward.Normalize();
+
+            if (!TryResolveGroundSlamTargetPosition(ctx, def, startPosition, forward, out Vector2 targetPosition))
+                return;
+
+            Vector2 travel = targetPosition - startPosition;
+            if (travel.sqrMagnitude <= 1e-8f)
+                return;
+
+            var req = new MotionRequest(
+                MotionChannel.Skill,
+                MotionKind.GroundSlam,
+                travel.normalized,
+                duration,
+                travel.magnitude,
+                def.easing,
+                stopAtEnd: def.stopAtEnd,
+                useMovePosition: def.useMovePosition,
+                allowReplace: def.allowReplace,
+                startPosition: startPosition,
+                targetPosition: targetPosition,
+                groundSnapDistance: def.groundSnapDistance);
+
+            motion.TryStartMotion(in req);
+        }
+
+        private static bool TryResolveGroundSlamTargetPosition(
+            SkillTargetContext ctx,
+            GroundSlamEventDefinition def,
+            Vector2 startPosition,
+            Vector2 forward,
+            out Vector2 targetPosition)
+        {
+            float targetX = startPosition.x;
+            switch (def.horizontalPolicy)
+            {
+                case GroundSlamHorizontalPolicy.KeepCurrentX:
+                    targetX = startPosition.x;
+                    break;
+                case GroundSlamHorizontalPolicy.MoveToTargetX:
+                    if (ctx.lockedTarget != null)
+                        targetX = ctx.lockedTarget.transform.position.x;
+                    else if (ctx.groundPoint != default)
+                        targetX = ctx.groundPoint.x;
+                    break;
+                case GroundSlamHorizontalPolicy.MoveByForward:
+                    targetX = startPosition.x + forward.x * Mathf.Max(0f, def.forwardDistance);
+                    break;
+            }
+
+            switch (def.landingMode)
+            {
+                case GroundSlamLandingMode.FixedDistanceDown:
+                {
+                    float targetY = startPosition.y - Mathf.Max(0f, def.fixedDropDistance);
+                    targetPosition = new Vector2(targetX, targetY);
+                    return targetY < startPosition.y - 1e-4f;
+                }
+                case GroundSlamLandingMode.LockedTargetGround:
+                {
+                    Vector2 probeBase = ctx.lockedTarget != null
+                        ? (Vector2)ctx.lockedTarget.transform.position
+                        : new Vector2(targetX, startPosition.y);
+                    targetX = probeBase.x;
+                    return TryResolveGroundPoint(def, targetX, probeBase.y, startPosition.y, out targetPosition);
+                }
+                case GroundSlamLandingMode.GroundPoint:
+                {
+                    Vector2 probeBase = ctx.groundPoint != default
+                        ? (Vector2)ctx.groundPoint
+                        : new Vector2(targetX, startPosition.y);
+                    targetX = probeBase.x;
+                    return TryResolveGroundPoint(def, targetX, probeBase.y, startPosition.y, out targetPosition);
+                }
+                case GroundSlamLandingMode.CurrentGround:
+                default:
+                    return TryResolveGroundPoint(def, targetX, startPosition.y, startPosition.y, out targetPosition);
+            }
+        }
+
+        private static bool TryResolveGroundPoint(
+            GroundSlamEventDefinition def,
+            float targetX,
+            float referenceY,
+            float startY,
+            out Vector2 targetPosition)
+        {
+            Vector2 origin = new Vector2(targetX, Mathf.Max(referenceY, startY) + Mathf.Max(0f, def.groundProbeStartHeight));
+            float probeDistance = Mathf.Max(0.1f, def.groundProbeDistance);
+            var hit = Physics2D.Raycast(origin, Vector2.down, probeDistance, def.groundLayerMask);
+            if (hit.collider != null)
+            {
+                float hitY = Mathf.Min(hit.point.y, startY);
+                targetPosition = new Vector2(targetX, hitY);
+                return hitY < startY - 1e-4f;
+            }
+
+            float fallbackY = startY - Mathf.Max(0f, def.fixedDropDistance);
+            targetPosition = new Vector2(targetX, fallbackY);
+            return fallbackY < startY - 1e-4f;
         }
 
         /// <summary>

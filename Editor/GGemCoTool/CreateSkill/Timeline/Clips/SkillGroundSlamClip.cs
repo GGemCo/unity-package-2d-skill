@@ -1,0 +1,69 @@
+using System;
+using Config;
+using GGemCo2DCore;
+using GGemCo2DSkill;
+using UnityEngine;
+
+namespace GGemCo2DSkillEditor
+{
+    /// <summary>
+    /// 공중에서 지면으로 내려치는 강하 이동 이벤트를 정의하는 Authoring용 타임라인 클립입니다.
+    /// </summary>
+    [Serializable]
+    public sealed class SkillGroundSlamClip : SkillEventClipBase
+    {
+        [Header("Motion")]
+        [Tooltip("0보다 크면 Definition의 기본 지속시간 대신 이 값을 사용합니다.")]
+        [SerializeField] private float durationOverrideSeconds = 0f;
+        [Tooltip("하강 이동의 진행 곡선을 결정합니다.")]
+        [SerializeField] private Easing.EaseType easing = GGemCo2DCore.Easing.EaseType.Linear;
+
+        [Header("Landing")]
+        [Tooltip("착지 지점을 어떤 기준으로 계산할지 결정합니다.")]
+        [SerializeField] private GroundSlamLandingMode landingMode = GroundSlamLandingMode.CurrentGround;
+        [Tooltip("하강 중 X축 이동 방식을 결정합니다.")]
+        [SerializeField] private GroundSlamHorizontalPolicy horizontalPolicy = GroundSlamHorizontalPolicy.KeepCurrentX;
+        [Tooltip("HorizontalPolicy가 전방 이동 계열일 때 사용할 전진 거리입니다.")]
+        [SerializeField] private float forwardDistance = 0f;
+        [Tooltip("지면 탐색 Ray 시작점을 현재 위치에서 위로 얼마나 올릴지 설정합니다.")]
+        [SerializeField] private float groundProbeStartHeight = 0.5f;
+        [Tooltip("지면 탐색 Ray의 최대 길이입니다.")]
+        [SerializeField] private float groundProbeDistance = 12f;
+        [Tooltip("LandingMode가 FixedDistanceDown일 때 아래로 내려갈 거리입니다.")]
+        [SerializeField] private float fixedDropDistance = 6f;
+        [Tooltip("착지 판정 후 지면에 스냅할 때 허용할 최대 보정 거리입니다.")]
+        [SerializeField] private float groundSnapDistance = 0.15f;
+        [Tooltip("착지 지면을 탐색할 때 사용할 레이어 마스크입니다.")]
+        [SerializeField] private LayerMask groundLayerMask = Physics2D.DefaultRaycastLayers;
+
+        [Header("Direction")]
+        [Tooltip("클립 시작 시점의 바라보는 방향을 고정해서 사용할지 여부입니다.")]
+        [SerializeField] private bool useSnapshotForward = true;
+
+        [Header("Rigidbody2D")]
+        [Tooltip("강하 종료 시 Rigidbody2D의 속도를 정리해서 즉시 멈출지 여부입니다.")]
+        [SerializeField] private bool stopAtEnd = true;
+        [Tooltip("이동 적용 시 Rigidbody2D.MovePosition 기반으로 처리할지 여부입니다.")]
+        [SerializeField] private bool useMovePosition = true;
+
+        [Header("Policy")]
+        [Tooltip("같은 채널에서 이미 재생 중인 모션을 이 Ground Slam으로 교체할 수 있는지 여부입니다.")]
+        [SerializeField] private bool allowReplace = false;
+
+        public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.GroundSlam;
+        public float DurationOverrideSeconds => durationOverrideSeconds;
+        public Easing.EaseType Easing => easing;
+        public GroundSlamLandingMode LandingMode => landingMode;
+        public GroundSlamHorizontalPolicy HorizontalPolicy => horizontalPolicy;
+        public float ForwardDistance => forwardDistance;
+        public float GroundProbeStartHeight => groundProbeStartHeight;
+        public float GroundProbeDistance => groundProbeDistance;
+        public float FixedDropDistance => fixedDropDistance;
+        public float GroundSnapDistance => groundSnapDistance;
+        public LayerMask GroundLayerMask => groundLayerMask;
+        public bool UseSnapshotForward => useSnapshotForward;
+        public bool StopAtEnd => stopAtEnd;
+        public bool UseMovePosition => useMovePosition;
+        public bool AllowReplace => allowReplace;
+    }
+}

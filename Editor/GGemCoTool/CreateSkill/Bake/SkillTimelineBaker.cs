@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using GGemCo2DSkill;
@@ -335,6 +335,28 @@ namespace GGemCo2DSkillEditor
                         def.allowReplace = lunge.AllowReplace;
                         return def;
                     };
+
+                case SkillGroundSlamClip slam:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<GroundSlamEventDefinition>();
+                        def.durationOverrideSeconds = slam.DurationOverrideSeconds;
+                        def.easing = slam.Easing;
+                        def.landingMode = slam.LandingMode;
+                        def.horizontalPolicy = slam.HorizontalPolicy;
+                        def.forwardDistance = Mathf.Max(0f, slam.ForwardDistance);
+                        def.groundProbeStartHeight = Mathf.Max(0f, slam.GroundProbeStartHeight);
+                        def.groundProbeDistance = Mathf.Max(0.1f, slam.GroundProbeDistance);
+                        def.fixedDropDistance = Mathf.Max(0f, slam.FixedDropDistance);
+                        def.groundSnapDistance = Mathf.Max(0f, slam.GroundSnapDistance);
+                        def.groundLayerMask = slam.GroundLayerMask;
+                        def.useSnapshotForward = slam.UseSnapshotForward;
+                        def.stopAtEnd = slam.StopAtEnd;
+                        def.useMovePosition = slam.UseMovePosition;
+                        def.allowReplace = slam.AllowReplace;
+                        return def;
+                    };
+
 
                 case SkillProjectileClip proj:
                     return () =>

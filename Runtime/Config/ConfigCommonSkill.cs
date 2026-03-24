@@ -49,9 +49,14 @@ namespace Config
             Lunge = 6,
 
             /// <summary>
+            /// 공중에서 지면으로 내려치는 강하 이동을 수행합니다.
+            /// </summary>
+            GroundSlam = 7,
+
+            /// <summary>
             /// 투사체를 생성하거나 발사합니다.
             /// </summary>
-            Projectile = 7,
+            Projectile = 8,
         }
 
         /// <summary>
