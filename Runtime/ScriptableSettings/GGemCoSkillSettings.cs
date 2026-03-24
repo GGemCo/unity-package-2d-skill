@@ -9,6 +9,10 @@ namespace GGemCo2DSkill
         order = ConfigScriptableObjectSkill.Skill.Ordering)]
     public sealed class GGemCoSkillSettings : ScriptableObject
     {
+        [Header("Chain Cancel")]
+        [Tooltip("플레이어 스킬이 타겟에게 실제 데미지를 확정했을 때, 현재 스킬 애니메이션 종료 전에도 다음 스킬로 연계할 수 있게 허용할지 여부입니다.")]
+        public bool enableSkillChainOnConfirmedDamage = false;
+
         [Header("Debug")]
         [Tooltip("스킬 패키지 디버그 기능 전체 사용 여부입니다.")]
         public bool enableSkillDebug = true;
@@ -19,7 +23,7 @@ namespace GGemCo2DSkill
         [Tooltip("Play Mode 진입 시 SkillTestRuntimeHub 자동 생성 여부입니다.")]
         public bool enableSkillTestRuntimeBridgeAutoSpawn = true;
 
-        [Header("Play Mode Test")]
+        [Header("Debug - Play Mode Test")]
         [Tooltip("선택 몬스터의 스킬 종료 시 자동으로 스냅샷 위치로 복원할지 여부입니다.")]
         public bool autoResetSelectedMonsterAfterSkill = true;
 
@@ -33,7 +37,7 @@ namespace GGemCo2DSkill
         [Min(0f)]
         public float defaultSpawnRadius = 0.5f;
 
-        [Header("Gizmo")]
+        [Header("Debug - Gizmo")]
         [Tooltip("Damage 이벤트 Gizmo 기본 유지 시간(초)입니다.")]
         [Min(0.01f)]
         public float defaultDamageAreaGizmoDuration = 0.2f;

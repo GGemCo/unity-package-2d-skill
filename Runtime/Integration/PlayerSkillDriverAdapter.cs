@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace GGemCo2DSkill
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ICharacterSkillDriver
+    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ICharacterSkillDriver, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink
     {
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
@@ -27,20 +27,44 @@ namespace GGemCo2DSkill
         /// </summary>
         public bool IsSkillBusy => _executor != null && _executor.IsBusy;
 
+        private int _currentRunningSkillUid;
+        private bool _chainUnlockedByConfirmedDamage;
+        private bool _chainConsumed;
+
         /// <summary>
         /// 컴포넌트 초기화 시 동일한 게임 오브젝트에서 <see cref="SkillExecutor"/>를 찾아 연결합니다.
         /// </summary>
         private void Awake()
         {
             if (_executor == null)
-                _executor = GetComponent<SkillExecutor>();
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+            else
+                SetSkillExecutor(_executor);
+        }
+
+        private void OnDestroy()
+        {
+            if (_executor != null)
+                _executor.ExecutionFinished -= OnExecutionFinished;
         }
 
         /// <summary>
         /// 외부에서 사용할 <see cref="SkillExecutor"/> 인스턴스를 설정합니다.
         /// </summary>
         /// <param name="value">이 어댑터가 사용할 스킬 실행기입니다.</param>
-        public void SetSkillExecutor(SkillExecutor value) => _executor = value;
+        public void SetSkillExecutor(SkillExecutor value)
+        {
+            if (ReferenceEquals(_executor, value))
+                return;
+
+            if (_executor != null)
+                _executor.ExecutionFinished -= OnExecutionFinished;
+
+            _executor = value;
+
+            if (_executor != null)
+                _executor.ExecutionFinished += OnExecutionFinished;
+        }
 
         /// <summary>
         /// 드라이버 요청 정보를 바탕으로 플레이어 스킬 사용을 시도합니다.
@@ -56,10 +80,6 @@ namespace GGemCo2DSkill
 
             if (_executor == null || skillUid <= 0)
                 return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
-
-            // 동시 실행은 허용하지 않으므로 이미 실행 중이면 거부합니다.
-            if (_executor.IsBusy)
-                return SkillUseResult.Fail(SkillUseFailReason.Busy);
 
             // 스킬 UID 기준 내부 쿨다운이 남아 있으면 사용을 거부합니다.
             if (_cooldownReadyAt.TryGetValue(skillUid, out float readyAt) && Time.time < readyAt)
@@ -84,6 +104,18 @@ namespace GGemCo2DSkill
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
                 return SkillUseResult.Fail(SkillUseFailReason.OutOfRange);
 
+            bool shouldAttemptChainCancel = _executor.IsBusy && CanStartNextSkillByConfirmedDamage();
+            if (_executor.IsBusy && !shouldAttemptChainCancel)
+                return SkillUseResult.Fail(SkillUseFailReason.Busy);
+
+            if (shouldAttemptChainCancel)
+            {
+                if (!_executor.TryCancel(SkillCancelReason.ComboChain))
+                    return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
+
+                _chainConsumed = true;
+            }
+
             bool started = _executor.TryUse(skillUid, ctx, ConfigCommon.SkillTableSource.Player);
             if (!started)
                 return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
@@ -92,7 +124,75 @@ namespace GGemCo2DSkill
             if (cd > 0f)
                 _cooldownReadyAt[skillUid] = Time.time + cd;
 
+            _currentRunningSkillUid = skillUid;
+            _chainUnlockedByConfirmedDamage = false;
+            _chainConsumed = false;
+
             return SkillUseResult.Started;
+        }
+
+        public SkillUseResult TryUseSkill(int skillUid, in MonsterSkillTarget target)
+        {
+            var request = new SkillDriverRequest(target, ConfigCommon.SkillTableSource.Player);
+            return TryUseSkill(skillUid, in request);
+        }
+
+        public bool RequestCancelSkill(SkillCancelReason reason)
+        {
+            if (_executor == null)
+                return false;
+
+            return _executor.TryCancel(reason);
+        }
+
+        public void NotifyIncomingHitResolved(in IncomingHitCombatFeedback feedback)
+        {
+            if (!IsSkillChainOnConfirmedDamageEnabled())
+                return;
+
+            if (_executor == null || feedback.SkillUid <= 0 || feedback.AttackId <= 0)
+                return;
+
+            if (feedback.Outcome != MonsterSkillCombatOutcome.Hit)
+                return;
+
+            if (_currentRunningSkillUid <= 0 || feedback.SkillUid != _currentRunningSkillUid)
+                return;
+
+            if (!_executor.IsChainUnlockAttack(feedback.AttackId))
+                return;
+
+            _chainUnlockedByConfirmedDamage = true;
+        }
+
+        private void OnExecutionFinished(SkillExecutionReport report)
+        {
+            if (_currentRunningSkillUid > 0 && report.SkillUid != _currentRunningSkillUid)
+                return;
+
+            ResetChainState();
+        }
+
+        private bool CanStartNextSkillByConfirmedDamage()
+        {
+            return IsSkillChainOnConfirmedDamageEnabled()
+                   && _chainUnlockedByConfirmedDamage
+                   && !_chainConsumed
+                   && _currentRunningSkillUid > 0;
+        }
+
+        private static bool IsSkillChainOnConfirmedDamageEnabled()
+        {
+            var loader = AddressableLoaderSettingsSkill.Instance;
+            var settings = loader != null ? loader.skillSettings : null;
+            return settings != null && settings.enableSkillChainOnConfirmedDamage;
+        }
+
+        private void ResetChainState()
+        {
+            _currentRunningSkillUid = 0;
+            _chainUnlockedByConfirmedDamage = false;
+            _chainConsumed = false;
         }
     }
 }

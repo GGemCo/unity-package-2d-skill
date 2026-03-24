@@ -53,7 +53,7 @@ namespace GGemCo2DSkill
         private SkillExecutionReport _pendingFinishReport;
         private int _executionSequence;
         private int _attackSequence;
-        private readonly List<int> _resolvedOnHitCrowdControls = new(8);
+        private readonly Dictionary<int, bool> _chainUnlockByAttackId = new();
 
         /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
@@ -122,6 +122,7 @@ namespace GGemCo2DSkill
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
 
             CleanupSpawnedVfxs();
+            _chainUnlockByAttackId.Clear();
 
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
@@ -129,6 +130,14 @@ namespace GGemCo2DSkill
             _hasPendingFinishReport = false;
             _current.Start();
             return true;
+        }
+
+        /// <summary>
+        /// 지정한 AttackId가 실제 데미지 확정 시 다음 스킬 연계를 열 수 있는 이벤트인지 확인합니다.
+        /// </summary>
+        public bool IsChainUnlockAttack(int attackId)
+        {
+            return attackId > 0 && _chainUnlockByAttackId.TryGetValue(attackId, out bool enabled) && enabled;
         }
 
         /// <summary>
@@ -518,6 +527,9 @@ namespace GGemCo2DSkill
                     break;
             }
 
+            int attackId = ++_attackSequence;
+            _chainUnlockByAttackId[attackId] = def.allowSkillChainOnConfirmedDamage;
+
             var meta = new MetadataProjectile(
                 uid: def.projectileUid,
                 damageType: def.damageType,
@@ -531,7 +543,10 @@ namespace GGemCo2DSkill
                 visualAnimatorController: def.visualAnimatorController,
                 visualVfxUidOverride: def.visualVfxUidOverride,
                 useTargetPositionOverride: usePosOverride,
-                targetPositionOverride: posOverride);
+                targetPositionOverride: posOverride,
+                skillUid: skill.Uid,
+                attackId: attackId,
+                allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage);
 
             casterChar.LaunchProjectile(meta);
         }
@@ -631,6 +646,7 @@ namespace GGemCo2DSkill
             long totalDamage = 10;
 
             int attackId = ++_attackSequence;
+            _chainUnlockByAttackId[attackId] = def.allowSkillChainOnConfirmedDamage;
 
             for (int i = 0; i < hits.Count; i++)
             {
@@ -697,16 +713,25 @@ namespace GGemCo2DSkill
                 // OnHit Affect / Crowd Control (AfterDamage)
                 ApplyOnHitAffects(def.onHitAffects, ctx.caster, target, didApplyDamage, OnHitAffectTiming.AfterDamage);
 
-                _resolvedOnHitCrowdControls.Clear();
-                CollectOnHitCrowdControlUids(
+                int afterDamageCrowdControlUid = ResolveOnHitCrowdControlUid(
                     def.onHitCrowdControls,
                     didApplyDamage,
-                    OnHitCrowdControlTiming.AfterDamage,
-                    _resolvedOnHitCrowdControls);
+                    OnHitCrowdControlTiming.AfterDamage);
 
-                if (didApplyDamage && _resolvedOnHitCrowdControls.Count > 0)
+                if (afterDamageCrowdControlUid > 0 && didApplyDamage)
                 {
-                    target.ApplyCrowdControlSequence(_resolvedOnHitCrowdControls, ctx.caster != null ? ctx.caster : gameObject);
+                    MetadataDamage crowdControlMetadataDamage = new MetadataDamage
+                    {
+                        damage = 0,
+                        attacker = ctx.caster != null ? ctx.caster : gameObject,
+                        damageType = ConfigCommon.DamageType.None,
+                        affectUid = 0,
+                        crowdControlUid = afterDamageCrowdControlUid,
+                        AttackId = attackId,
+                        SkillUid = skill.Uid,
+                    };
+
+                    target.TakeDamage(crowdControlMetadataDamage);
                 }
 
                 // 공격 성공 알림(공격자 버프의 OnHit 트리거 등)
@@ -893,19 +918,17 @@ namespace GGemCo2DSkill
 
 
         /// <summary>
-        /// 현재 시점에 적용 가능한 OnHit Crowd Control UID를 순서대로 수집합니다.
-        /// 배열에 등록된 순서가 실행 순서가 됩니다.
+        /// 현재 시점에 적용 가능한 OnHit Crowd Control UID를 하나 선택합니다.
+        /// 실제 적용은 MetadataDamage.crowdControlUid를 통해 Core 데미지 파이프라인으로 전달됩니다.
         /// </summary>
-        private void CollectOnHitCrowdControlUids(
-            OnHitCrowdControlEntry[] entries,
-            bool damageApplied,
-            OnHitCrowdControlTiming timing,
-            List<int> results)
+        /// <param name="entries">후보 Crowd Control 목록입니다.</param>
+        /// <param name="damageApplied">실제 데미지가 적용되었는지 여부입니다.</param>
+        /// <param name="timing">현재 처리 중인 적용 시점입니다.</param>
+        /// <returns>적용할 Crowd Control UID. 없으면 0입니다.</returns>
+        private static int ResolveOnHitCrowdControlUid(OnHitCrowdControlEntry[] entries, bool damageApplied, OnHitCrowdControlTiming timing)
         {
-            results?.Clear();
-
-            if (entries == null || entries.Length == 0 || results == null)
-                return;
+            if (entries == null || entries.Length == 0)
+                return 0;
 
             for (int i = 0; i < entries.Length; i++)
             {
@@ -923,18 +946,10 @@ namespace GGemCo2DSkill
                 if (chance < 0.9999f && UnityEngine.Random.value > chance)
                     continue;
 
-                results.Add(entry.crowdControlUid);
+                return entry.crowdControlUid;
             }
-        }
 
-        /// <summary>
-        /// BeforeDamage처럼 단일 Crowd Control 전달이 필요한 구간에서 첫 번째 UID를 선택합니다.
-        /// </summary>
-        private int ResolveOnHitCrowdControlUid(OnHitCrowdControlEntry[] entries, bool damageApplied, OnHitCrowdControlTiming timing)
-        {
-            _resolvedOnHitCrowdControls.Clear();
-            CollectOnHitCrowdControlUids(entries, damageApplied, timing, _resolvedOnHitCrowdControls);
-            return _resolvedOnHitCrowdControls.Count > 0 ? _resolvedOnHitCrowdControls[0] : 0;
+            return 0;
         }
 
         /// <summary>
@@ -1008,6 +1023,7 @@ namespace GGemCo2DSkill
 
             _hasPendingFinishReport = false;
             _current = null;
+            _chainUnlockByAttackId.Clear();
             ExecutionFinished?.Invoke(report);
         }
 
@@ -1064,6 +1080,7 @@ namespace GGemCo2DSkill
             if (ReferenceEquals(_current, run))
             {
                 _current = null; // 즉시 종료(추가 Tick/이벤트 전달 방지)
+                _chainUnlockByAttackId.Clear();
                 if (_hasPendingFinishReport)
                 {
                     var report = _pendingFinishReport;
