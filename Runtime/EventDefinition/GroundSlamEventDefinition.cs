@@ -73,6 +73,20 @@ namespace GGemCo2DSkill
         [Tooltip("Ground 레이어 마스크")]
         public LayerMask groundLayerMask = Physics2D.DefaultRaycastLayers;
 
+        [Header("Animation")]
+        [Tooltip("내려치기 시작 시 1회 재생할 애니메이션 이름입니다. 비어 있으면 즉시 Loop 단계로 진입합니다.")]
+        public string startAnimationName;
+
+        [Tooltip("내려오는 동안 반복 재생할 애니메이션 이름입니다.")]
+        public string fallLoopAnimationName;
+
+        [Tooltip("지면에 닿았을 때 1회 재생할 애니메이션 이름입니다.")]
+        public string landEndAnimationName;
+
+        [Tooltip("Ground Slam 진행률이 이 값 이상이 되면 Start 애니메이션에서 Fall Loop 애니메이션으로 전환합니다.")]
+        [Range(0f, 1f)]
+        public float startToLoopNormalizedTime = 0.15f;
+
         [Header("Direction")]
         [Tooltip("true면 이벤트 스냅샷 시점의 forward를 사용합니다.")]
         public bool useSnapshotForward = true;

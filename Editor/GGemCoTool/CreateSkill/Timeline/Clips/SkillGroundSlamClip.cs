@@ -36,6 +36,17 @@ namespace GGemCo2DSkillEditor
         [Tooltip("착지 지면을 탐색할 때 사용할 레이어 마스크입니다.")]
         [SerializeField] private LayerMask groundLayerMask = Physics2D.DefaultRaycastLayers;
 
+        [Header("Animation")]
+        [Tooltip("내려치기 시작 시 1회 재생할 애니메이션 이름입니다. 비워두면 즉시 Loop 단계로 진입합니다.")]
+        [SerializeField] private string startAnimationName = string.Empty;
+        [Tooltip("내려오는 동안 반복 재생할 애니메이션 이름입니다.")]
+        [SerializeField] private string fallLoopAnimationName = string.Empty;
+        [Tooltip("지면에 닿았을 때 1회 재생할 애니메이션 이름입니다.")]
+        [SerializeField] private string landEndAnimationName = string.Empty;
+        [Tooltip("Ground Slam 진행률이 이 값 이상이 되면 Start 애니메이션에서 Fall Loop 애니메이션으로 전환합니다.")]
+        [Range(0f, 1f)]
+        [SerializeField] private float startToLoopNormalizedTime = 0.15f;
+
         [Header("Direction")]
         [Tooltip("클립 시작 시점의 바라보는 방향을 고정해서 사용할지 여부입니다.")]
         [SerializeField] private bool useSnapshotForward = true;
@@ -61,6 +72,10 @@ namespace GGemCo2DSkillEditor
         public float FixedDropDistance => fixedDropDistance;
         public float GroundSnapDistance => groundSnapDistance;
         public LayerMask GroundLayerMask => groundLayerMask;
+        public string StartAnimationName => startAnimationName;
+        public string FallLoopAnimationName => fallLoopAnimationName;
+        public string LandEndAnimationName => landEndAnimationName;
+        public float StartToLoopNormalizedTime => startToLoopNormalizedTime;
         public bool UseSnapshotForward => useSnapshotForward;
         public bool StopAtEnd => stopAtEnd;
         public bool UseMovePosition => useMovePosition;
