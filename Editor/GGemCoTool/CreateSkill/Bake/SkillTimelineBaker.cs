@@ -278,6 +278,7 @@ namespace GGemCo2DSkillEditor
                         // OnHit Affect(피격 대상)
                         def.onHitAffects = dmg.OnHitAffects;
                         def.onHitCrowdControls = dmg.OnHitCrowdControls;
+                        def.allowSkillChainOnConfirmedDamage = dmg.AllowSkillChainOnConfirmedDamage;
                         return def;
                     };
 
@@ -348,6 +349,7 @@ namespace GGemCo2DSkillEditor
                         def.visualSprite = proj.VisualSprite;
                         def.visualAnimatorController = proj.VisualAnimatorController;
                         def.visualVfxUidOverride = proj.VisualVfxUidOverride;
+                        def.allowSkillChainOnConfirmedDamage = proj.AllowSkillChainOnConfirmedDamage;
                         def.targetingOverride = proj.TargetingOverride;
                         return def;
                     };

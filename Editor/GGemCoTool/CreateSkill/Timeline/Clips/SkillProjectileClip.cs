@@ -56,6 +56,11 @@ namespace GGemCo2DSkillEditor
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private GGemCo2DSkill.TargetingOverride targetingOverride;
 
+
+        [Header("Chain Cancel")]
+        [Tooltip("이 Projectile 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
+        [SerializeField] private bool allowSkillChainOnConfirmedDamage = false;
+
         /// <summary>
         /// 이 클립이 표현하는 스킬 이벤트 유형입니다.
         /// </summary>
@@ -110,5 +115,11 @@ namespace GGemCo2DSkillEditor
         /// 프로젝타일의 타게팅 규칙을 보정하는 오버라이드 설정입니다.
         /// </summary>
         public GGemCo2DSkill.TargetingOverride TargetingOverride => targetingOverride;
+
+
+        /// <summary>
+        /// 이 Projectile 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다.
+        /// </summary>
+        public bool AllowSkillChainOnConfirmedDamage => allowSkillChainOnConfirmedDamage;
     }
 }

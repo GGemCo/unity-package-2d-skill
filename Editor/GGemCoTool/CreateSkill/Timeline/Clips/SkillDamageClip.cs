@@ -107,6 +107,14 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private OnHitCrowdControlEntry[] onHitCrowdControls;
 
         /// <summary>
+        /// 이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다.
+        /// 최종 런타임 동작은 <see cref="GGemCo2DSkill.GGemCoSkillSettings.enableSkillChainOnConfirmedDamage"/> 마스터 옵션이 함께 켜져 있어야 활성화됩니다.
+        /// </summary>
+        [Header("Chain Cancel")]
+        [Tooltip("[체인 캔슬] 이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작")]
+        [SerializeField] private bool allowSkillChainOnConfirmedDamage = false;
+
+        /// <summary>
         /// 이 클립의 이벤트 타입을 반환합니다.
         /// </summary>
         /// <returns>데미지 이벤트 타입입니다.</returns>
@@ -166,5 +174,11 @@ namespace GGemCo2DSkillEditor
         /// 적중 시 적용될 Crowd Control 목록을 반환합니다.
         /// </summary>
         public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
+
+
+        /// <summary>
+        /// 실제 데미지 확정 시 다음 스킬 연계를 즉시 허용할지 여부를 반환합니다.
+        /// </summary>
+        public bool AllowSkillChainOnConfirmedDamage => allowSkillChainOnConfirmedDamage;
     }
 }
