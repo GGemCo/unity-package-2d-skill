@@ -72,9 +72,24 @@ namespace GGemCo2DSkill
             public ICharacterMotionController MotionController;
             public GroundSlamEventDefinition Definition;
             public GroundSlamAnimationPhaseState Phase;
+            public bool UsePhaseBasedLoopTransition;
+        }
+
+        private struct PendingGroundSlamState
+        {
+            public bool IsActive;
+            public GameObject Caster;
+            public ICharacterMotionController MotionController;
+            public GroundSlamEventDefinition Definition;
+            public Vector2 StartPosition;
+            public Vector2 TargetPosition;
+            public float FallDurationSeconds;
+            public float HoldRemainingSeconds;
+            public bool UsePhaseBasedLoopTransition;
         }
 
         private GroundSlamAnimationState _groundSlamAnimationState;
+        private PendingGroundSlamState _pendingGroundSlamState;
 
         /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
@@ -128,6 +143,7 @@ namespace GGemCo2DSkill
                 }
             }
 
+            UpdatePendingGroundSlam();
             UpdateGroundSlamAnimation();
         }
 
@@ -148,6 +164,7 @@ namespace GGemCo2DSkill
             CleanupSpawnedVfxs();
             _chainUnlockByAttackId.Clear();
             ClearGroundSlamAnimationState();
+            ClearPendingGroundSlamState();
 
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
@@ -481,8 +498,11 @@ namespace GGemCo2DSkill
             var motion = ctx.caster.GetComponentInParent<ICharacterMotionController>();
             if (motion == null) return;
 
-            float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds;
-            if (duration <= 0f) return;
+            float holdDuration = Mathf.Max(0f, def.airHoldDurationSeconds);
+            float fallDuration = def.fallDurationSeconds > 0f
+                ? def.fallDurationSeconds
+                : (def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds);
+            if (fallDuration <= 0f) return;
 
             Vector2 startPosition = ctx.caster.transform.position;
             Vector2 forward = def.useSnapshotForward
@@ -500,11 +520,95 @@ namespace GGemCo2DSkill
             if (travel.sqrMagnitude <= 1e-8f)
                 return;
 
+            if (holdDuration > 0f)
+            {
+                ClearPendingGroundSlamState();
+                BeginGroundSlamAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: true);
+                _pendingGroundSlamState = new PendingGroundSlamState
+                {
+                    IsActive = true,
+                    Caster = ctx.caster,
+                    MotionController = motion,
+                    Definition = def,
+                    StartPosition = startPosition,
+                    TargetPosition = targetPosition,
+                    FallDurationSeconds = fallDuration,
+                    HoldRemainingSeconds = holdDuration,
+                    UsePhaseBasedLoopTransition = true,
+                };
+                return;
+            }
+
+            if (!TryStartGroundSlamMotion(motion, def, startPosition, targetPosition, fallDuration))
+                return;
+
+            BeginGroundSlamAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: false);
+        }
+
+        private void UpdatePendingGroundSlam()
+        {
+            if (!_pendingGroundSlamState.IsActive)
+                return;
+
+            if (_pendingGroundSlamState.Caster == null || _pendingGroundSlamState.MotionController == null || _pendingGroundSlamState.Definition == null)
+            {
+                ClearPendingGroundSlamState();
+                ClearGroundSlamAnimationState();
+                return;
+            }
+
+            _pendingGroundSlamState.HoldRemainingSeconds -= Time.deltaTime;
+            if (_pendingGroundSlamState.HoldRemainingSeconds > 0f)
+                return;
+
+            var pending = _pendingGroundSlamState;
+            ClearPendingGroundSlamState();
+
+            if (!TryStartGroundSlamMotion(pending.MotionController, pending.Definition, pending.StartPosition, pending.TargetPosition, pending.FallDurationSeconds))
+            {
+                ClearGroundSlamAnimationState();
+                return;
+            }
+
+            if (_groundSlamAnimationState.IsActive)
+            {
+                _groundSlamAnimationState.MotionController = pending.MotionController;
+                _groundSlamAnimationState.Definition = pending.Definition;
+                if (!string.IsNullOrWhiteSpace(pending.Definition.fallLoopAnimationName))
+                {
+                    PlayGroundSlamAnimation(_groundSlamAnimationState.AnimationController, pending.Definition.fallLoopAnimationName, loop: true);
+                    _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
+                }
+                else
+                {
+                    _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
+                }
+            }
+            else
+            {
+                BeginGroundSlamAnimation(pending.Caster, pending.MotionController, pending.Definition, pending.UsePhaseBasedLoopTransition);
+            }
+        }
+
+        private static bool TryStartGroundSlamMotion(
+            ICharacterMotionController motion,
+            GroundSlamEventDefinition def,
+            Vector2 startPosition,
+            Vector2 targetPosition,
+            float fallDurationSeconds)
+        {
+            if (motion == null || def == null)
+                return false;
+
+            Vector2 travel = targetPosition - startPosition;
+            if (travel.sqrMagnitude <= 1e-8f)
+                return false;
+
             var req = new MotionRequest(
                 MotionChannel.Skill,
                 MotionKind.GroundSlam,
                 travel.normalized,
-                duration,
+                fallDurationSeconds,
                 travel.magnitude,
                 def.easing,
                 stopAtEnd: def.stopAtEnd,
@@ -514,10 +618,7 @@ namespace GGemCo2DSkill
                 targetPosition: targetPosition,
                 groundSnapDistance: def.groundSnapDistance);
 
-            if (!motion.TryStartMotion(in req))
-                return;
-
-            BeginGroundSlamAnimation(ctx.caster, motion, def);
+            return motion.TryStartMotion(in req);
         }
 
         private static bool TryResolveGroundSlamTargetPosition(
@@ -600,7 +701,8 @@ namespace GGemCo2DSkill
         private void BeginGroundSlamAnimation(
             GameObject caster,
             ICharacterMotionController motion,
-            GroundSlamEventDefinition def)
+            GroundSlamEventDefinition def,
+            bool usePhaseBasedLoopTransition)
         {
             ClearGroundSlamAnimationState();
 
@@ -619,6 +721,7 @@ namespace GGemCo2DSkill
                 MotionController = motion,
                 Definition = def,
                 Phase = GroundSlamAnimationPhaseState.None,
+                UsePhaseBasedLoopTransition = usePhaseBasedLoopTransition,
             };
 
             if (!string.IsNullOrWhiteSpace(def.startAnimationName))
@@ -655,6 +758,13 @@ namespace GGemCo2DSkill
 
             if (!motion.IsPlaying(MotionChannel.Skill))
             {
+                if (_pendingGroundSlamState.IsActive &&
+                    ReferenceEquals(_pendingGroundSlamState.MotionController, motion) &&
+                    ReferenceEquals(_pendingGroundSlamState.Definition, def))
+                {
+                    return;
+                }
+
                 if (_groundSlamAnimationState.Phase != GroundSlamAnimationPhaseState.LandEnd &&
                     !string.IsNullOrWhiteSpace(def.landEndAnimationName))
                 {
@@ -667,6 +777,9 @@ namespace GGemCo2DSkill
             }
 
             if (_groundSlamAnimationState.Phase != GroundSlamAnimationPhaseState.Start)
+                return;
+
+            if (_groundSlamAnimationState.UsePhaseBasedLoopTransition)
                 return;
 
             if (!motion.TryGetMotionProgress(MotionChannel.Skill, out float progress01))
@@ -704,6 +817,11 @@ namespace GGemCo2DSkill
         private void ClearGroundSlamAnimationState()
         {
             _groundSlamAnimationState = default;
+        }
+
+        private void ClearPendingGroundSlamState()
+        {
+            _pendingGroundSlamState = default;
         }
 
         /// <summary>
@@ -1342,6 +1460,7 @@ namespace GGemCo2DSkill
             ClearDamageAreaGizmo(run.Caster);
             CleanupSpawnedVfxs();
             ClearGroundSlamAnimationState();
+            ClearPendingGroundSlamState();
 
             _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
             _hasPendingFinishReport = true;

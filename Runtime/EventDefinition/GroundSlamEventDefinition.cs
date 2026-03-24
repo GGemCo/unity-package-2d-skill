@@ -42,8 +42,14 @@ namespace GGemCo2DSkill
     public sealed class GroundSlamEventDefinition : ScriptableObject
     {
         [Header("Motion")]
-        [Tooltip("지속시간 오버라이드(<=0 이면 이벤트 구간 Start~End 사용)")]
+        [Tooltip("전체 하강 지속시간 오버라이드(하강 시간 <= 0일 때 fallback 용도로 사용, <=0 이면 이벤트 구간 Start~End 사용)")]
         public float durationOverrideSeconds = -1f;
+
+        [Tooltip("공중에서 잠시 머무르는 시간(<=0 이면 체공 없이 즉시 하강 시작)")]
+        public float airHoldDurationSeconds = 0f;
+
+        [Tooltip("실제 내려가는 시간(<=0 이면 durationOverrideSeconds, 그것도 <=0 이면 이벤트 구간 Start~End 사용)")]
+        public float fallDurationSeconds = -1f;
 
         [Tooltip("시간 진행에 적용할 easing")]
         public Easing.EaseType easing = Easing.EaseType.Linear;

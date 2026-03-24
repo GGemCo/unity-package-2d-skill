@@ -341,6 +341,8 @@ namespace GGemCo2DSkillEditor
                     {
                         var def = ScriptableObject.CreateInstance<GroundSlamEventDefinition>();
                         def.durationOverrideSeconds = slam.DurationOverrideSeconds;
+                        def.airHoldDurationSeconds = Mathf.Max(0f, slam.AirHoldDurationSeconds);
+                        def.fallDurationSeconds = slam.FallDurationSeconds;
                         def.easing = slam.Easing;
                         def.landingMode = slam.LandingMode;
                         def.horizontalPolicy = slam.HorizontalPolicy;
