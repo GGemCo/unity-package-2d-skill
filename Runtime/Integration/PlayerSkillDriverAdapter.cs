@@ -16,6 +16,7 @@ namespace GGemCo2DSkill
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
         /// </summary>
         private SkillExecutor _executor;
+        private ISkillStartActionCanceler _skillStartActionCanceler;
 
         /// <summary>
         /// 스킬 UID별 다음 사용 가능 시각을 저장합니다.
@@ -36,6 +37,8 @@ namespace GGemCo2DSkill
         /// </summary>
         private void Awake()
         {
+            _skillStartActionCanceler = GetComponent<ISkillStartActionCanceler>();
+
             if (_executor == null)
                 SetSkillExecutor(GetComponent<SkillExecutor>());
             else
@@ -115,6 +118,8 @@ namespace GGemCo2DSkill
 
                 _chainConsumed = true;
             }
+
+            _skillStartActionCanceler?.CancelActionsOnSkillStart();
 
             bool started = _executor.TryUse(skillUid, ctx, ConfigCommon.SkillTableSource.Player);
             if (!started)
