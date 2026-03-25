@@ -36,6 +36,7 @@ namespace GGemCo2DSkill
         private bool _isEnded;
         private bool _isGravityScaleOverridden;
         private float _savedGravityScale;
+        private bool _isZeroGravityHoldStarted;
 
         public bool IsDone { get; private set; }
         public int SkillUid => _skill != null ? _skill.Uid : 0;
@@ -299,8 +300,48 @@ namespace GGemCo2DSkill
             _savedGravityScale = _casterRigidbody2D.gravityScale;
             _casterRigidbody2D.gravityScale = _skill.GravityScaleOverride;
             _isGravityScaleOverridden = true;
+            
+            if (Mathf.Approximately(_skill.GravityScaleOverride, 0f))
+            {
+                TryStartZeroGravityHold();
+            }
         }
+        
+        private void TryStartZeroGravityHold()
+        {
+            if (_isZeroGravityHoldStarted)
+                return;
 
+            if (_motionController != null && _ctx.caster != null)
+            {
+                Vector2 holdPos = _casterRigidbody2D != null
+                    ? _casterRigidbody2D.position
+                    : (Vector2)_ctx.caster.transform.position;
+
+                var request = new MotionRequest(
+                    channel: MotionChannel.Skill,
+                    kind: MotionKind.PositionHold,
+                    direction: Vector2.right,
+                    durationSeconds: 0f, // cancel될 때까지 유지되도록 Core 쪽 의미 확장
+                    distance: 0f,
+                    easeType: Easing.EaseType.Linear,
+                    stopAtEnd: true,
+                    useMovePosition: true,
+                    allowReplace: true,
+                    startPosition: holdPos,
+                    targetPosition: holdPos);
+
+                if (_motionController.TryStartMotion(request))
+                {
+                    _isZeroGravityHoldStarted = true;
+                    return;
+                }
+            }
+
+            // fallback
+            _casterRigidbody2D.SetLinearVelocity(Vector2.zero);
+        }
+        
         private void RestoreGravityScaleOverride()
         {
             if (!_isGravityScaleOverridden)
@@ -325,9 +366,14 @@ namespace GGemCo2DSkill
 
             _isEnded = true;
 
+            if (_isZeroGravityHoldStarted)
+            {
+                _motionController?.CancelMotion(MotionChannel.Skill, 0);
+                _isZeroGravityHoldStarted = false;
+            }
+
             RestoreGravityScaleOverride();
 
-            // 액션 상태 해제
             if (_actionController != null)
             {
                 _actionController.ClearAction(CharacterConstants.CharacterStatus.UseSkill);
@@ -338,6 +384,7 @@ namespace GGemCo2DSkill
             // 예) 이펙트/타임라인 정리, 콜백 호출, SkillExecutor에게 완료 알림 등
             _owner?.NotifyRunEnded(this);
         }
+        
         public void Cancel(SkillCancelReason reason)
         {
             if (IsDone) return;
