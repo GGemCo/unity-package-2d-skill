@@ -360,7 +360,9 @@ namespace GGemCo2DSkill
                 holdSecondsAfter: 0f,
                 stopAtEnd: def.stopAtEnd,
                 useMovePosition: def.useMovePosition,
-                allowReplace: def.allowReplace);
+                allowReplace: def.allowReplace,
+                collisionPolicy: ResolveMotionCollisionPolicy(def),
+                collisionTarget: ResolveMotionCollisionTarget(ctx, def));
 
             motion.TryStartMotion(in req);
         }
@@ -421,6 +423,12 @@ namespace GGemCo2DSkill
 
             if (targetDistance <= 1e-4f)
             {
+                if (def.targetRelationMode == SkillLungeTargetRelationMode.PassThroughTarget)
+                {
+                    resolvedDistance = Mathf.Max(0f, def.passThroughExtraDistance);
+                    return resolvedDistance > 0f && EnsureFallbackDirection(ctx, def, ref resolvedDirection);
+                }
+
                 resolvedDistance = 0f;
                 return false;
             }
@@ -429,8 +437,40 @@ namespace GGemCo2DSkill
             if (def.horizontalOnly)
                 resolvedDirection = new Vector2(Mathf.Sign(resolvedDirection.x), 0f);
 
-            resolvedDistance = Mathf.Max(0f, targetDistance - Mathf.Max(0f, def.stopOffset));
+            resolvedDistance = ResolveLockedTargetDistance(def, targetDistance);
             return resolvedDistance > 0f;
+        }
+
+        private static float ResolveLockedTargetDistance(LungeEventDefinition def, float targetDistance)
+        {
+            targetDistance = Mathf.Max(0f, targetDistance);
+            switch (def.targetRelationMode)
+            {
+                case SkillLungeTargetRelationMode.ReachTargetCenter:
+                    return targetDistance;
+
+                case SkillLungeTargetRelationMode.PassThroughTarget:
+                    return targetDistance + Mathf.Max(0f, def.passThroughExtraDistance);
+
+                case SkillLungeTargetRelationMode.StopBeforeTarget:
+                default:
+                    return Mathf.Max(0f, targetDistance - Mathf.Max(0f, def.stopOffset));
+            }
+        }
+
+        private static MotionCollisionPolicy ResolveMotionCollisionPolicy(LungeEventDefinition def)
+        {
+            return def.collisionPolicy == SkillLungeCollisionPolicy.IgnoreLockedTargetCharacter
+                ? MotionCollisionPolicy.IgnoreTargetCharacter
+                : MotionCollisionPolicy.Default;
+        }
+
+        private static GameObject ResolveMotionCollisionTarget(SkillTargetContext ctx, LungeEventDefinition def)
+        {
+            if (def.collisionPolicy != SkillLungeCollisionPolicy.IgnoreLockedTargetCharacter)
+                return null;
+
+            return ctx.lockedTarget;
         }
 
         private static bool EnsureFallbackDirection(SkillTargetContext ctx, LungeEventDefinition def, ref Vector2 direction)

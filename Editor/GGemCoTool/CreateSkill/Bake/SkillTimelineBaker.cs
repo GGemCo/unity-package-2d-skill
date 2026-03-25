@@ -314,8 +314,11 @@ namespace GGemCo2DSkillEditor
 
                         def.resolveMode = lunge.ResolveMode;
                         def.targetResolveRange = lunge.TargetResolveRange;
+                        def.targetRelationMode = lunge.TargetRelationMode;
                         def.stopOffset = Mathf.Max(0f, lunge.StopOffset);
+                        def.passThroughExtraDistance = Mathf.Max(0f, lunge.PassThroughExtraDistance);
                         def.horizontalOnly = lunge.HorizontalOnly;
+                        def.collisionPolicy = lunge.CollisionPolicy;
 
                         def.invertForward = lunge.InvertForward;
 

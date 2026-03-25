@@ -1,6 +1,7 @@
 using System;
 using Config;
 using GGemCo2DCore;
+using GGemCo2DSkill;
 using UnityEngine;
 
 namespace GGemCo2DSkillEditor
@@ -28,17 +29,26 @@ namespace GGemCo2DSkillEditor
 
         [Header("Resolve")]
         [Tooltip("고정 거리 / 타겟 추적 중 어떤 방식으로 실제 이동 거리를 계산할지 결정합니다.")]
-        [SerializeField] private GGemCo2DSkill.SkillLungeResolveMode resolveMode = GGemCo2DSkill.SkillLungeResolveMode.FixedDistance;
+        [SerializeField] private SkillLungeResolveMode resolveMode = SkillLungeResolveMode.FixedDistance;
 
         [Tooltip("타겟 추적 허용 최대 거리입니다. 0 이하이면 스킬 CastRange를 사용합니다.")]
         [SerializeField] private float targetResolveRange = -1f;
 
+        [Tooltip("타겟 종착 관계를 해석하는 방식입니다. StopBeforeTarget은 앞에서 멈추고, ReachTargetCenter는 중심까지, PassThroughTarget은 타겟을 지나갑니다.")]
+        public SkillLungeTargetRelationMode targetRelationMode = SkillLungeTargetRelationMode.StopBeforeTarget;
+        
         [Tooltip("타겟 중심에 완전히 겹치지 않도록 남길 거리입니다.")]
         [SerializeField] private float stopOffset = 0.2f;
 
+        [Tooltip("PassThroughTarget일 때 타겟 중심을 지난 뒤 추가로 이동할 거리입니다.")]
+        public float passThroughExtraDistance = 0.5f;
+        
         [Tooltip("체크 시 X축 기준으로만 타겟 접근 거리를 계산합니다.")]
         [SerializeField] private bool horizontalOnly = true;
 
+        [Tooltip("돌진 중 타겟과의 충돌 처리 정책입니다. 타겟을 지나가는 연출이 필요할 때 사용할 수 있습니다.")]
+        public SkillLungeCollisionPolicy collisionPolicy = SkillLungeCollisionPolicy.Default;
+        
         [Header("Direction")]
         [Tooltip("체크 시 현재 Forward 방향의 반대로 이동합니다. (뒤로 회피/백스텝 구현용)")]
         [SerializeField] private bool invertForward = false;
@@ -112,16 +122,19 @@ namespace GGemCo2DSkillEditor
         /// 타겟 추적 허용 최대 거리입니다. 0 이하이면 스킬 CastRange를 사용합니다.
         /// </summary>
         public float TargetResolveRange => targetResolveRange;
+        public SkillLungeTargetRelationMode TargetRelationMode => targetRelationMode;
 
         /// <summary>
         /// 타겟 중심에 완전히 겹치지 않도록 남길 거리입니다.
         /// </summary>
         public float StopOffset => stopOffset;
+        public float PassThroughExtraDistance => passThroughExtraDistance;
 
         /// <summary>
         /// X축 기준으로만 타겟 접근 거리를 계산할지 여부입니다.
         /// </summary>
         public bool HorizontalOnly => horizontalOnly;
+        public SkillLungeCollisionPolicy CollisionPolicy => collisionPolicy;
 
         /// <summary>
         /// 이동 방향을 Forward의 반대로 뒤집을지 여부입니다.

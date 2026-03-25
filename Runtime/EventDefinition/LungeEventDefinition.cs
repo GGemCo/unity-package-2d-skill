@@ -21,6 +21,35 @@ namespace GGemCo2DSkill
         ToLockedTargetElseFixedDistance = 3,
     }
 
+
+
+    /// <summary>
+    /// 고정 타겟을 기준으로 돌진 종착 관계를 해석하는 방식입니다.
+    /// </summary>
+    public enum SkillLungeTargetRelationMode
+    {
+        /// <summary>타겟과 겹치지 않도록 앞에서 멈춥니다.</summary>
+        StopBeforeTarget = 0,
+
+        /// <summary>타겟 중심까지 정확히 이동합니다.</summary>
+        ReachTargetCenter = 1,
+
+        /// <summary>타겟 중심을 지난 뒤 추가 거리만큼 더 이동합니다.</summary>
+        PassThroughTarget = 2,
+    }
+
+    /// <summary>
+    /// 돌진 중 타겟과의 충돌 처리 정책입니다.
+    /// </summary>
+    public enum SkillLungeCollisionPolicy
+    {
+        /// <summary>기본 충돌 정책을 유지합니다.</summary>
+        Default = 0,
+
+        /// <summary>돌진 중 고정 타겟 캐릭터와의 충돌을 일시적으로 무시합니다.</summary>
+        IgnoreLockedTargetCharacter = 1,
+    }
+
     /// <summary>
     /// 전진(러시/대시) 이벤트 정의.
     /// - 스킬 타임라인(이벤트 구간)과 이동 구간을 정밀하게 동기화하기 위한 Payload 입니다.
@@ -46,11 +75,20 @@ namespace GGemCo2DSkill
         [Tooltip("타겟 추적을 허용할 최대 거리(<=0 이면 CastRange, 그것도 없으면 Distance를 사용).")]
         public float targetResolveRange = -1f;
 
-        [Tooltip("타겟 중심에 완전히 겹치지 않도록 남길 거리입니다.")]
+        [Tooltip("타겟 종착 관계를 해석하는 방식입니다. StopBeforeTarget은 앞에서 멈추고, ReachTargetCenter는 중심까지, PassThroughTarget은 타겟을 지나갑니다.")]
+        public SkillLungeTargetRelationMode targetRelationMode = SkillLungeTargetRelationMode.StopBeforeTarget;
+
+        [Tooltip("StopBeforeTarget일 때 타겟과 겹치지 않도록 남길 거리입니다.")]
         public float stopOffset = 0.2f;
+
+        [Tooltip("PassThroughTarget일 때 타겟 중심을 지난 뒤 추가로 이동할 거리입니다.")]
+        public float passThroughExtraDistance = 0.5f;
 
         [Tooltip("true면 X축 기준으로만 타겟 접근 거리를 계산합니다.")]
         public bool horizontalOnly = true;
+
+        [Tooltip("돌진 중 타겟과의 충돌 처리 정책입니다. 타겟을 지나가는 연출이 필요할 때 사용할 수 있습니다.")]
+        public SkillLungeCollisionPolicy collisionPolicy = SkillLungeCollisionPolicy.Default;
 
         [Header("Direction")]
         [Tooltip("true면 스킬 발동 시점의 전방(캐스터 스냅샷)을 사용합니다.")]
