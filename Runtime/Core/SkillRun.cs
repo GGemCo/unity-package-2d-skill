@@ -97,6 +97,8 @@ namespace GGemCo2DSkill
 
                 _nextEventIndex = 0;
                 _time = 0f;
+
+                TryApplyDeferredZeroGravityHold();
             }
             catch (Exception e)
             {
@@ -300,11 +302,31 @@ namespace GGemCo2DSkill
             _savedGravityScale = _casterRigidbody2D.gravityScale;
             _casterRigidbody2D.gravityScale = _skill.GravityScaleOverride;
             _isGravityScaleOverridden = true;
-            
-            if (Mathf.Approximately(_skill.GravityScaleOverride, 0f))
+        }
+
+        private void TryApplyDeferredZeroGravityHold()
+        {
+            if (!Mathf.Approximately(_skill.GravityScaleOverride, 0f))
+                return;
+
+            if (HasGroundSlamEvent())
+                return;
+
+            TryStartZeroGravityHold();
+        }
+
+        private bool HasGroundSlamEvent()
+        {
+            if (_sequence == null || _sequence.Events == null)
+                return false;
+
+            for (int i = 0; i < _sequence.Events.Length; i++)
             {
-                TryStartZeroGravityHold();
+                if (_sequence.Events[i].Type == ConfigCommonSkill.SkillEventType.GroundSlam)
+                    return true;
             }
+
+            return false;
         }
         
         private void TryStartZeroGravityHold()

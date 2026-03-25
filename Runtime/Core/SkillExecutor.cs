@@ -73,6 +73,8 @@ namespace GGemCo2DSkill
             public GroundSlamEventDefinition Definition;
             public GroundSlamAnimationPhaseState Phase;
             public bool UsePhaseBasedLoopTransition;
+            public bool IsInstantLandSequence;
+            public float PhaseRemainingSeconds;
         }
 
         private struct PendingGroundSlamState
@@ -563,7 +565,10 @@ namespace GGemCo2DSkill
 
             Vector2 travel = targetPosition - startPosition;
             if (travel.sqrMagnitude <= 1e-8f)
+            {
+                BeginGroundSlamInstantLandSequence(ctx.caster, motion, def);
                 return;
+            }
 
             if (holdDuration > 0f)
             {
@@ -762,14 +767,13 @@ namespace GGemCo2DSkill
             var hit = Physics2D.Raycast(origin, Vector2.down, probeDistance, def.groundLayerMask);
             if (hit.collider != null)
             {
-                float hitY = Mathf.Min(hit.point.y, startY);
-                targetPosition = new Vector2(targetX, hitY);
-                return hitY < startY - 1e-4f;
+                targetPosition = new Vector2(targetX, hit.point.y);
+                return true;
             }
 
             float fallbackY = startY - Mathf.Max(0f, def.fixedDropDistance);
             targetPosition = new Vector2(targetX, fallbackY);
-            return fallbackY < startY - 1e-4f;
+            return true;
         }
 
 
@@ -797,6 +801,8 @@ namespace GGemCo2DSkill
                 Definition = def,
                 Phase = GroundSlamAnimationPhaseState.None,
                 UsePhaseBasedLoopTransition = usePhaseBasedLoopTransition,
+                IsInstantLandSequence = false,
+                PhaseRemainingSeconds = 0f,
             };
 
             if (!string.IsNullOrWhiteSpace(def.startAnimationName))
@@ -816,6 +822,103 @@ namespace GGemCo2DSkill
             _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.None;
         }
 
+        private void BeginGroundSlamInstantLandSequence(
+            GameObject caster,
+            ICharacterMotionController motion,
+            GroundSlamEventDefinition def)
+        {
+            ClearPendingGroundSlamState();
+            ClearGroundSlamAnimationState();
+
+            if (caster == null || motion == null || def == null)
+                return;
+
+            var anim = ResolveAnimController(caster);
+            if (anim == null)
+                return;
+
+            _groundSlamAnimationState = new GroundSlamAnimationState
+            {
+                IsActive = true,
+                Caster = caster,
+                AnimationController = anim,
+                MotionController = motion,
+                Definition = def,
+                Phase = GroundSlamAnimationPhaseState.None,
+                UsePhaseBasedLoopTransition = false,
+                IsInstantLandSequence = true,
+                PhaseRemainingSeconds = 0f,
+            };
+
+            if (!string.IsNullOrWhiteSpace(def.startAnimationName))
+            {
+                PlayGroundSlamAnimation(anim, def.startAnimationName, loop: false);
+                _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.Start;
+                _groundSlamAnimationState.PhaseRemainingSeconds = GetGroundSlamAnimationDuration(anim, def.startAnimationName);
+                return;
+            }
+
+            PlayGroundSlamLandEndOrClear();
+        }
+
+        private void UpdateGroundSlamInstantLandSequence()
+        {
+            if (!_groundSlamAnimationState.IsActive)
+                return;
+
+            _groundSlamAnimationState.PhaseRemainingSeconds -= Time.deltaTime;
+            if (_groundSlamAnimationState.PhaseRemainingSeconds > 0f)
+                return;
+
+            switch (_groundSlamAnimationState.Phase)
+            {
+                case GroundSlamAnimationPhaseState.Start:
+                    PlayGroundSlamLandEndOrClear();
+                    return;
+                case GroundSlamAnimationPhaseState.LandEnd:
+                    ClearGroundSlamAnimationState();
+                    return;
+                default:
+                    ClearGroundSlamAnimationState();
+                    return;
+            }
+        }
+
+        private void PlayGroundSlamLandEndOrClear()
+        {
+            if (!_groundSlamAnimationState.IsActive)
+                return;
+
+            var anim = _groundSlamAnimationState.AnimationController;
+            var def = _groundSlamAnimationState.Definition;
+            if (anim == null || def == null)
+            {
+                ClearGroundSlamAnimationState();
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(def.landEndAnimationName))
+            {
+                PlayGroundSlamAnimation(anim, def.landEndAnimationName, loop: false);
+                _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.LandEnd;
+                _groundSlamAnimationState.PhaseRemainingSeconds = GetGroundSlamAnimationDuration(anim, def.landEndAnimationName);
+                return;
+            }
+
+            ClearGroundSlamAnimationState();
+        }
+
+        private static float GetGroundSlamAnimationDuration(
+            ICharacterAnimationController anim,
+            string animationName)
+        {
+            if (anim == null || string.IsNullOrWhiteSpace(animationName))
+                return 0.05f;
+
+            float duration = anim.GetCharacterAnimationDuration(animationName, isMilliseconds: false);
+            return Mathf.Max(0.05f, duration);
+        }
+
         private void UpdateGroundSlamAnimation()
         {
             if (!_groundSlamAnimationState.IsActive)
@@ -828,6 +931,12 @@ namespace GGemCo2DSkill
             if (anim == null || motion == null || def == null)
             {
                 ClearGroundSlamAnimationState();
+                return;
+            }
+
+            if (_groundSlamAnimationState.IsInstantLandSequence)
+            {
+                UpdateGroundSlamInstantLandSequence();
                 return;
             }
 
