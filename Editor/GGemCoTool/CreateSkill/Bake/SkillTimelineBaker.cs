@@ -368,6 +368,40 @@ namespace GGemCo2DSkillEditor
                     };
 
 
+                case SkillArcLungeClip arcLunge:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<ArcLungeEventDefinition>();
+                        def.distance = Mathf.Max(0f, arcLunge.Distance);
+                        def.durationOverrideSeconds = arcLunge.DurationOverrideSeconds;
+                        def.riseDurationSeconds = Mathf.Max(0f, arcLunge.RiseDurationSeconds);
+                        def.apexHoldDurationSeconds = Mathf.Max(0f, arcLunge.ApexHoldDurationSeconds);
+                        def.fallDurationSeconds = Mathf.Max(0f, arcLunge.FallDurationSeconds);
+                        def.easing = arcLunge.Easing;
+                        def.arcHeight = Mathf.Max(0f, arcLunge.ArcHeight);
+                        def.arcMode = arcLunge.ArcMode;
+                        def.arcRiseEase = arcLunge.ArcRiseEase;
+                        def.arcFallEase = arcLunge.ArcFallEase;
+                        def.resolveMode = arcLunge.ResolveMode;
+                        def.targetResolveRange = arcLunge.TargetResolveRange;
+                        def.targetRelationMode = arcLunge.TargetRelationMode;
+                        def.stopOffset = Mathf.Max(0f, arcLunge.StopOffset);
+                        def.passThroughExtraDistance = Mathf.Max(0f, arcLunge.PassThroughExtraDistance);
+                        def.horizontalOnly = arcLunge.HorizontalOnly;
+                        def.collisionPolicy = arcLunge.CollisionPolicy;
+                        def.riseAnimationName = arcLunge.RiseAnimationName;
+                        def.apexAnimationName = arcLunge.ApexAnimationName;
+                        def.fallAnimationName = arcLunge.FallAnimationName;
+                        def.landEndAnimationName = arcLunge.LandEndAnimationName;
+                        def.invertForward = arcLunge.InvertForward;
+                        def.useSnapshotForward = arcLunge.UseSnapshotForward;
+                        def.stopAtEnd = arcLunge.StopAtEnd;
+                        def.useMovePosition = arcLunge.UseMovePosition;
+                        def.allowReplace = arcLunge.AllowReplace;
+                        return def;
+                    };
+
+
                 case SkillProjectileClip proj:
                     return () =>
                     {

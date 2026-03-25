@@ -93,6 +93,31 @@ namespace GGemCo2DSkill
         private GroundSlamAnimationState _groundSlamAnimationState;
         private PendingGroundSlamState _pendingGroundSlamState;
 
+        private enum ArcLungeAnimationPhaseState
+        {
+            None = 0,
+            Rise = 1,
+            Apex = 2,
+            Fall = 3,
+            LandEnd = 4,
+        }
+
+        private struct ArcLungeAnimationState
+        {
+            public bool IsActive;
+            public GameObject Caster;
+            public ICharacterAnimationController AnimationController;
+            public ICharacterMotionController MotionController;
+            public ArcLungeEventDefinition Definition;
+            public ArcLungeAnimationPhaseState Phase;
+            public float ElapsedSeconds;
+            public float RiseDurationSeconds;
+            public float ApexHoldDurationSeconds;
+            public float LandEndRemainingSeconds;
+        }
+
+        private ArcLungeAnimationState _arcLungeAnimationState;
+
         /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
         /// </summary>
@@ -152,6 +177,7 @@ namespace GGemCo2DSkill
 
             UpdatePendingGroundSlam();
             UpdateGroundSlamAnimation();
+            UpdateArcLungeAnimation();
         }
 
         /// <summary>
@@ -172,6 +198,7 @@ namespace GGemCo2DSkill
             _chainUnlockByAttackId.Clear();
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
+            ClearArcLungeAnimationState();
 
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
@@ -306,6 +333,12 @@ namespace GGemCo2DSkill
             UnityEngine.Object payloadObj,
             float eventDurationSeconds)
         {
+            if (payloadObj is ArcLungeEventDefinition arcDef)
+            {
+                HandleArcLunge(skill, ctx, arcDef, eventDurationSeconds);
+                return;
+            }
+
             if (payloadObj is not LungeEventDefinition def) return;
             if (ctx.caster == null) return;
 
@@ -367,6 +400,204 @@ namespace GGemCo2DSkill
                 collisionTarget: ResolveMotionCollisionTarget(ctx, def));
 
             motion.TryStartMotion(in req);
+        }
+
+        private void HandleArcLunge(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            ArcLungeEventDefinition def,
+            float eventDurationSeconds)
+        {
+            if (def == null || ctx.caster == null) return;
+
+            var motion = ctx.caster.GetComponentInParent<ICharacterMotionController>();
+            if (motion == null) return;
+
+            float riseDuration = Mathf.Max(0f, def.riseDurationSeconds);
+            float apexHoldDuration = Mathf.Max(0f, def.apexHoldDurationSeconds);
+            float fallDuration = Mathf.Max(0f, def.fallDurationSeconds);
+            float totalDuration = def.durationOverrideSeconds > 0f
+                ? def.durationOverrideSeconds
+                : riseDuration + apexHoldDuration + fallDuration;
+            if (totalDuration <= 0f)
+                totalDuration = eventDurationSeconds;
+            if (totalDuration <= 0f || def.arcHeight <= 0f)
+                return;
+
+            Vector2 fallbackDirection = def.useSnapshotForward
+                ? new Vector2(ResolveForward2D(ctx.caster, ctx.forward).x, ResolveForward2D(ctx.caster, ctx.forward).y)
+                : ResolveCurrentFacing2D(ctx.caster);
+
+            if (TryResolveArcLungeMotion(skill, ctx, def, fallbackDirection, out var resolvedDirection, out float resolvedDistance) == false)
+                return;
+
+            if (def.invertForward)
+                resolvedDirection = -resolvedDirection;
+
+            if (Mathf.Abs(resolvedDirection.x) < 1e-4f && def.horizontalOnly)
+            {
+                float sign = Mathf.Sign(ctx.caster.transform.localScale.x);
+                if (Mathf.Approximately(sign, 0f))
+                    sign = 1f;
+
+                resolvedDirection = new Vector2(sign, 0f);
+            }
+
+            if (def.horizontalOnly)
+                resolvedDirection = new Vector2(Mathf.Sign(resolvedDirection.x), 0f);
+            else if (resolvedDirection.sqrMagnitude > 1e-6f)
+                resolvedDirection.Normalize();
+
+            if (resolvedDistance <= 0f)
+                return;
+
+            NormalizeArcDurations(riseDuration, apexHoldDuration, fallDuration, totalDuration, out float normalizedRise, out float normalizedApex, out float normalizedFall);
+
+            var req = new MotionRequest(
+                MotionChannel.Skill,
+                MotionKind.Arc,
+                resolvedDirection,
+                totalDuration,
+                resolvedDistance,
+                def.easing,
+                arcHeight: def.arcHeight,
+                arcMode: def.arcMode,
+                arcRiseEaseType: def.arcRiseEase,
+                arcFallEaseType: def.arcFallEase,
+                arcApexHoldNormalized: normalizedApex,
+                arcRiseRatioNormalized: normalizedRise,
+                arcFallRatioNormalized: normalizedFall,
+                holdSecondsAfter: 0f,
+                stopAtEnd: def.stopAtEnd,
+                useMovePosition: def.useMovePosition,
+                allowReplace: def.allowReplace,
+                collisionPolicy: ResolveMotionCollisionPolicy(def.collisionPolicy),
+                collisionTarget: ResolveMotionCollisionTarget(ctx, def.collisionPolicy));
+
+            if (!motion.TryStartMotion(in req))
+                return;
+
+            BeginArcLungeAnimation(ctx.caster, motion, def, riseDuration, apexHoldDuration);
+        }
+
+        private static bool TryResolveArcLungeMotion(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            ArcLungeEventDefinition def,
+            Vector2 fallbackDirection,
+            out Vector2 resolvedDirection,
+            out float resolvedDistance)
+        {
+            resolvedDirection = fallbackDirection;
+            resolvedDistance = Mathf.Max(0f, def.distance);
+
+            switch (def.resolveMode)
+            {
+                case SkillLungeResolveMode.FixedDistance:
+                    return EnsureFallbackDirection(ctx, def.horizontalOnly, ref resolvedDirection);
+
+                case SkillLungeResolveMode.ToLockedTarget:
+                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: false, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
+
+                case SkillLungeResolveMode.ToLockedTargetIfWithinResolveRange:
+                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
+
+                case SkillLungeResolveMode.ToLockedTargetElseFixedDistance:
+                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: true, out resolvedDirection, out resolvedDistance);
+
+                default:
+                    return EnsureFallbackDirection(ctx, def.horizontalOnly, ref resolvedDirection);
+            }
+        }
+
+        private static void NormalizeArcDurations(
+            float riseDuration,
+            float apexHoldDuration,
+            float fallDuration,
+            float totalDuration,
+            out float normalizedRise,
+            out float normalizedApex,
+            out float normalizedFall)
+        {
+            float rise = Mathf.Max(0f, riseDuration);
+            float apex = Mathf.Max(0f, apexHoldDuration);
+            float fall = Mathf.Max(0f, fallDuration);
+            float sum = rise + apex + fall;
+            if (sum <= 1e-6f)
+            {
+                if (totalDuration > 0f)
+                {
+                    rise = totalDuration * 0.5f;
+                    fall = totalDuration * 0.5f;
+                }
+                else
+                {
+                    rise = 0.5f;
+                    fall = 0.5f;
+                }
+
+                sum = rise + fall;
+            }
+
+            normalizedRise = rise / sum;
+            normalizedApex = apex / sum;
+            normalizedFall = fall / sum;
+        }
+
+        private static bool TryResolveLockedTargetMotion(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            ArcLungeEventDefinition def,
+            Vector2 fallbackDirection,
+            bool requireWithinResolveRange,
+            bool fallbackToFixedDistance,
+            out Vector2 resolvedDirection,
+            out float resolvedDistance)
+        {
+            resolvedDirection = fallbackDirection;
+            resolvedDistance = Mathf.Max(0f, def.distance);
+
+            if (ctx.caster == null || ctx.lockedTarget == null)
+                return fallbackToFixedDistance && EnsureFallbackDirection(ctx, def.horizontalOnly, ref resolvedDirection);
+
+            Vector2 delta = ResolveCasterToTargetDelta(ctx.caster.transform.position, ctx.lockedTarget.transform.position, def.horizontalOnly);
+            float targetDistance = delta.magnitude;
+            float resolveRange = ResolveTargetResolveRange(skill, def.targetResolveRange, def.distance);
+
+            bool withinResolveRange = !requireWithinResolveRange || resolveRange <= 0f || targetDistance <= resolveRange;
+            if (!withinResolveRange)
+                return fallbackToFixedDistance && EnsureFallbackDirection(ctx, def.horizontalOnly, ref resolvedDirection);
+
+            if (targetDistance <= 1e-4f)
+            {
+                if (def.targetRelationMode == SkillLungeTargetRelationMode.PassThroughTarget)
+                {
+                    resolvedDistance = Mathf.Max(0f, def.passThroughExtraDistance);
+                    return resolvedDistance > 0f && EnsureFallbackDirection(ctx, def.horizontalOnly, ref resolvedDirection);
+                }
+
+                resolvedDistance = 0f;
+                return false;
+            }
+
+            resolvedDirection = delta / targetDistance;
+            if (def.horizontalOnly)
+                resolvedDirection = new Vector2(Mathf.Sign(resolvedDirection.x), 0f);
+
+            switch (def.targetRelationMode)
+            {
+                case SkillLungeTargetRelationMode.ReachTargetCenter:
+                    resolvedDistance = targetDistance;
+                    break;
+                case SkillLungeTargetRelationMode.PassThroughTarget:
+                    resolvedDistance = targetDistance + Mathf.Max(0f, def.passThroughExtraDistance);
+                    break;
+                default:
+                    resolvedDistance = Mathf.Max(0f, targetDistance - Mathf.Max(0f, def.stopOffset));
+                    break;
+            }
+
+            return resolvedDistance > 0f;
         }
 
         private static bool TryResolveLungeMotion(
@@ -460,24 +691,34 @@ namespace GGemCo2DSkill
             }
         }
 
-        private static MotionCollisionPolicy ResolveMotionCollisionPolicy(LungeEventDefinition def)
+        private static MotionCollisionPolicy ResolveMotionCollisionPolicy(SkillLungeCollisionPolicy collisionPolicy)
         {
-            return def.collisionPolicy == SkillLungeCollisionPolicy.IgnoreLockedTargetCharacter
+            return collisionPolicy == SkillLungeCollisionPolicy.IgnoreLockedTargetCharacter
                 ? MotionCollisionPolicy.IgnoreTargetCharacter
                 : MotionCollisionPolicy.Default;
         }
 
-        private static GameObject ResolveMotionCollisionTarget(SkillTargetContext ctx, LungeEventDefinition def)
+        private static MotionCollisionPolicy ResolveMotionCollisionPolicy(LungeEventDefinition def)
         {
-            if (def.collisionPolicy != SkillLungeCollisionPolicy.IgnoreLockedTargetCharacter)
+            return ResolveMotionCollisionPolicy(def.collisionPolicy);
+        }
+
+        private static GameObject ResolveMotionCollisionTarget(SkillTargetContext ctx, SkillLungeCollisionPolicy collisionPolicy)
+        {
+            if (collisionPolicy != SkillLungeCollisionPolicy.IgnoreLockedTargetCharacter)
                 return null;
 
             return ctx.lockedTarget;
         }
 
-        private static bool EnsureFallbackDirection(SkillTargetContext ctx, LungeEventDefinition def, ref Vector2 direction)
+        private static GameObject ResolveMotionCollisionTarget(SkillTargetContext ctx, LungeEventDefinition def)
         {
-            if (def.horizontalOnly)
+            return ResolveMotionCollisionTarget(ctx, def.collisionPolicy);
+        }
+
+        private static bool EnsureFallbackDirection(SkillTargetContext ctx, bool horizontalOnly, ref Vector2 direction)
+        {
+            if (horizontalOnly)
             {
                 if (Mathf.Abs(direction.x) < 1e-4f)
                 {
@@ -511,16 +752,26 @@ namespace GGemCo2DSkill
             return true;
         }
 
-        private static float ResolveTargetResolveRange(RuntimeSkillDefinition skill, LungeEventDefinition def)
+        private static bool EnsureFallbackDirection(SkillTargetContext ctx, LungeEventDefinition def, ref Vector2 direction)
         {
-            if (def.targetResolveRange > 0f)
-                return def.targetResolveRange;
+            return EnsureFallbackDirection(ctx, def.horizontalOnly, ref direction);
+        }
+
+        private static float ResolveTargetResolveRange(RuntimeSkillDefinition skill, float targetResolveRange, float distance)
+        {
+            if (targetResolveRange > 0f)
+                return targetResolveRange;
 
             float castRange = SkillRangeResolver.GetCastRange(skill);
             if (castRange > 0f)
                 return castRange;
 
-            return Mathf.Max(0f, def.distance);
+            return Mathf.Max(0f, distance);
+        }
+
+        private static float ResolveTargetResolveRange(RuntimeSkillDefinition skill, LungeEventDefinition def)
+        {
+            return ResolveTargetResolveRange(skill, def.targetResolveRange, def.distance);
         }
 
         private static Vector2 ResolveCasterToTargetDelta(Vector3 casterPosition, Vector3 targetPosition, bool horizontalOnly)
@@ -529,6 +780,172 @@ namespace GGemCo2DSkill
                 return new Vector2(targetPosition.x - casterPosition.x, 0f);
 
             return new Vector2(targetPosition.x - casterPosition.x, targetPosition.y - casterPosition.y);
+        }
+
+        private void BeginArcLungeAnimation(
+            GameObject caster,
+            ICharacterMotionController motion,
+            ArcLungeEventDefinition def,
+            float riseDurationSeconds,
+            float apexHoldDurationSeconds)
+        {
+            ClearArcLungeAnimationState();
+
+            if (caster == null || motion == null || def == null)
+                return;
+
+            var anim = ResolveAnimController(caster);
+            if (anim == null)
+                return;
+
+            _arcLungeAnimationState = new ArcLungeAnimationState
+            {
+                IsActive = true,
+                Caster = caster,
+                AnimationController = anim,
+                MotionController = motion,
+                Definition = def,
+                Phase = ArcLungeAnimationPhaseState.None,
+                ElapsedSeconds = 0f,
+                RiseDurationSeconds = Mathf.Max(0f, riseDurationSeconds),
+                ApexHoldDurationSeconds = Mathf.Max(0f, apexHoldDurationSeconds),
+                LandEndRemainingSeconds = 0f,
+            };
+
+            if (_arcLungeAnimationState.RiseDurationSeconds > 0f && !string.IsNullOrWhiteSpace(def.riseAnimationName))
+            {
+                PlayArcLungeAnimation(anim, def.riseAnimationName, loop: false);
+                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Rise;
+                return;
+            }
+
+            if (_arcLungeAnimationState.ApexHoldDurationSeconds > 0f && !string.IsNullOrWhiteSpace(def.apexAnimationName))
+            {
+                PlayArcLungeAnimation(anim, def.apexAnimationName, loop: true);
+                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Apex;
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(def.fallAnimationName))
+            {
+                PlayArcLungeAnimation(anim, def.fallAnimationName, loop: true);
+                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
+            }
+        }
+
+        private void UpdateArcLungeAnimation()
+        {
+            if (!_arcLungeAnimationState.IsActive)
+                return;
+
+            var anim = _arcLungeAnimationState.AnimationController;
+            var motion = _arcLungeAnimationState.MotionController;
+            var def = _arcLungeAnimationState.Definition;
+            if (anim == null || motion == null || def == null)
+            {
+                ClearArcLungeAnimationState();
+                return;
+            }
+
+            if (_arcLungeAnimationState.Phase == ArcLungeAnimationPhaseState.LandEnd)
+            {
+                _arcLungeAnimationState.LandEndRemainingSeconds -= Time.deltaTime;
+                if (_arcLungeAnimationState.LandEndRemainingSeconds <= 0f)
+                    ClearArcLungeAnimationState();
+                return;
+            }
+
+            if (!motion.IsPlaying(MotionChannel.Skill))
+            {
+                PlayArcLungeLandEndOrClear();
+                return;
+            }
+
+            _arcLungeAnimationState.ElapsedSeconds += Time.deltaTime;
+            float riseEnd = _arcLungeAnimationState.RiseDurationSeconds;
+            float apexEnd = riseEnd + _arcLungeAnimationState.ApexHoldDurationSeconds;
+
+            if (_arcLungeAnimationState.Phase == ArcLungeAnimationPhaseState.Rise && _arcLungeAnimationState.ElapsedSeconds >= riseEnd)
+            {
+                if (_arcLungeAnimationState.ApexHoldDurationSeconds > 0f && !string.IsNullOrWhiteSpace(def.apexAnimationName))
+                {
+                    PlayArcLungeAnimation(anim, def.apexAnimationName, loop: true);
+                    _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Apex;
+                }
+                else if (!string.IsNullOrWhiteSpace(def.fallAnimationName))
+                {
+                    PlayArcLungeAnimation(anim, def.fallAnimationName, loop: true);
+                    _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
+                }
+                else
+                {
+                    _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
+                }
+            }
+
+            if (_arcLungeAnimationState.Phase == ArcLungeAnimationPhaseState.Apex && _arcLungeAnimationState.ElapsedSeconds >= apexEnd)
+            {
+                if (!string.IsNullOrWhiteSpace(def.fallAnimationName))
+                    PlayArcLungeAnimation(anim, def.fallAnimationName, loop: true);
+
+                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
+            }
+        }
+
+        private void PlayArcLungeLandEndOrClear()
+        {
+            if (!_arcLungeAnimationState.IsActive)
+                return;
+
+            var anim = _arcLungeAnimationState.AnimationController;
+            var def = _arcLungeAnimationState.Definition;
+            if (anim == null || def == null)
+            {
+                ClearArcLungeAnimationState();
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(def.landEndAnimationName))
+            {
+                PlayArcLungeAnimation(anim, def.landEndAnimationName, loop: false);
+                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.LandEnd;
+                _arcLungeAnimationState.LandEndRemainingSeconds = GetCharacterAnimationDurationSafe(anim, def.landEndAnimationName);
+                return;
+            }
+
+            ClearArcLungeAnimationState();
+        }
+
+        private static void PlayArcLungeAnimation(
+            ICharacterAnimationController anim,
+            string animationName,
+            bool loop)
+        {
+            if (anim == null || string.IsNullOrWhiteSpace(animationName))
+                return;
+
+            anim.PlaySkillAnimation(new SkillAnimationRequest(
+                skillUid: 0,
+                phase: SkillAnimationPhase.Action,
+                loop: loop,
+                timeScale: 1f,
+                overrideAnimationName: animationName));
+        }
+
+        private static float GetCharacterAnimationDurationSafe(
+            ICharacterAnimationController anim,
+            string animationName)
+        {
+            if (anim == null || string.IsNullOrWhiteSpace(animationName))
+                return 0.05f;
+
+            float duration = anim.GetCharacterAnimationDuration(animationName, isMilliseconds: false);
+            return Mathf.Max(0.05f, duration);
+        }
+
+        private void ClearArcLungeAnimationState()
+        {
+            _arcLungeAnimationState = default;
         }
 
         /// <summary>
@@ -912,11 +1329,7 @@ namespace GGemCo2DSkill
             ICharacterAnimationController anim,
             string animationName)
         {
-            if (anim == null || string.IsNullOrWhiteSpace(animationName))
-                return 0.05f;
-
-            float duration = anim.GetCharacterAnimationDuration(animationName, isMilliseconds: false);
-            return Mathf.Max(0.05f, duration);
+            return GetCharacterAnimationDurationSafe(anim, animationName);
         }
 
         private void UpdateGroundSlamAnimation()
@@ -1645,6 +2058,7 @@ namespace GGemCo2DSkill
             CleanupSpawnedVfxs();
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
+            ClearArcLungeAnimationState();
 
             _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
             _hasPendingFinishReport = true;
