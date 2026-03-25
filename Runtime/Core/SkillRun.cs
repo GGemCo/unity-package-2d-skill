@@ -16,6 +16,7 @@ namespace GGemCo2DSkill
         private readonly ICharacterActionController _actionController;
         private readonly ICharacterMotionController _motionController;
         private readonly Rigidbody2D _casterRigidbody2D;
+        private readonly CharacterPhysicsOverrideController _physicsOverrideController;
 
         private SkillRuntimeSequence _sequence;
         private float _time;
@@ -35,6 +36,7 @@ namespace GGemCo2DSkill
         private bool _isLoading;
         private bool _isEnded;
         private bool _isGravityScaleOverridden;
+        private CharacterPhysicsOverrideHandle _gravityOverrideHandle;
         private float _savedGravityScale;
         private bool _isZeroGravityHoldStarted;
 
@@ -53,6 +55,7 @@ namespace GGemCo2DSkill
             _actionController = actionController;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
+            _physicsOverrideController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<CharacterPhysicsOverrideController>() : null;
         }
 
         public void Start()
@@ -299,6 +302,20 @@ namespace GGemCo2DSkill
             if (_isGravityScaleOverridden)
                 return;
 
+            if (_physicsOverrideController != null)
+            {
+                _gravityOverrideHandle = _physicsOverrideController.AcquireGravityOverride(
+                    ownerKey: this,
+                    lifecycleOwner: _ctx.caster,
+                    channel: CharacterPhysicsOverrideChannel.Skill,
+                    priority: CharacterPhysicsOverridePriority.Skill,
+                    gravityScale: _skill.GravityScaleOverride,
+                    reason: $"Skill:{_skill.Uid}");
+
+                _isGravityScaleOverridden = _gravityOverrideHandle.IsValid;
+                return;
+            }
+
             _savedGravityScale = _casterRigidbody2D.gravityScale;
             _casterRigidbody2D.gravityScale = _skill.GravityScaleOverride;
             _isGravityScaleOverridden = true;
@@ -369,7 +386,11 @@ namespace GGemCo2DSkill
             if (!_isGravityScaleOverridden)
                 return;
 
-            if (_casterRigidbody2D != null)
+            if (_gravityOverrideHandle.IsValid && _physicsOverrideController != null)
+            {
+                _physicsOverrideController.ReleaseGravityOverride(ref _gravityOverrideHandle);
+            }
+            else if (_casterRigidbody2D != null)
             {
                 _casterRigidbody2D.gravityScale = _savedGravityScale;
             }
