@@ -219,7 +219,9 @@ namespace GGemCo2DSkill
 
             CharacterBase best = null;
             float bestScore = float.NegativeInfinity;
-            var characters = Object.FindObjectsOfType<CharacterBase>();
+            
+            var characters = CompatObjectFind.FindAll<CharacterBase>();
+            
             for (int i = 0; i < characters.Length; i++)
             {
                 var candidate = characters[i];

@@ -234,7 +234,8 @@ namespace GGemCo2DSkill
             float halfAngle = Mathf.Max(0f, searchConeAngle) * 0.5f;
             float cosThreshold = Mathf.Cos(halfAngle * Mathf.Deg2Rad);
 
-            var allCharacters = Object.FindObjectsOfType<CharacterBase>();
+            var allCharacters = CompatObjectFind.FindAll<CharacterBase>();
+            
             for (int i = 0; i < allCharacters.Length; i++)
             {
                 var candidate = allCharacters[i];
