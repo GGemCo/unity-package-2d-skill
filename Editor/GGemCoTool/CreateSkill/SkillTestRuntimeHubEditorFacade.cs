@@ -1,4 +1,5 @@
 #if UNITY_EDITOR
+using GGemCo2DCore;
 using GGemCo2DSkill;
 using UnityEngine;
 
@@ -12,7 +13,7 @@ namespace GGemCo2DSkillEditor
         {
             return SkillTestRuntimeHub.Instance != null
                 ? SkillTestRuntimeHub.Instance
-                : Object.FindFirstObjectByType<SkillTestRuntimeHub>();
+                : CompatObjectFind.FindFirst<SkillTestRuntimeHub>();
         }
 
         public static bool TryGetHub(out SkillTestRuntimeHub hub, out string error)

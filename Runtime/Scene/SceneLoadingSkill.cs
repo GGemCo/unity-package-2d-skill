@@ -16,7 +16,7 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            _addressableLoaderSettingsSkill = Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
+            _addressableLoaderSettingsSkill = CompatObjectFind.FindFirst<AddressableLoaderSettingsSkill>() ??
                                               new GameObject("AddressableLoaderSettingsSkill")
                                                   .AddComponent<AddressableLoaderSettingsSkill>();
         }
@@ -31,7 +31,7 @@ namespace GGemCo2DSkill
 
             if (_addressableLoaderSettingsSkill == null)
             {
-                _addressableLoaderSettingsSkill = Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
+                _addressableLoaderSettingsSkill = CompatObjectFind.FindFirst<AddressableLoaderSettingsSkill>() ??
                                                  new GameObject("AddressableLoaderSettingsSkill")
                                                      .AddComponent<AddressableLoaderSettingsSkill>();
             }
@@ -74,7 +74,7 @@ namespace GGemCo2DSkill
             SkillTestRuntimeHub.ResetLoadedSettings();
 #endif
             var addrSettings = _addressableLoaderSettingsSkill ??
-                               Object.FindFirstObjectByType<AddressableLoaderSettingsSkill>() ??
+                               CompatObjectFind.FindFirst<AddressableLoaderSettingsSkill>() ??
                                new GameObject("AddressableLoaderSettingsSkill")
                                    .AddComponent<AddressableLoaderSettingsSkill>();
             _addressableLoaderSettingsSkill = addrSettings;
@@ -88,9 +88,8 @@ namespace GGemCo2DSkill
             sender.Register(step);
             
             // 테이블 로더 준비 및 테이블 로딩 스텝 등록
-            var tableLoader =
-                FindFirstObjectByType<TableLoaderManagerSkill>() ??
-                new GameObject("TableLoaderManagerSkill").AddComponent<TableLoaderManagerSkill>();
+            var tableLoader = CompatObjectFind.FindFirst<TableLoaderManagerSkill>() ??
+                              new GameObject("TableLoaderManagerSkill").AddComponent<TableLoaderManagerSkill>();
 
             var targetTables = ConfigAddressableTableSkill.All;
             var stepTable = new TableLoadStep(
@@ -104,7 +103,7 @@ namespace GGemCo2DSkill
 
             // 로컬라이징 매니저 준비 및 로컬라이징 로딩 스텝 등록
             var loc =
-                Object.FindFirstObjectByType<LocalizationManagerSkill>() ??
+                CompatObjectFind.FindFirst<LocalizationManagerSkill>() ??
                 new GameObject("LocalizationManagerSkill").AddComponent<LocalizationManagerSkill>();
 
             var stepLocalization = new LocalizationLoadStep(
@@ -117,7 +116,7 @@ namespace GGemCo2DSkill
             sender.Register(stepLocalization);
 
             // 스킬 아이콘 로딩 스텝 등록
-            var addrSkill = Object.FindFirstObjectByType<AddressableLoaderSkill>() ??
+            var addrSkill = CompatObjectFind.FindFirst<AddressableLoaderSkill>() ??
                              new GameObject("AddressableLoaderSkill").AddComponent<AddressableLoaderSkill>();
 
             var stepSkill = new AddressableTaskStep(
@@ -130,7 +129,7 @@ namespace GGemCo2DSkill
             sender.Register(stepSkill);
             
             // 플레이어 스킬 런타임 시퀀스 파일 로드
-            var addrSkillRuntimeSequencePlayer = Object.FindFirstObjectByType<AddressableLoaderSkillRuntimeSequencePlayer>() ??
+            var addrSkillRuntimeSequencePlayer = CompatObjectFind.FindFirst<AddressableLoaderSkillRuntimeSequencePlayer>() ??
                              new GameObject("AddressableLoaderSkillRuntimeSequencePlayer").AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
 
             var stepSkillRuntimeSequencePlayer = new AddressableTaskStep(
@@ -143,7 +142,7 @@ namespace GGemCo2DSkill
             sender.Register(stepSkillRuntimeSequencePlayer);
 
             // 스킬 세이브 데이터
-            var saveData = Object.FindFirstObjectByType<SaveDataLoaderSkill>() ?? new GameObject("SaveDataLoaderSkill").AddComponent<SaveDataLoaderSkill>();
+            var saveData = CompatObjectFind.FindFirst<SaveDataLoaderSkill>() ?? new GameObject("SaveDataLoaderSkill").AddComponent<SaveDataLoaderSkill>();
             var stepSaveDta = new SaveDataLoadStep(
                 "core.savedata.skill",
                 order: 381,
