@@ -1640,6 +1640,10 @@ namespace GGemCo2DSkill
                 if (characterHitArea == null) continue;
 
                 CharacterBase target = characterHitArea.target;
+                if (target == null) continue;
+
+                if (!IsDamageTargetStateAllowed(def, target))
+                    continue;
 
                 // OnHit Affect / Crowd Control (BeforeDamage)
                 ApplyOnHitAffects(def.onHitAffects, ctx.caster, target, damageApplied: false, timing: OnHitAffectTiming.BeforeDamage);
@@ -1714,6 +1718,30 @@ namespace GGemCo2DSkill
                     AffectApi.NotifyOnHit(ctx.caster, target.gameObject);
                 }
             }
+        }
+
+        private static bool IsDamageTargetStateAllowed(DamageEventDefinition def, CharacterBase target)
+        {
+            if (def == null || target == null)
+                return false;
+
+            if (def.isGroundOnly && def.isAirOnly)
+            {
+                Debug.LogWarning($"[SkillExecutor] DamageEventDefinition has both isGroundOnly and isAirOnly enabled. The target will be skipped. target={target.name}", target);
+                return false;
+            }
+
+            if (!def.isGroundOnly && !def.isAirOnly)
+                return true;
+
+            bool isGrounded = target.IsCurrentlyGrounded();
+            if (def.isGroundOnly)
+                return isGrounded;
+
+            if (def.isAirOnly)
+                return !isGrounded;
+
+            return true;
         }
 
         /// <summary>

@@ -275,6 +275,10 @@ namespace GGemCo2DSkillEditor
                         // dmg.DamageTypeUid는 현재 DamageEventDefinition에 매핑 필드가 없으므로 보관하지 않는다.
                         // 필요 시 DamageEventDefinition에 damageTypeUid(또는 DamageTypeId)를 추가하고 여기서 매핑한다.
 
+                        // Target state filter
+                        def.isGroundOnly = dmg.IsGroundOnly;
+                        def.isAirOnly = dmg.IsAirOnly;
+
                         // OnHit Affect(피격 대상)
                         def.onHitAffects = dmg.OnHitAffects;
                         def.onHitCrowdControls = dmg.OnHitCrowdControls;

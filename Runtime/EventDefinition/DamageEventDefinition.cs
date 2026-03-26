@@ -16,6 +16,12 @@ namespace GGemCo2DSkill
         public bool allowMultiHit = false;
         public float multiHitIntervalSeconds = 0.1f;
 
+        [Header("Target State Filter")]
+        [Tooltip("체공 중인 대상은 제외하고, 지면에 붙어있는 대상에게만 데미지를 적용합니다.")]
+        public bool isGroundOnly = false;
+        [Tooltip("지면에 붙어있는 대상은 제외하고, 공중에 떠 있는 대상에게만 데미지를 적용합니다.")]
+        public bool isAirOnly = false;
+
         [Header("OnHit Affect")]
         public OnHitAffectEntry[] onHitAffects;
 

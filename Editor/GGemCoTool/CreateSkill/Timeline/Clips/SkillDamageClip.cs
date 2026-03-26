@@ -110,6 +110,13 @@ namespace GGemCo2DSkillEditor
         /// 이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다.
         /// 최종 런타임 동작은 <see cref="GGemCo2DSkill.GGemCoSkillSettings.enableSkillChainOnConfirmedDamage"/> 마스터 옵션이 함께 켜져 있어야 활성화됩니다.
         /// </summary>
+        [Header("Target State Filter")]
+        [Tooltip("[지상 전용] 대상이 지상에 있을 때만 데미지를 적용합니다. 공중 대상은 제외됩니다.")]
+        [SerializeField] private bool isGroundOnly = false;
+
+        [Tooltip("[공중 전용] 대상이 공중에 있을 때만 데미지를 적용합니다. 지상 대상은 제외됩니다.")]
+        [SerializeField] private bool isAirOnly = false;
+
         [Header("Chain Cancel")]
         [Tooltip("[체인 캔슬] 이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작")]
         [SerializeField] private bool allowSkillChainOnConfirmedDamage = false;
@@ -175,6 +182,16 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
 
+
+        /// <summary>
+        /// 대상이 지상에 있을 때만 데미지를 적용할지 여부를 반환합니다.
+        /// </summary>
+        public bool IsGroundOnly => isGroundOnly;
+
+        /// <summary>
+        /// 대상이 공중에 있을 때만 데미지를 적용할지 여부를 반환합니다.
+        /// </summary>
+        public bool IsAirOnly => isAirOnly;
 
         /// <summary>
         /// 실제 데미지 확정 시 다음 스킬 연계를 즉시 허용할지 여부를 반환합니다.
