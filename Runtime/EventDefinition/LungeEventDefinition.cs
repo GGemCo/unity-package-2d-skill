@@ -54,7 +54,7 @@ namespace GGemCo2DSkill
     /// 전진(러시/대시) 이벤트 정의.
     /// - 스킬 타임라인(이벤트 구간)과 이동 구간을 정밀하게 동기화하기 위한 Payload 입니다.
     /// - Speed 기반이 아니라 "거리(Distance)" 기반으로 설계하여, 클립 시간에 따라 일관된 이동감을 제공합니다.
-    /// - Arc 옵션을 사용하면 점프형 회피(뒤로 점프)처럼 수직 오프셋을 추가할 수 있습니다.
+    /// - Arc 계열 모션은 ArcLungeEventDefinition 으로 분리되었으며, 이 정의는 선형(Linear) 돌진 전용입니다.
     /// </summary>
     public sealed class LungeEventDefinition : ScriptableObject
     {
@@ -96,31 +96,6 @@ namespace GGemCo2DSkill
 
         [Tooltip("true면 최종 이동 방향을 반전합니다(예: 뒤로 회피).")]
         public bool invertForward = false;
-
-        [Header("Arc")]
-        [Tooltip("true면 Arc(수직 오프셋) 모션을 사용합니다.")]
-        public bool useArcMotion = false;
-
-        [Tooltip("Arc 높이(월드 단위). useArcMotion이 true일 때만 유효합니다.")]
-        public float arcHeight = 0f;
-
-        [Tooltip("Arc 구현 모드입니다. Legacy는 기존 대칭 포물선, DistancePhased는 상승/체공/하강 비율을 제어할 수 있습니다.")]
-        public MotionArcMode arcMode = MotionArcMode.LegacyTimeSine;
-
-        [Tooltip("DistancePhased Arc의 상승 구간 easing 입니다.")]
-        public Easing.EaseType arcRiseEase = Easing.EaseType.Linear;
-
-        [Tooltip("DistancePhased Arc의 하강 구간 easing 입니다.")]
-        public Easing.EaseType arcFallEase = Easing.EaseType.Linear;
-
-        [Tooltip("DistancePhased Arc에서 상승 구간 비율입니다. 예: 0.25")]
-        public float arcRiseRatioNormalized = 0.5f;
-
-        [Tooltip("DistancePhased Arc에서 정점 유지(체공) 구간 비율입니다. 예: 0.5")]
-        public float arcApexHoldNormalized = 0f;
-
-        [Tooltip("DistancePhased Arc에서 하강 구간 비율입니다. 예: 0.25")]
-        public float arcFallRatioNormalized = 0.5f;
 
         [Header("Rigidbody2D")]
         [Tooltip("Kinematic이면 MovePosition 기반 이동을 사용합니다.")]

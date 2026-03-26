@@ -11,8 +11,8 @@ namespace GGemCo2DSkillEditor
     /// Bake 과정에서 <see cref="GGemCo2DSkill.LungeEventDefinition"/> Payload로 변환되어
     /// 실제 스킬 실행 시스템에서 사용됩니다.
     /// 
-    /// 이동은 속도 기반이 아니라 총 이동 거리(Distance) 기반으로 설계되며
-    /// 필요 시 아크(Arc) 모션을 사용해 점프형 이동을 표현할 수 있습니다.
+    /// 이동은 속도 기반이 아니라 총 이동 거리(Distance) 기반으로 설계되며,
+    /// Arc 계열 모션은 <see cref="SkillArcLungeClip"/> 에서 별도로 정의합니다.
     /// </summary>
     [Serializable]
     public sealed class SkillLungeClip : SkillEventClipBase
@@ -52,31 +52,6 @@ namespace GGemCo2DSkillEditor
         [Header("Direction")]
         [Tooltip("체크 시 현재 Forward 방향의 반대로 이동합니다. (뒤로 회피/백스텝 구현용)")]
         [SerializeField] private bool invertForward = false;
-
-        [Header("Arc")]
-        [Tooltip("활성화 시 수직 아크 모션을 추가합니다. 점프형 회피/도약 이동에 사용됩니다.")]
-        [SerializeField] private bool useArcMotion = false;
-
-        [Tooltip("아크의 최고 높이(월드 유닛). useArcMotion이 활성화되어야 적용됩니다.")]
-        [SerializeField] private float arcHeight = 0f;
-
-        [Tooltip("Arc 구현 모드입니다. DistancePhased를 사용하면 상승/체공/하강 비율을 제어할 수 있습니다.")]
-        [SerializeField] private MotionArcMode arcMode = MotionArcMode.LegacyTimeSine;
-
-        [Tooltip("DistancePhased Arc의 상승 구간 easing 입니다.")]
-        [SerializeField] private Easing.EaseType arcRiseEase = GGemCo2DCore.Easing.EaseType.Linear;
-
-        [Tooltip("DistancePhased Arc의 하강 구간 easing 입니다.")]
-        [SerializeField] private Easing.EaseType arcFallEase = GGemCo2DCore.Easing.EaseType.Linear;
-
-        [Tooltip("DistancePhased Arc에서 상승 구간 비율입니다. 전체 Arc 비율 합에서 정규화됩니다.")]
-        [SerializeField] private float arcRiseRatioNormalized = 0.5f;
-
-        [Tooltip("DistancePhased Arc에서 정점 유지(체공) 구간 비율입니다. 전체 Arc 비율 합에서 정규화됩니다.")]
-        [SerializeField] private float arcApexHoldNormalized = 0f;
-
-        [Tooltip("DistancePhased Arc에서 하강 구간 비율입니다. 전체 Arc 비율 합에서 정규화됩니다.")]
-        [SerializeField] private float arcFallRatioNormalized = 0.5f;
 
         [Header("Rigidbody2D")]
         [Tooltip("모션 종료 시 Rigidbody2D의 속도를 0으로 초기화합니다.")]
@@ -140,46 +115,6 @@ namespace GGemCo2DSkillEditor
         /// 이동 방향을 Forward의 반대로 뒤집을지 여부입니다.
         /// </summary>
         public bool InvertForward => invertForward;
-
-        /// <summary>
-        /// 이동 중 수직 아크 모션을 사용할지 여부입니다.
-        /// </summary>
-        public bool UseArcMotion => useArcMotion;
-
-        /// <summary>
-        /// 아크 모션 사용 시 적용되는 최대 높이입니다.
-        /// </summary>
-        public float ArcHeight => arcHeight;
-
-        /// <summary>
-        /// Arc 구현 모드입니다.
-        /// </summary>
-        public MotionArcMode ArcMode => arcMode;
-
-        /// <summary>
-        /// DistancePhased Arc의 상승 구간 easing 입니다.
-        /// </summary>
-        public Easing.EaseType ArcRiseEase => arcRiseEase;
-
-        /// <summary>
-        /// DistancePhased Arc의 하강 구간 easing 입니다.
-        /// </summary>
-        public Easing.EaseType ArcFallEase => arcFallEase;
-
-        /// <summary>
-        /// DistancePhased Arc의 상승 구간 비율입니다.
-        /// </summary>
-        public float ArcRiseRatioNormalized => arcRiseRatioNormalized;
-
-        /// <summary>
-        /// DistancePhased Arc의 정점 유지 구간 비율입니다.
-        /// </summary>
-        public float ArcApexHoldNormalized => arcApexHoldNormalized;
-
-        /// <summary>
-        /// DistancePhased Arc의 하강 구간 비율입니다.
-        /// </summary>
-        public float ArcFallRatioNormalized => arcFallRatioNormalized;
 
         /// <summary>
         /// 이동 종료 시 Rigidbody2D의 속도를 0으로 초기화할지 여부입니다.

@@ -326,14 +326,6 @@ namespace GGemCo2DSkillEditor
 
                         def.invertForward = lunge.InvertForward;
 
-                        def.useArcMotion = lunge.UseArcMotion;
-                        def.arcHeight = Mathf.Max(0f, lunge.ArcHeight);
-                        def.arcMode = lunge.ArcMode;
-                        def.arcRiseEase = lunge.ArcRiseEase;
-                        def.arcFallEase = lunge.ArcFallEase;
-                        def.arcRiseRatioNormalized = Mathf.Max(0f, lunge.ArcRiseRatioNormalized);
-                        def.arcApexHoldNormalized = Mathf.Max(0f, lunge.ArcApexHoldNormalized);
-                        def.arcFallRatioNormalized = Mathf.Max(0f, lunge.ArcFallRatioNormalized);
 
                         def.stopAtEnd = lunge.StopAtEnd;
                         def.useMovePosition = lunge.UseMovePosition;

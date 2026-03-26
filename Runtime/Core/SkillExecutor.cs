@@ -376,22 +376,13 @@ namespace GGemCo2DSkill
             if (resolvedDistance <= 0f)
                 return;
 
-            var kind = def.useArcMotion && def.arcHeight > 0f ? MotionKind.Arc : MotionKind.Linear;
-
             var req = new MotionRequest(
                 MotionChannel.Skill,
-                kind,
+                MotionKind.Linear,
                 resolvedDirection,
                 duration,
                 resolvedDistance,
                 def.easing,
-                arcHeight: def.useArcMotion ? def.arcHeight : 0f,
-                arcMode: def.arcMode,
-                arcRiseEaseType: def.arcRiseEase,
-                arcFallEaseType: def.arcFallEase,
-                arcApexHoldNormalized: def.arcApexHoldNormalized,
-                arcRiseRatioNormalized: def.arcRiseRatioNormalized,
-                arcFallRatioNormalized: def.arcFallRatioNormalized,
                 holdSecondsAfter: 0f,
                 stopAtEnd: def.stopAtEnd,
                 useMovePosition: def.useMovePosition,
