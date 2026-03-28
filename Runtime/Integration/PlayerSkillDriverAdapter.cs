@@ -10,13 +10,14 @@ namespace GGemCo2DSkill
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ICharacterSkillDriver, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink
+    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink
     {
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
         /// </summary>
         private SkillExecutor _executor;
         private ISkillStartActionCanceler _skillStartActionCanceler;
+        private ISkillChainReadyFeedback _skillChainReadyFeedback;
 
         /// <summary>
         /// 스킬 UID별 다음 사용 가능 시각을 저장합니다.
@@ -38,6 +39,7 @@ namespace GGemCo2DSkill
         private void Awake()
         {
             _skillStartActionCanceler = GetComponent<ISkillStartActionCanceler>();
+            _skillChainReadyFeedback = GetComponentInChildren<ISkillChainReadyFeedback>(true);
 
             if (_executor == null)
                 SetSkillExecutor(GetComponent<SkillExecutor>());
@@ -117,6 +119,7 @@ namespace GGemCo2DSkill
                     return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
 
                 _chainConsumed = true;
+                _skillChainReadyFeedback?.StopSkillChainReady();
             }
 
             _skillStartActionCanceler?.CancelActionsOnSkillStart();
@@ -167,7 +170,11 @@ namespace GGemCo2DSkill
             if (!_executor.IsChainUnlockAttack(feedback.AttackId))
                 return;
 
+            if (_chainUnlockedByConfirmedDamage)
+                return;
+
             _chainUnlockedByConfirmedDamage = true;
+            _skillChainReadyFeedback?.PlaySkillChainReady();
         }
 
         private void OnExecutionFinished(SkillExecutionReport report)
@@ -195,6 +202,8 @@ namespace GGemCo2DSkill
 
         private void ResetChainState()
         {
+            _skillChainReadyFeedback?.StopSkillChainReady();
+
             _currentRunningSkillUid = 0;
             _chainUnlockedByConfirmedDamage = false;
             _chainConsumed = false;
