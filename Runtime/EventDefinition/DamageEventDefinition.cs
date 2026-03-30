@@ -28,6 +28,13 @@ namespace GGemCo2DSkill
         [Header("OnHit Crowd Control")]
         public OnHitCrowdControlEntry[] onHitCrowdControls;
 
+        [Header("Hit Stop")]
+        public bool useHitStop = false;
+        public bool useDefaultSelfHitStop = true;
+        public float selfHitStopSeconds = 0.03f;
+        public bool useDefaultTargetHitStop = true;
+        public float targetHitStopSeconds = 0.05f;
+
         [Header("Chain Cancel")]
         [Tooltip("이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
         public bool allowSkillChainOnConfirmedDamage = false;

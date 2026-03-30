@@ -117,6 +117,23 @@ namespace GGemCo2DSkillEditor
         [Tooltip("[공중 전용] 대상이 공중에 있을 때만 데미지를 적용합니다. 지상 대상은 제외됩니다.")]
         [SerializeField] private bool isAirOnly = false;
 
+
+        [Header("Hit Stop")]
+        [Tooltip("[경직 사용] 이 타격이 실제 데미지를 확정했을 때 캐스터/대상에게 경직을 적용합니다.")]
+        [SerializeField] private bool useHitStop = false;
+
+        [Tooltip("[자기 경직 기본값 사용] 켜면 캐스터의 ScriptableObject 기본 Self Hit Stop 시간을 사용합니다.")]
+        [SerializeField] private bool useDefaultSelfHitStop = true;
+
+        [Tooltip("[자기 경직 시간] 기본값을 사용하지 않을 때 캐스터에게 적용할 경직 시간(초)입니다.")]
+        [SerializeField] private float selfHitStopSeconds = 0.03f;
+
+        [Tooltip("[대상 경직 기본값 사용] 켜면 대상의 ScriptableObject 기본 Receive Hit Stop 시간을 사용합니다.")]
+        [SerializeField] private bool useDefaultTargetHitStop = true;
+
+        [Tooltip("[대상 경직 시간] 기본값을 사용하지 않을 때 대상에게 적용할 경직 시간(초)입니다.")]
+        [SerializeField] private float targetHitStopSeconds = 0.05f;
+
         [Header("Chain Cancel")]
         [Tooltip("[체인 캔슬] 이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작")]
         [SerializeField] private bool allowSkillChainOnConfirmedDamage = false;
@@ -192,6 +209,31 @@ namespace GGemCo2DSkillEditor
         /// 대상이 공중에 있을 때만 데미지를 적용할지 여부를 반환합니다.
         /// </summary>
         public bool IsAirOnly => isAirOnly;
+
+        /// <summary>
+        /// 이 타격에서 경직을 사용할지 여부를 반환합니다.
+        /// </summary>
+        public bool UseHitStop => useHitStop;
+
+        /// <summary>
+        /// 캐스터의 기본 Self Hit Stop 시간을 사용할지 여부를 반환합니다.
+        /// </summary>
+        public bool UseDefaultSelfHitStop => useDefaultSelfHitStop;
+
+        /// <summary>
+        /// 캐스터에게 적용할 경직 시간을 반환합니다.
+        /// </summary>
+        public float SelfHitStopSeconds => selfHitStopSeconds;
+
+        /// <summary>
+        /// 대상의 기본 Receive Hit Stop 시간을 사용할지 여부를 반환합니다.
+        /// </summary>
+        public bool UseDefaultTargetHitStop => useDefaultTargetHitStop;
+
+        /// <summary>
+        /// 대상에게 적용할 경직 시간을 반환합니다.
+        /// </summary>
+        public float TargetHitStopSeconds => targetHitStopSeconds;
 
         /// <summary>
         /// 실제 데미지 확정 시 다음 스킬 연계를 즉시 허용할지 여부를 반환합니다.

@@ -55,6 +55,7 @@ namespace GGemCo2DSkill
         private int _attackSequence;
         private readonly List<int> _resolvedOnHitCrowdControls = new(8);
         private readonly Dictionary<int, bool> _chainUnlockByAttackId = new();
+        private CharacterHitStopController _hitStopController;
 
         private enum GroundSlamAnimationPhaseState
         {
@@ -124,6 +125,7 @@ namespace GGemCo2DSkill
         private void Awake()
         {
             _hitEvaluator = new AreaHitEvaluator(hitMask);
+            _hitStopController = GetComponent<CharacterHitStopController>();
         }
 
         private void OnDisable()
@@ -165,6 +167,14 @@ namespace GGemCo2DSkill
         /// </summary>
         private void Update()
         {
+            if (_hitStopController == null)
+            {
+                _hitStopController = GetComponent<CharacterHitStopController>();
+            }
+
+            if (_hitStopController != null && _hitStopController.IsActive)
+                return;
+
             if (_current != null)
             {
                 var run = _current;
@@ -1688,6 +1698,11 @@ namespace GGemCo2DSkill
                     }
                 }
 
+                if (didApplyDamage)
+                {
+                    ApplyConfiguredHitStop(def, skill, castCharacterBase, target);
+                }
+
                 // OnHit Affect / Crowd Control (AfterDamage)
                 // 이번 타격으로 대상이 사망했다면, 사망 대상에게 후속 Affect / CC를 다시 적용하지 않습니다.
                 if (target.IsStatusDead())
@@ -1709,6 +1724,50 @@ namespace GGemCo2DSkill
                 if (didApplyDamage && _resolvedOnHitCrowdControls.Count > 0)
                 {
                     target.ApplyCrowdControlSequence(_resolvedOnHitCrowdControls, ctx.caster != null ? ctx.caster : gameObject);
+                }
+            }
+        }
+
+        private static void ApplyConfiguredHitStop(DamageEventDefinition def, RuntimeSkillDefinition skill, CharacterBase caster, CharacterBase target)
+        {
+            if (def == null || !def.useHitStop)
+                return;
+
+            if (caster != null)
+            {
+                var casterConfig = caster.GetResolvedHitStopConfig();
+                if (casterConfig.Enabled)
+                {
+                    float selfSeconds = def.useDefaultSelfHitStop ? casterConfig.DefaultSelfSeconds : Mathf.Max(0f, def.selfHitStopSeconds);
+                    if (selfSeconds > 0f)
+                    {
+                        caster.ApplyHitStop(new HitStopRequest(
+                            selfSeconds,
+                            lockControl: casterConfig.LockControl,
+                            lockMovement: casterConfig.LockMovement,
+                            pauseAnimation: casterConfig.PauseAnimation,
+                            freezePhysics: casterConfig.FreezePhysics,
+                            sourceSkillUid: skill != null ? skill.Uid : 0));
+                    }
+                }
+            }
+
+            if (target != null)
+            {
+                var targetConfig = target.GetResolvedHitStopConfig();
+                if (targetConfig.Enabled)
+                {
+                    float targetSeconds = def.useDefaultTargetHitStop ? targetConfig.DefaultReceiveSeconds : Mathf.Max(0f, def.targetHitStopSeconds);
+                    if (targetSeconds > 0f)
+                    {
+                        target.ApplyHitStop(new HitStopRequest(
+                            targetSeconds,
+                            lockControl: targetConfig.LockControl,
+                            lockMovement: targetConfig.LockMovement,
+                            pauseAnimation: targetConfig.PauseAnimation,
+                            freezePhysics: targetConfig.FreezePhysics,
+                            sourceSkillUid: skill != null ? skill.Uid : 0));
+                    }
                 }
             }
         }
