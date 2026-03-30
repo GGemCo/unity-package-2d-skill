@@ -28,10 +28,13 @@ namespace GGemCo2DSkill
         [Header("OnHit Crowd Control")]
         public OnHitCrowdControlEntry[] onHitCrowdControls;
 
-        [Header("Hit Stop")]
-        public bool useHitStop = false;
+        [Header("Hit Stop (Self)")]
+        public bool useHitStopSelf = false;
         public bool useDefaultSelfHitStop = true;
         public float selfHitStopSeconds = 0.03f;
+        
+        [Header("Hit Stop (Target)")]
+        public bool useHitStopTarget = false;
         public bool useDefaultTargetHitStop = true;
         public float targetHitStopSeconds = 0.05f;
 

@@ -119,8 +119,8 @@ namespace GGemCo2DSkillEditor
 
 
         [Header("Hit Stop")]
-        [Tooltip("[경직 사용] 이 타격이 실제 데미지를 확정했을 때 캐스터/대상에게 경직을 적용합니다.")]
-        [SerializeField] private bool useHitStop = false;
+        [Tooltip("[경직 사용] 이 타격이 실제 데미지를 확정했을 때 캐스터에게 경직을 적용합니다.")]
+        [SerializeField] private bool useHitStopSelf = false;
 
         [Tooltip("[자기 경직 기본값 사용] 켜면 캐스터의 ScriptableObject 기본 Self Hit Stop 시간을 사용합니다.")]
         [SerializeField] private bool useDefaultSelfHitStop = true;
@@ -128,6 +128,8 @@ namespace GGemCo2DSkillEditor
         [Tooltip("[자기 경직 시간] 기본값을 사용하지 않을 때 캐스터에게 적용할 경직 시간(초)입니다.")]
         [SerializeField] private float selfHitStopSeconds = 0.03f;
 
+        [Tooltip("[경직 사용] 이 타격이 실제 데미지를 확정했을 때 대상에게 경직을 적용합니다.")]
+        [SerializeField] private bool useHitStopTarget = false;
         [Tooltip("[대상 경직 기본값 사용] 켜면 대상의 ScriptableObject 기본 Receive Hit Stop 시간을 사용합니다.")]
         [SerializeField] private bool useDefaultTargetHitStop = true;
 
@@ -211,9 +213,9 @@ namespace GGemCo2DSkillEditor
         public bool IsAirOnly => isAirOnly;
 
         /// <summary>
-        /// 이 타격에서 경직을 사용할지 여부를 반환합니다.
+        /// 이 타격에서 캐스터에게 경직을 사용할지 여부를 반환합니다.
         /// </summary>
-        public bool UseHitStop => useHitStop;
+        public bool UseHitStopSelf => useHitStopSelf;
 
         /// <summary>
         /// 캐스터의 기본 Self Hit Stop 시간을 사용할지 여부를 반환합니다.
@@ -224,6 +226,11 @@ namespace GGemCo2DSkillEditor
         /// 캐스터에게 적용할 경직 시간을 반환합니다.
         /// </summary>
         public float SelfHitStopSeconds => selfHitStopSeconds;
+        
+        /// <summary>
+        /// 이 타격에서 대상에게 경직을 사용할지 여부를 반환합니다.
+        /// </summary>
+        public bool UseHitStopTarget => useHitStopTarget;
 
         /// <summary>
         /// 대상의 기본 Receive Hit Stop 시간을 사용할지 여부를 반환합니다.

@@ -1730,10 +1730,10 @@ namespace GGemCo2DSkill
 
         private static void ApplyConfiguredHitStop(DamageEventDefinition def, RuntimeSkillDefinition skill, CharacterBase caster, CharacterBase target)
         {
-            if (def == null || !def.useHitStop)
+            if (def == null)
                 return;
 
-            if (caster != null)
+            if (caster != null && def.useHitStopSelf)
             {
                 var casterConfig = caster.GetResolvedHitStopConfig();
                 if (casterConfig.Enabled)
@@ -1752,7 +1752,7 @@ namespace GGemCo2DSkill
                 }
             }
 
-            if (target != null)
+            if (target != null && def.useHitStopTarget)
             {
                 var targetConfig = target.GetResolvedHitStopConfig();
                 if (targetConfig.Enabled)
