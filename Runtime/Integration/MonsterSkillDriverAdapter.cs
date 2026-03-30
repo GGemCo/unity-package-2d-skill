@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -10,7 +10,7 @@ namespace GGemCo2DSkill
     /// 몬스터 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler, IIncomingHitCombatFeedbackSink
+    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler, IIncomingHitCombatFeedbackSink, IMonsterPoolLifecycle
     {
         /// <summary>
         /// 실제 스킬 실행과 취소를 담당하는 런타임 실행기입니다.
@@ -333,6 +333,39 @@ namespace GGemCo2DSkill
             _hasPendingCombatReport = true;
         }
 
+
+        public void ResetForPoolReturn()
+        {
+            _controllerMonster ??= GetComponent<ControllerMonster>();
+            _controllerMonster?.StopAttackCoroutine();
+
+            if (_executor == null)
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+
+            if (_executor != null && _executor.IsBusy)
+            {
+                _executor.TryCancel(SkillCancelReason.ForcedBySystem);
+            }
+
+            _cooldownReadyAt.Clear();
+            _lastSkillResult = default;
+            _hasLastSkillResult = false;
+            _lastCombatReport = default;
+            _hasLastCombatReport = false;
+            _pendingCombatReport = default;
+            _hasPendingCombatReport = false;
+            _currentRunningSkillUid = 0;
+        }
+
+        public void OnPoolRent(Monster owner)
+        {
+            ResetForPoolReturn();
+        }
+
+        public void OnPoolReturn(Monster owner)
+        {
+            ResetForPoolReturn();
+        }
         /// <summary>
         /// 현재 실행 중인 스킬에 취소를 요청합니다.
         /// </summary>
