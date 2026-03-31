@@ -1,4 +1,4 @@
-using Config;
+﻿using Config;
 
 namespace GGemCo2DSkill
 {
@@ -30,8 +30,6 @@ namespace GGemCo2DSkill
         public string CastEndClip;
         public string UseClip;
         public ConfigCommonSkill.SkillFacingMode FacingMode;
-        public bool UseGravityScaleOverride;
-        public float GravityScaleOverride;
 
         public static RuntimeSkillDefinition From(StruckTableSkill row)
         {
@@ -54,8 +52,6 @@ namespace GGemCo2DSkill
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
                 FacingMode = row.FacingMode,
-                UseGravityScaleOverride = row.UseGravityScaleOverride,
-                GravityScaleOverride = row.GravityScaleOverride,
             };
         }
 
@@ -80,8 +76,6 @@ namespace GGemCo2DSkill
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
                 FacingMode = row.FacingMode,
-                UseGravityScaleOverride = row.UseGravityScaleOverride,
-                GravityScaleOverride = row.GravityScaleOverride,
             };
         }
     }

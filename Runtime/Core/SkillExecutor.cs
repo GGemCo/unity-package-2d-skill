@@ -272,6 +272,10 @@ namespace GGemCo2DSkill
                 case ConfigCommonSkill.SkillEventType.Projectile:
                     HandleProjectile(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
+                case ConfigCommonSkill.SkillEventType.PositionHold:
+                    float positionHoldDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
+                    HandlePositionHold(run, ctx, payload, positionHoldDuration);
+                    break;
                 case ConfigCommonSkill.SkillEventType.GroundSlam:
                     float groundSlamDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
                     HandleGroundSlam(ctx, payload, groundSlamDuration);
@@ -281,6 +285,30 @@ namespace GGemCo2DSkill
             }
         }
         
+
+        private void HandlePositionHold(
+            SkillRun run,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            float eventDurationSeconds)
+        {
+            if (run == null)
+                return;
+
+            if (payloadObj is not PositionHoldEventDefinition def)
+                return;
+
+            if (ctx.caster == null)
+                return;
+
+            float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds;
+            bool keepUntilSkillEnd = def.durationPolicy == PositionHoldDurationPolicy.UntilSkillEnd;
+            if (!keepUntilSkillEnd && duration <= 0f)
+                return;
+
+            run.TryStartPositionHold(duration, keepUntilSkillEnd, def.stopAtEnd, def.useMovePosition, def.allowReplace);
+        }
+
         private static bool TryResolveVfxDuration(VfxEventDefinition def, out float duration)
         {
             duration = 0f;

@@ -16,7 +16,6 @@ namespace GGemCo2DSkill
         private readonly ICharacterActionController _actionController;
         private readonly ICharacterMotionController _motionController;
         private readonly Rigidbody2D _casterRigidbody2D;
-        private readonly CharacterPhysicsOverrideController _physicsOverrideController;
 
         private SkillRuntimeSequence _sequence;
         private float _time;
@@ -35,10 +34,8 @@ namespace GGemCo2DSkill
 
         private bool _isLoading;
         private bool _isEnded;
-        private bool _isGravityScaleOverridden;
-        private CharacterPhysicsOverrideHandle _gravityOverrideHandle;
-        private float _savedGravityScale;
-        private bool _isZeroGravityHoldStarted;
+        private bool _isPositionHoldActive;
+        private bool _keepPositionHoldUntilSkillEnd;
 
         public bool IsDone { get; private set; }
         public int SkillUid => _skill != null ? _skill.Uid : 0;
@@ -55,14 +52,12 @@ namespace GGemCo2DSkill
             _actionController = actionController;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
-            _physicsOverrideController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<CharacterPhysicsOverrideController>() : null;
         }
 
         public void Start()
         {
             SnapshotContext();
 
-            TryApplyGravityScaleOverride();
             ApplyInitialActionState();
             _isLoading = true;
             _ = LoadSequenceAsync();
@@ -101,7 +96,6 @@ namespace GGemCo2DSkill
                 _nextEventIndex = 0;
                 _time = 0f;
 
-                TryApplyDeferredZeroGravityHold();
             }
             catch (Exception e)
             {
@@ -290,113 +284,51 @@ namespace GGemCo2DSkill
 
             _actionController.RequestAction(in request);
         }
-        
-        private void TryApplyGravityScaleOverride()
+        public bool TryStartPositionHold(float durationSeconds, bool keepUntilSkillEnd, bool stopAtEnd, bool useMovePosition, bool allowReplace)
         {
-            if (_skill == null || !_skill.UseGravityScaleOverride)
-                return;
-
-            if (_casterRigidbody2D == null)
-                return;
-
-            if (_isGravityScaleOverridden)
-                return;
-
-            if (_physicsOverrideController != null)
-            {
-                _gravityOverrideHandle = _physicsOverrideController.AcquireGravityOverride(
-                    ownerKey: this,
-                    lifecycleOwner: _ctx.caster,
-                    channel: CharacterPhysicsOverrideChannel.Skill,
-                    priority: CharacterPhysicsOverridePriority.Skill,
-                    gravityScale: _skill.GravityScaleOverride,
-                    reason: $"Skill:{_skill.Uid}");
-
-                _isGravityScaleOverridden = _gravityOverrideHandle.IsValid;
-                return;
-            }
-
-            _savedGravityScale = _casterRigidbody2D.gravityScale;
-            _casterRigidbody2D.gravityScale = _skill.GravityScaleOverride;
-            _isGravityScaleOverridden = true;
-        }
-
-        private void TryApplyDeferredZeroGravityHold()
-        {
-            if (!Mathf.Approximately(_skill.GravityScaleOverride, 0f))
-                return;
-
-            if (HasGroundSlamEvent())
-                return;
-
-            TryStartZeroGravityHold();
-        }
-
-        private bool HasGroundSlamEvent()
-        {
-            if (_sequence == null || _sequence.Events == null)
+            if (_motionController == null || _ctx.caster == null)
                 return false;
 
-            for (int i = 0; i < _sequence.Events.Length; i++)
+            Vector2 holdPos = _casterRigidbody2D != null
+                ? _casterRigidbody2D.position
+                : (Vector2)_ctx.caster.transform.position;
+
+            var request = new MotionRequest(
+                channel: MotionChannel.Skill,
+                kind: MotionKind.PositionHold,
+                direction: Vector2.right,
+                durationSeconds: keepUntilSkillEnd ? 0f : Mathf.Max(0f, durationSeconds),
+                distance: 0f,
+                easeType: Easing.EaseType.Linear,
+                stopAtEnd: stopAtEnd,
+                useMovePosition: useMovePosition,
+                allowReplace: allowReplace,
+                startPosition: holdPos,
+                targetPosition: holdPos);
+
+            if (_motionController.TryStartMotion(request))
             {
-                if (_sequence.Events[i].Type == ConfigCommonSkill.SkillEventType.GroundSlam)
-                    return true;
+                _isPositionHoldActive = true;
+                _keepPositionHoldUntilSkillEnd = keepUntilSkillEnd;
+                return true;
+            }
+
+            if (_casterRigidbody2D != null)
+            {
+                _casterRigidbody2D.SetLinearVelocity(Vector2.zero);
             }
 
             return false;
         }
-        
-        private void TryStartZeroGravityHold()
+
+        public void ReleasePositionHold()
         {
-            if (_isZeroGravityHoldStarted)
+            if (!_isPositionHoldActive)
                 return;
 
-            if (_motionController != null && _ctx.caster != null)
-            {
-                Vector2 holdPos = _casterRigidbody2D != null
-                    ? _casterRigidbody2D.position
-                    : (Vector2)_ctx.caster.transform.position;
-
-                var request = new MotionRequest(
-                    channel: MotionChannel.Skill,
-                    kind: MotionKind.PositionHold,
-                    direction: Vector2.right,
-                    durationSeconds: 0f, // cancel될 때까지 유지되도록 Core 쪽 의미 확장
-                    distance: 0f,
-                    easeType: Easing.EaseType.Linear,
-                    stopAtEnd: true,
-                    useMovePosition: true,
-                    allowReplace: true,
-                    startPosition: holdPos,
-                    targetPosition: holdPos);
-
-                if (_motionController.TryStartMotion(request))
-                {
-                    _isZeroGravityHoldStarted = true;
-                    return;
-                }
-            }
-
-            // fallback
-            _casterRigidbody2D.SetLinearVelocity(Vector2.zero);
-        }
-        
-        private void RestoreGravityScaleOverride()
-        {
-            if (!_isGravityScaleOverridden)
-                return;
-
-            if (_gravityOverrideHandle.IsValid && _physicsOverrideController != null)
-            {
-                _physicsOverrideController.ReleaseGravityOverride(ref _gravityOverrideHandle);
-            }
-            else if (_casterRigidbody2D != null)
-            {
-                _casterRigidbody2D.gravityScale = _savedGravityScale;
-            }
-
-            _savedGravityScale = 0f;
-            _isGravityScaleOverridden = false;
+            _motionController?.CancelMotion(MotionChannel.Skill, 0);
+            _isPositionHoldActive = false;
+            _keepPositionHoldUntilSkillEnd = false;
         }
 
         /// <summary>
@@ -409,13 +341,10 @@ namespace GGemCo2DSkill
 
             _isEnded = true;
 
-            if (_isZeroGravityHoldStarted)
+            if (_keepPositionHoldUntilSkillEnd || _isPositionHoldActive)
             {
-                _motionController?.CancelMotion(MotionChannel.Skill, 0);
-                _isZeroGravityHoldStarted = false;
+                ReleasePositionHold();
             }
-
-            RestoreGravityScaleOverride();
 
             if (_actionController != null)
             {

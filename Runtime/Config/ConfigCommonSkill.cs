@@ -57,6 +57,11 @@ namespace Config
             /// 투사체를 생성하거나 발사합니다.
             /// </summary>
             Projectile = 8,
+
+            /// <summary>
+            /// 현재 위치에 일정 시간 또는 스킬 종료까지 머무릅니다.
+            /// </summary>
+            PositionHold = 9,
         }
 
         /// <summary>

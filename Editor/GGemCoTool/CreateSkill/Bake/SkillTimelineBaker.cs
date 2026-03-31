@@ -369,6 +369,17 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillPositionHoldClip positionHold:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<PositionHoldEventDefinition>();
+                        def.durationOverrideSeconds = Mathf.Max(0f, positionHold.DurationOverrideSeconds);
+                        def.durationPolicy = positionHold.DurationPolicy;
+                        def.stopAtEnd = positionHold.StopAtEnd;
+                        def.useMovePosition = positionHold.UseMovePosition;
+                        def.allowReplace = positionHold.AllowReplace;
+                        return def;
+                    };
 
                 case SkillArcLungeClip arcLunge:
                     return () =>
