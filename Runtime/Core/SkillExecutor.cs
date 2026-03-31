@@ -1653,6 +1653,11 @@ namespace GGemCo2DSkill
                     damageApplied: false,
                     timing: OnHitCrowdControlTiming.BeforeDamage);
 
+                bool hasPendingAfterDamageCrowdControl = HasPendingAfterDamageCrowdControl(
+                    def.onHitCrowdControls,
+                    damageApplied: true,
+                    timing: OnHitCrowdControlTiming.AfterDamage);
+
                 MetadataDamage metadataDamage = new MetadataDamage
                 {
                     damage = totalDamage,
@@ -1662,6 +1667,7 @@ namespace GGemCo2DSkill
                     crowdControlUid = crowdControlUid,
                     AttackId = attackId,
                     SkillUid = skill.Uid,
+                    HasPendingAfterDamageCrowdControl = hasPendingAfterDamageCrowdControl,
                 };
 
                 bool didApplyDamage = false;
@@ -1975,6 +1981,29 @@ namespace GGemCo2DSkill
         /// 현재 시점에 적용 가능한 OnHit Crowd Control UID를 순서대로 수집합니다.
         /// 배열에 등록된 순서가 실행 순서가 됩니다.
         /// </summary>
+        private static bool HasPendingAfterDamageCrowdControl(
+            OnHitCrowdControlEntry[] entries,
+            bool damageApplied,
+            OnHitCrowdControlTiming timing)
+        {
+            if (entries == null || entries.Length == 0)
+                return false;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.crowdControlUid <= 0)
+                    continue;
+                if (entry.timing != timing)
+                    continue;
+                if (entry.requireDamageDealt && !damageApplied)
+                    continue;
+                return true;
+            }
+
+            return false;
+        }
+
         private void CollectOnHitCrowdControlUids(
             OnHitCrowdControlEntry[] entries,
             bool damageApplied,
