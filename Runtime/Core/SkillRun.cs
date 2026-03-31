@@ -289,6 +289,14 @@ namespace GGemCo2DSkill
             if (_motionController == null || _ctx.caster == null)
                 return false;
 
+            // 기존 Skill 채널 모션 잔여 영향 제거
+            _motionController.CancelMotion(MotionChannel.Skill, 1001);
+
+            if (_casterRigidbody2D != null)
+            {
+                _casterRigidbody2D.SetLinearVelocity(Vector2.zero);
+            }
+
             Vector2 holdPos = _casterRigidbody2D != null
                 ? _casterRigidbody2D.position
                 : (Vector2)_ctx.caster.transform.position;
@@ -302,7 +310,7 @@ namespace GGemCo2DSkill
                 easeType: Easing.EaseType.Linear,
                 stopAtEnd: stopAtEnd,
                 useMovePosition: useMovePosition,
-                allowReplace: allowReplace,
+                allowReplace: true,
                 startPosition: holdPos,
                 targetPosition: holdPos);
 
@@ -327,6 +335,12 @@ namespace GGemCo2DSkill
                 return;
 
             _motionController?.CancelMotion(MotionChannel.Skill, 0);
+
+            if (_casterRigidbody2D != null)
+            {
+                _casterRigidbody2D.SetLinearVelocity(Vector2.zero);
+            }
+
             _isPositionHoldActive = false;
             _keepPositionHoldUntilSkillEnd = false;
         }
@@ -370,9 +384,6 @@ namespace GGemCo2DSkill
             {
                 _animController?.StopSkillAnimation();
             }
-
-            // 모션 이동(러시/대시 등) 중단
-            _motionController?.CancelMotion(MotionChannel.Skill, 999);
 
             // 상태 해제(UseSkill/CastingSkill 등)
             EndRun();

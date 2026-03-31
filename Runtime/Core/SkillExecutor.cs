@@ -210,6 +210,16 @@ namespace GGemCo2DSkill
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();
 
+            var motion = ResolveMotionController(targetCtx.caster);
+            motion?.CancelMotion(MotionChannel.Skill, 2001);
+
+            if (targetCtx.caster != null)
+            {
+                var rb = targetCtx.caster.GetComponentInParent<Rigidbody2D>();
+                if (rb != null)
+                    rb.SetLinearVelocity(Vector2.zero);
+            }
+
             _current = new SkillRun(this, skill, targetCtx,
                 ResolveAnimController(targetCtx.caster),
                 ResolveActionController(targetCtx.caster));
@@ -2120,6 +2130,24 @@ namespace GGemCo2DSkill
             if (action != null) return action;
 
             return caster.GetComponentInParent<ICharacterActionController>();
+        }
+
+        /// <summary>
+        /// 캐스터에서 사용할 모션 컨트롤러를 현재 오브젝트, 자식, 부모 순으로 탐색합니다.
+        /// </summary>
+        /// <param name="caster">모션 컨트롤러를 찾을 기준 오브젝트입니다.</param>
+        /// <returns>찾은 모션 컨트롤러 또는 찾지 못한 경우 <see langword="null"/>입니다.</returns>
+        private static ICharacterMotionController ResolveMotionController(GameObject caster)
+        {
+            if (caster == null) return null;
+
+            if (caster.TryGetComponent<ICharacterMotionController>(out var motion))
+                return motion;
+
+            motion = caster.GetComponentInChildren<ICharacterMotionController>(includeInactive: true);
+            if (motion != null) return motion;
+
+            return caster.GetComponentInParent<ICharacterMotionController>();
         }
 
         /// <summary>
