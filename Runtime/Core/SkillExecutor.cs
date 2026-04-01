@@ -1713,7 +1713,6 @@ namespace GGemCo2DSkill
                 // 몬스터와 마주보고 있으면 공격합니다.
                 if (castCharacterBase.AreFacingEachOther(target))
                 {
-                    target.TakeDamage(metadataDamage);
                     didApplyDamage = true;
                 }
                 // 같은 방향을 보고 있는 경우에는 상대 위치를 기준으로 피격 여부를 결정합니다.
@@ -1725,7 +1724,6 @@ namespace GGemCo2DSkill
                         {
                             if (target.transform.position.x >= transform.position.x)
                             {
-                                target.TakeDamage(metadataDamage);
                                 didApplyDamage = true;
                             }
                             break;
@@ -1734,17 +1732,11 @@ namespace GGemCo2DSkill
                         {
                             if (target.transform.position.x <= transform.position.x)
                             {
-                                target.TakeDamage(metadataDamage);
                                 didApplyDamage = true;
                             }
                             break;
                         }
                     }
-                }
-
-                if (didApplyDamage)
-                {
-                    ApplyConfiguredHitStop(def, skill, castCharacterBase, target);
                 }
 
                 _resolvedOnHitCrowdControls.Clear();
@@ -1754,11 +1746,14 @@ namespace GGemCo2DSkill
                     OnHitCrowdControlTiming.AfterDamage,
                     _resolvedOnHitCrowdControls);
 
-                if (didApplyDamage && _resolvedOnHitCrowdControls.Count > 0)
+                if (didApplyDamage)
                 {
-                    target.ApplyCrowdControlSequence(_resolvedOnHitCrowdControls, ctx.caster != null ? ctx.caster : gameObject, true);
+                    metadataDamage.ResolvedOnHitCrowdControls = _resolvedOnHitCrowdControls;
+                    target.TakeDamage(metadataDamage);
+                    // 순서 중요. TakeDamage 먼저 처리
+                    ApplyConfiguredHitStop(def, skill, castCharacterBase, target);
                 }
-                
+
                 // OnHit Affect / Crowd Control (AfterDamage)
                 // 이번 타격으로 대상이 사망했다면, 사망 대상에게 후속 Affect / CC를 다시 적용하지 않습니다.
                 if (target.IsStatusDead())
