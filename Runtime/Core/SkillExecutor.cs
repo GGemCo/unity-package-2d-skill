@@ -1747,17 +1747,6 @@ namespace GGemCo2DSkill
                     ApplyConfiguredHitStop(def, skill, castCharacterBase, target);
                 }
 
-                // OnHit Affect / Crowd Control (AfterDamage)
-                // 이번 타격으로 대상이 사망했다면, 사망 대상에게 후속 Affect / CC를 다시 적용하지 않습니다.
-                if (target.IsStatusDead())
-                {
-                    // NotifyOnHit는 TakeDamage 내부의 타격 확정 경로에서 이미 처리되므로 여기서는 생략 가능
-                    continue;
-                }
-
-                // OnHit Affect / Crowd Control (AfterDamage)
-                ApplyOnHitAffects(def.onHitAffects, ctx.caster, target, didApplyDamage, OnHitAffectTiming.AfterDamage);
-
                 _resolvedOnHitCrowdControls.Clear();
                 CollectOnHitCrowdControlUids(
                     def.onHitCrowdControls,
@@ -1767,8 +1756,19 @@ namespace GGemCo2DSkill
 
                 if (didApplyDamage && _resolvedOnHitCrowdControls.Count > 0)
                 {
-                    target.ApplyCrowdControlSequence(_resolvedOnHitCrowdControls, ctx.caster != null ? ctx.caster : gameObject);
+                    target.ApplyCrowdControlSequence(_resolvedOnHitCrowdControls, ctx.caster != null ? ctx.caster : gameObject, true);
                 }
+                
+                // OnHit Affect / Crowd Control (AfterDamage)
+                // 이번 타격으로 대상이 사망했다면, 사망 대상에게 후속 Affect / CC를 다시 적용하지 않습니다.
+                if (target.IsStatusDead())
+                {
+                    // NotifyOnHit는 TakeDamage 내부의 타격 확정 경로에서 이미 처리되므로 여기서는 생략 가능
+                    continue;
+                }
+                
+                // OnHit Affect / Crowd Control (AfterDamage)
+                ApplyOnHitAffects(def.onHitAffects, ctx.caster, target, didApplyDamage, OnHitAffectTiming.AfterDamage);
             }
         }
 
@@ -1787,8 +1787,6 @@ namespace GGemCo2DSkill
                     {
                         caster.ApplyHitStop(new HitStopRequest(
                             selfSeconds,
-                            lockControl: casterConfig.LockControl,
-                            lockMovement: casterConfig.LockMovement,
                             pauseAnimation: casterConfig.PauseAnimation,
                             freezePhysics: casterConfig.FreezePhysics,
                             sourceSkillUid: skill != null ? skill.Uid : 0));
@@ -1806,8 +1804,6 @@ namespace GGemCo2DSkill
                     {
                         target.ApplyHitStop(new HitStopRequest(
                             targetSeconds,
-                            lockControl: targetConfig.LockControl,
-                            lockMovement: targetConfig.LockMovement,
                             pauseAnimation: targetConfig.PauseAnimation,
                             freezePhysics: targetConfig.FreezePhysics,
                             sourceSkillUid: skill != null ? skill.Uid : 0));
