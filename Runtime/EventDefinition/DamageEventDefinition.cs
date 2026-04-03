@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+using GGemCo2DCore;
+using UnityEngine;
 
 namespace GGemCo2DSkill
 {
@@ -37,6 +38,11 @@ namespace GGemCo2DSkill
         public bool useHitStopTarget = false;
         public bool useDefaultTargetHitStop = true;
         public float targetHitStopSeconds = 0.05f;
+
+        [Header("Camera Shake")]
+        public bool useCameraShakeOnHit = false;
+        public CameraShakePreset cameraShakePreset;
+        public DirectionalCameraShakeMode cameraShakeDirectionMode = DirectionalCameraShakeMode.PresetRaw;
 
         [Header("Chain Cancel")]
         [Tooltip("이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]

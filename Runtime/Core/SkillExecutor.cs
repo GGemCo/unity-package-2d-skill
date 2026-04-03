@@ -1709,6 +1709,8 @@ namespace GGemCo2DSkill
                     AttackId = attackId,
                     SkillUid = skill.Uid,
                     HasPendingAfterDamageCrowdControl = hasPendingAfterDamageCrowdControl,
+                    DamageCameraShakePreset = def.useCameraShakeOnHit ? def.cameraShakePreset : null,
+                    DamageCameraShakeDirectionMode = def.cameraShakeDirectionMode,
                 };
 
                 bool didApplyDamage = false;

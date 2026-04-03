@@ -1,5 +1,6 @@
 using System;
 using Config;
+using GGemCo2DCore;
 using GGemCo2DSkill;
 using UnityEngine;
 
@@ -117,6 +118,16 @@ namespace GGemCo2DSkillEditor
         [Tooltip("[공중 전용] 대상이 공중에 있을 때만 데미지를 적용합니다. 지상 대상은 제외됩니다.")]
         [SerializeField] private bool isAirOnly = false;
 
+
+        [Header("Camera Shake")]
+        [Tooltip("[카메라 Shake 사용] 이 타격이 실제 데미지를 확정했을 때 카메라 Shake를 재생합니다.")]
+        [SerializeField] private bool useCameraShakeOnHit = false;
+
+        [Tooltip("[카메라 Shake Preset] 적중 시 사용할 카메라 Shake Preset 입니다.")]
+        [SerializeField] private CameraShakePreset cameraShakePreset;
+
+        [Tooltip("[카메라 방향 모드] 시전자/대상 기준 방향을 어떤 방식으로 Shake 방향에 반영할지 지정합니다.")]
+        [SerializeField] private DirectionalCameraShakeMode cameraShakeDirectionMode = DirectionalCameraShakeMode.PresetRaw;
 
         [Header("Hit Stop")]
         [Tooltip("[경직 사용] 이 타격이 실제 데미지를 확정했을 때 캐스터에게 경직을 적용합니다.")]
@@ -241,6 +252,21 @@ namespace GGemCo2DSkillEditor
         /// 대상에게 적용할 경직 시간을 반환합니다.
         /// </summary>
         public float TargetHitStopSeconds => targetHitStopSeconds;
+
+        /// <summary>
+        /// 적중 시 카메라 Shake를 사용할지 여부를 반환합니다.
+        /// </summary>
+        public bool UseCameraShakeOnHit => useCameraShakeOnHit;
+
+        /// <summary>
+        /// 적중 시 사용할 카메라 Shake Preset 을 반환합니다.
+        /// </summary>
+        public CameraShakePreset CameraShakePreset => cameraShakePreset;
+
+        /// <summary>
+        /// 카메라 Shake 방향 계산 모드를 반환합니다.
+        /// </summary>
+        public DirectionalCameraShakeMode CameraShakeDirectionMode => cameraShakeDirectionMode;
 
         /// <summary>
         /// 실제 데미지 확정 시 다음 스킬 연계를 즉시 허용할지 여부를 반환합니다.
