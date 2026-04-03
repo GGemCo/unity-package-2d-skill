@@ -1772,18 +1772,18 @@ namespace GGemCo2DSkill
             if (def == null)
                 return;
 
+            var hitStopConfig = caster.GetResolvedHitStopConfig();
             if (caster != null && def.useHitStopSelf)
             {
-                var casterConfig = caster.GetResolvedHitStopConfig();
-                if (casterConfig.Enabled)
+                if (hitStopConfig.Enabled)
                 {
-                    float selfSeconds = def.useDefaultSelfHitStop ? casterConfig.DefaultSelfSeconds : Mathf.Max(0f, def.selfHitStopSeconds);
+                    float selfSeconds = def.useDefaultSelfHitStop ? hitStopConfig.DefaultSelfSeconds : Mathf.Max(0f, def.selfHitStopSeconds);
                     if (selfSeconds > 0f)
                     {
                         caster.ApplyHitStop(new HitStopRequest(
                             selfSeconds,
-                            pauseAnimation: casterConfig.PauseAnimation,
-                            freezePhysics: casterConfig.FreezePhysics,
+                            pauseAnimation: hitStopConfig.PauseAnimation,
+                            freezePhysics: hitStopConfig.FreezePhysics,
                             sourceSkillUid: skill != null ? skill.Uid : 0));
                     }
                 }
@@ -1791,16 +1791,15 @@ namespace GGemCo2DSkill
 
             if (target != null && def.useHitStopTarget)
             {
-                var targetConfig = target.GetResolvedHitStopConfig();
-                if (targetConfig.Enabled)
+                if (hitStopConfig.Enabled)
                 {
-                    float targetSeconds = def.useDefaultTargetHitStop ? targetConfig.DefaultReceiveSeconds : Mathf.Max(0f, def.targetHitStopSeconds);
+                    float targetSeconds = def.useDefaultTargetHitStop ? hitStopConfig.DefaultReceiveSeconds : Mathf.Max(0f, def.targetHitStopSeconds);
                     if (targetSeconds > 0f)
                     {
                         target.ApplyHitStop(new HitStopRequest(
                             targetSeconds,
-                            pauseAnimation: targetConfig.PauseAnimation,
-                            freezePhysics: targetConfig.FreezePhysics,
+                            pauseAnimation: hitStopConfig.PauseAnimation,
+                            freezePhysics: hitStopConfig.FreezePhysics,
                             sourceSkillUid: skill != null ? skill.Uid : 0));
                     }
                 }
