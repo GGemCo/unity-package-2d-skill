@@ -380,7 +380,7 @@ namespace GGemCo2DSkill
 
             // 체인 캔슬은 다음 스킬 애니메이션이 같은 프레임에 이어서 재생되므로
             // 대기 애니메이션으로 한 번 복귀시키지 않고 현재 스킬 재생만 끊습니다.
-            if (reason != SkillCancelReason.ComboChain)
+            if (reason != SkillCancelReason.ComboChain && reason != SkillCancelReason.ForcedBySystem)
             {
                 _animController?.StopSkillAnimation();
             }

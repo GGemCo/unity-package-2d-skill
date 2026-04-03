@@ -130,6 +130,9 @@ namespace GGemCo2DSkill
 
         private void OnDisable()
         {
+            if (_current == null)
+                return;
+
             TryCancel(SkillCancelReason.ForcedBySystem);
         }
 
