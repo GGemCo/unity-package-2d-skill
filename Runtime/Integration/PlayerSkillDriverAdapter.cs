@@ -16,6 +16,7 @@ namespace GGemCo2DSkill
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
         /// </summary>
         private SkillExecutor _executor;
+        private CharacterBase _character;
         private ISkillStartActionCanceler _skillStartActionCanceler;
         private ISkillChainReadyFeedback _skillChainReadyFeedback;
 
@@ -38,6 +39,7 @@ namespace GGemCo2DSkill
         /// </summary>
         private void Awake()
         {
+            _character = GetComponent<CharacterBase>();
             _skillStartActionCanceler = GetComponent<ISkillStartActionCanceler>();
             _skillChainReadyFeedback = GetComponentInChildren<ISkillChainReadyFeedback>(true);
 
@@ -85,6 +87,9 @@ namespace GGemCo2DSkill
 
             if (_executor == null || skillUid <= 0)
                 return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
+
+            if (_character != null && (_character.IsStatusDead() || _character.IsDontControl()))
+                return SkillUseResult.Fail(SkillUseFailReason.ControlLocked);
 
             // 스킬 UID 기준 내부 쿨다운이 남아 있으면 사용을 거부합니다.
             if (_cooldownReadyAt.TryGetValue(skillUid, out float readyAt) && Time.time < readyAt)
