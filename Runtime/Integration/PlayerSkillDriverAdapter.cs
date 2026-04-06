@@ -10,7 +10,7 @@ namespace GGemCo2DSkill
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink
+    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler
     {
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
@@ -212,6 +212,28 @@ namespace GGemCo2DSkill
             _currentRunningSkillUid = 0;
             _chainUnlockedByConfirmedDamage = false;
             _chainConsumed = false;
+        }
+
+        public void CancelActionsOnIncomingHit(IncomingHitCancelReason reason)
+        {
+            if (_executor == null)
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+
+            if (_executor == null || !_executor.IsBusy)
+                return;
+
+            SkillCancelReason cancelReason = reason switch
+            {
+                IncomingHitCancelReason.Death => SkillCancelReason.Death,
+                IncomingHitCancelReason.Damage => SkillCancelReason.Damage,
+                _ => SkillCancelReason.ForcedBySystem
+            };
+
+            if (_executor.TryCancel(cancelReason))
+            {
+                // 체인 상태/UI가 있다면 여기서 즉시 정리하거나,
+                // 기존 ExecutionFinished 콜백에서 정리되도록 유지
+            }
         }
     }
 }
