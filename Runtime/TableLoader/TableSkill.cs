@@ -23,6 +23,9 @@ namespace GGemCo2DSkill
         
         public float CoolTime;
 
+        /// <summary>스킬 사용에 필요한 MP입니다. 0이면 무비용으로 간주합니다.</summary>
+        public int NeedMp;
+
         /// <summary>타겟팅 모드(스킬 패키지의 SkillTargetingMode enum 값을 int로 저장).</summary>
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
 
@@ -79,6 +82,7 @@ namespace GGemCo2DSkill
                 SkillKind = ConfigCommonSkill.SkillKind.Active,
                 CastTime = MathHelper.ParseFloat(data["CastTime"]),
                 CoolTime = MathHelper.ParseFloat(data["CoolTime"]),
+                NeedMp = System.Math.Max(0, MathHelper.ParseInt(data.GetValueOrDefault("NeedMp", "0"))),
                 TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),
                 CastRange = MathHelper.ParseFloat(data["CastRange"]),
                 PlacementRange = MathHelper.ParseFloat(data["PlacementRange"]),

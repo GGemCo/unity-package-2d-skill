@@ -16,6 +16,7 @@ namespace GGemCo2DSkill
         public ConfigCommonSkill.SkillKind SkillKind;
         public float CastTime;
         public float CoolTime;
+        public int NeedMp;
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
 
         /// <summary>스킬 사용 가능 거리입니다.</summary>
@@ -43,6 +44,7 @@ namespace GGemCo2DSkill
                 SkillKind = row.SkillKind,
                 CastTime = row.CastTime,
                 CoolTime = row.CoolTime,
+                NeedMp = row.NeedMp,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,
@@ -67,6 +69,7 @@ namespace GGemCo2DSkill
                 SkillKind = row.SkillKind,
                 CastTime = row.CastTime,
                 CoolTime = row.CoolTime,
+                NeedMp = 0,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,

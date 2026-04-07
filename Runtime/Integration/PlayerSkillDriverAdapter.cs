@@ -114,6 +114,9 @@ namespace GGemCo2DSkill
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
                 return SkillUseResult.Fail(SkillUseFailReason.OutOfRange);
 
+            if (!HasEnoughMp(skill))
+                return SkillUseResult.Fail(SkillUseFailReason.InsufficientMp);
+
             bool shouldAttemptChainCancel = _executor.IsBusy && CanStartNextSkillByConfirmedDamage();
             if (_executor.IsBusy && !shouldAttemptChainCancel)
                 return SkillUseResult.Fail(SkillUseFailReason.Busy);
@@ -133,6 +136,8 @@ namespace GGemCo2DSkill
             if (!started)
                 return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
 
+            SpendMp(skill);
+
             float cd = Mathf.Max(0f, skill.CoolTime);
             if (cd > 0f)
                 _cooldownReadyAt[skillUid] = Time.time + cd;
@@ -148,6 +153,26 @@ namespace GGemCo2DSkill
         {
             var request = new SkillDriverRequest(target, ConfigCommon.SkillTableSource.Player);
             return TryUseSkill(skillUid, in request);
+        }
+
+
+        private bool HasEnoughMp(RuntimeSkillDefinition skill)
+        {
+            if (skill == null || skill.NeedMp <= 0)
+                return true;
+
+            if (_character == null)
+                return true;
+
+            return _character.CheckNeedMp(skill.NeedMp);
+        }
+
+        private void SpendMp(RuntimeSkillDefinition skill)
+        {
+            if (skill == null || skill.NeedMp <= 0)
+                return;
+
+            _character?.MinusMp(skill.NeedMp);
         }
 
         public bool RequestCancelSkill(SkillCancelReason reason)

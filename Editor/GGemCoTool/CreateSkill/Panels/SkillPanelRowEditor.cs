@@ -335,6 +335,7 @@ namespace GGemCo2DSkillEditor
                     break;
                 case nameof(StruckTableSkill.MaxTargets):
                 case nameof(StruckTableSkill.NeedPlayerLevel):
+                case nameof(StruckTableSkill.NeedMp):
                     ClampIntMember(target, memberName);
                     break;
             }
@@ -352,6 +353,7 @@ namespace GGemCo2DSkillEditor
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.PlacementRange));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.MaxTargets));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.NeedPlayerLevel));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.NeedMp));
         }
 
         /// <summary>
