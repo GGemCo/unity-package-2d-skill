@@ -29,6 +29,9 @@ namespace GGemCo2DSkill
         [Header("OnHit Crowd Control")]
         public OnHitCrowdControlEntry[] onHitCrowdControls;
 
+        [Header("OnHit Element Gauge")]
+        public OnHitElementGaugeEntry[] onHitElementGauges;
+
         [Header("Hit Stop (Self)")]
         public bool useHitStopSelf = false;
         public bool useDefaultSelfHitStop = true;

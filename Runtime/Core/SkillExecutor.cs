@@ -1571,7 +1571,8 @@ namespace GGemCo2DSkill
                 targetPositionOverride: posOverride,
                 skillUid: skill.Uid,
                 attackId: attackId,
-                allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage);
+                allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
+                elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, damageApplied: true));
 
             casterChar.LaunchProjectile(meta);
         }
@@ -1750,6 +1751,8 @@ namespace GGemCo2DSkill
                     didApplyDamage,
                     OnHitCrowdControlTiming.AfterDamage,
                     _resolvedOnHitCrowdControls);
+
+                metadataDamage.ElementGaugeApplications = BuildElementGaugeApplications(def.onHitElementGauges, didApplyDamage);
 
                 if (didApplyDamage)
                 {
@@ -1974,6 +1977,37 @@ namespace GGemCo2DSkill
                 AffectApi.Apply(applyTarget, affectUid, ctx.caster, duration);
             }
         }
+
+        private static ElementGaugeApplication[] BuildElementGaugeApplications(OnHitElementGaugeEntry[] entries, bool damageApplied)
+        {
+            if (entries == null || entries.Length == 0)
+                return null;
+
+            List<ElementGaugeApplication> results = null;
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                var entry = entries[i];
+                if (entry.damageType == ConfigCommon.DamageType.None || entry.damageType == ConfigCommon.DamageType.Physic)
+                    continue;
+                if (entry.gaugeValue <= 0f)
+                    continue;
+                if (entry.requireDamageDealt && !damageApplied)
+                    continue;
+
+                float chance = entry.chance <= 0f ? 1f : Mathf.Clamp01(entry.chance);
+                if (chance <= 0f)
+                    continue;
+                if (chance < 0.9999f && UnityEngine.Random.value > chance)
+                    continue;
+
+                results ??= new List<ElementGaugeApplication>(4);
+                results.Add(new ElementGaugeApplication(entry.damageType, entry.gaugeValue));
+            }
+
+            return results != null && results.Count > 0 ? results.ToArray() : null;
+        }
+
 
         /// <summary>
         /// OnHit 설정 목록을 순회하며 조건에 맞는 Affect를 대상에게 적용합니다.

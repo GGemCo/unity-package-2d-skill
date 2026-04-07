@@ -35,6 +35,9 @@ namespace GGemCo2DSkill
         [Tooltip("이 Projectile 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
         public bool allowSkillChainOnConfirmedDamage = false;
 
+        [Header("OnHit Element Gauge")]
+        public OnHitElementGaugeEntry[] onHitElementGauges;
+
         [Header("Targeting Overrides")]
         [Tooltip("스킬 기본 TargetingMode 대신, 이벤트 별 TargetingMode를 강제할 수 있습니다.")]
         public TargetingOverride targetingOverride;

@@ -106,6 +106,8 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         [Header("OnHit Crowd Control (Target)")]
         [SerializeField] private OnHitCrowdControlEntry[] onHitCrowdControls;
+        
+        [SerializeField] private OnHitElementGaugeEntry[] onHitElementGauges;
 
         /// <summary>
         /// 이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다.
@@ -211,6 +213,7 @@ namespace GGemCo2DSkillEditor
         /// 적중 시 적용될 Crowd Control 목록을 반환합니다.
         /// </summary>
         public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
+        public OnHitElementGaugeEntry[] OnHitElementGauges => onHitElementGauges;
 
 
         /// <summary>
