@@ -22,5 +22,8 @@ namespace GGemCo2DSkill
 
         [Tooltip("실제로 데미지가 적용된 경우에만 게이지를 누적할지 여부입니다.")]
         public bool requireDamageDealt;
+
+        [Tooltip("1 이상이면, 스킬 시전 캐릭터가 해당 Affect를 가지고 있을 때만 게이지를 누적합니다.")]
+        public int requireAffectUid;
     }
 }

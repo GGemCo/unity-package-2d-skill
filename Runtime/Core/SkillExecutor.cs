@@ -1575,7 +1575,7 @@ namespace GGemCo2DSkill
                 skillUid: skill.Uid,
                 attackId: attackId,
                 allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
-                elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, damageApplied: true));
+                elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, gameObject, damageApplied: true));
 
             casterChar.LaunchProjectile(meta);
         }
@@ -1755,7 +1755,7 @@ namespace GGemCo2DSkill
                     OnHitCrowdControlTiming.AfterDamage,
                     _resolvedOnHitCrowdControls);
 
-                metadataDamage.ElementGaugeApplications = BuildElementGaugeApplications(def.onHitElementGauges, didApplyDamage);
+                metadataDamage.ElementGaugeApplications = BuildElementGaugeApplications(def.onHitElementGauges, gameObject, didApplyDamage);
 
                 if (didApplyDamage)
                 {
@@ -2029,7 +2029,7 @@ namespace GGemCo2DSkill
             targetCharacter.SetRuntimeBonusHpTemp(sourceKey, tempHpValue, fillToMax: true);
         }
 
-        private static ElementGaugeApplication[] BuildElementGaugeApplications(OnHitElementGaugeEntry[] entries, bool damageApplied)
+        private static ElementGaugeApplication[] BuildElementGaugeApplications(OnHitElementGaugeEntry[] entries, GameObject caster, bool damageApplied)
         {
             if (entries == null || entries.Length == 0)
                 return null;
@@ -2044,6 +2044,8 @@ namespace GGemCo2DSkill
                 if (entry.gaugeValue <= 0f)
                     continue;
                 if (entry.requireDamageDealt && !damageApplied)
+                    continue;
+                if (entry.requireAffectUid > 0 && !AffectApi.HasAttached(caster, entry.requireAffectUid))
                     continue;
 
                 float chance = entry.chance <= 0f ? 1f : Mathf.Clamp01(entry.chance);
