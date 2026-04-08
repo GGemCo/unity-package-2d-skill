@@ -62,6 +62,11 @@ namespace Config
             /// 현재 위치에 일정 시간 또는 스킬 종료까지 머무릅니다.
             /// </summary>
             PositionHold = 9,
+
+            /// <summary>
+            /// 런타임 Temp HP(비저장 보호막/임시 하트)를 적용합니다.
+            /// </summary>
+            ApplyTempHp = 10,
         }
 
         /// <summary>

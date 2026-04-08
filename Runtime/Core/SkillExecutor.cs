@@ -293,6 +293,9 @@ namespace GGemCo2DSkill
                     float groundSlamDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
                     HandleGroundSlam(ctx, payload, groundSlamDuration);
                     break;
+                case ConfigCommonSkill.SkillEventType.ApplyTempHp:
+                    HandleApplyTempHp(skill, ctx, payload);
+                    break;
                 default:
                     break;
             }
@@ -1976,6 +1979,54 @@ namespace GGemCo2DSkill
                 // source는 caster로 유지합니다(버프/힐 출처 트래킹 용도)
                 AffectApi.Apply(applyTarget, affectUid, ctx.caster, duration);
             }
+        }
+
+
+        /// <summary>
+        /// 런타임 Temp HP(비저장 보호막/임시 하트)를 적용합니다.
+        /// - 같은 source key가 다시 들어오면 누적하지 않고 설정값까지 다시 채웁니다.
+        /// - 현재치가 모두 소모되면 Core 쪽에서 해당 source가 제거됩니다.
+        /// </summary>
+        private void HandleApplyTempHp(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj)
+        {
+            if (payloadObj is not ApplyTempHpEventDefinition def)
+                return;
+
+            if (ctx.caster == null)
+                return;
+
+            GameObject applyTarget;
+            switch (def.applyTo)
+            {
+                case ApplyAffectTarget.LockedTarget:
+                    applyTarget = ctx.lockedTarget != null ? ctx.lockedTarget : ctx.caster;
+                    break;
+                case ApplyAffectTarget.Caster:
+                default:
+                    applyTarget = ctx.caster;
+                    break;
+            }
+
+            if (applyTarget == null)
+                return;
+
+            var targetCharacter = applyTarget.GetComponent<CharacterBase>() ?? applyTarget.GetComponentInParent<CharacterBase>();
+            if (targetCharacter == null)
+                return;
+
+            long tempHpValue = def.tempHpValue > 0 ? def.tempHpValue : 0;
+            int sourceKey = def.sourceKeyOverride != 0 ? def.sourceKeyOverride : skill.Uid;
+
+            if (tempHpValue <= 0)
+            {
+                targetCharacter.ClearRuntimeBonusHpTemp(sourceKey);
+                return;
+            }
+
+            targetCharacter.SetRuntimeBonusHpTemp(sourceKey, tempHpValue, fillToMax: true);
         }
 
         private static ElementGaugeApplication[] BuildElementGaugeApplications(OnHitElementGaugeEntry[] entries, bool damageApplied)

@@ -318,6 +318,16 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillApplyTempHpClip tempHp:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<ApplyTempHpEventDefinition>();
+                        def.tempHpValue = tempHp.TempHpValue > 0 ? tempHp.TempHpValue : 0;
+                        def.sourceKeyOverride = tempHp.SourceKeyOverride;
+                        def.applyTo = tempHp.ApplyTo;
+                        return def;
+                    };
+
                 case SkillLungeClip lunge:
                     return () =>
                     {
