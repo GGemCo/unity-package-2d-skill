@@ -105,6 +105,13 @@ namespace GGemCo2DSkill
             long beforePassiveTempMax = _character.GetPassiveBonusHpTempMax();
             long beforePassiveTempCurrent = _character.GetPassiveBonusHpTempCurrent();
 
+            // 패시브 리빌드 중에는 TotalHpTemp/CurrentHpTemp 관련 Publish 타이밍을 하나로 묶는다.
+            // segmented HUD는 CharacterStat 내부의 패시브/런타임 Temp 캐시를 직접 참조하므로,
+            // RecalculateStats()가 먼저 발행되고 SyncPassiveBonusHpTempMaxFromProvider()가 나중에 호출되면
+            // HUD가 이전 패시브 Temp 값을 읽어 임시 하트가 남아 보일 수 있다.
+            // 따라서 리빌드 전체를 batch 구간으로 감싸고, 패시브 Temp 동기화/클램프까지 끝난 뒤 한 번만 publish 한다.
+            using var batchUpdate = _character.BeginBatchUpdate();
+
             // 1) 기존 적용분 제거
             _character.ClearPassiveSkillModifiers(recalculate: false);
             SyncAffects(desired: null);
