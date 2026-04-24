@@ -74,6 +74,7 @@ namespace GGemCo2DSkill
         public override void OnShow(bool show)
         {
             if (SceneGame.Instance == null || TableLoaderManager.Instance == null) return;
+            base.OnShow(show);
             if (!show)
             {
                 _uIWindowSkillInfo?.Show(false);
