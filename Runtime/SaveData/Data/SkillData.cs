@@ -14,6 +14,9 @@ namespace GGemCo2DSkill
         // 패시브 스킬 레벨 정보
         public Dictionary<int, SaveDataIcon> SkillPassiveDatas = new();
 
+        private const int IconType = (int)IconConstants.Type.Skill;
+        private const int IconTypePassive = (int)IconConstants.Type.SkillPassive;
+        
         /// <summary>
         /// 초기화. Awake 단계에서 실행
         /// </summary>
@@ -67,7 +70,7 @@ namespace GGemCo2DSkill
             if (info == null)
             {
                 if (!SkillDatas.TryAdd(slotIndex,
-                        new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn)))
+                        new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn, iconType:IconType)))
                 {
                     GcLogger.LogError($"스킬 배움 여부 저장 실패. slotIndex: {slotIndex} / skillUid: {skillUid}");
                 }
@@ -79,7 +82,7 @@ namespace GGemCo2DSkill
 
             SaveDatas();
             List<SaveDataIcon> controls = new List<SaveDataIcon>
-                { new(slotIndex, skillUid, skillCount, skillLevel, skillLearn) };
+                { new(slotIndex, skillUid, skillCount, skillLevel, skillLearn, iconType:IconType) };
             return ResultCommon.SuccessWithIcons(controls);
         }
 
@@ -105,7 +108,7 @@ namespace GGemCo2DSkill
             if (info == null)
             {
                 if (!SkillPassiveDatas.TryAdd(slotIndex,
-                        new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn)))
+                        new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn, iconType:IconTypePassive)))
                 {
                     GcLogger.LogError($"패시브 스킬 배움 여부 저장 실패. slotIndex: {slotIndex} / skillUid: {skillUid}");
                 }
@@ -117,7 +120,7 @@ namespace GGemCo2DSkill
 
             SaveDatas();
             List<SaveDataIcon> controls = new List<SaveDataIcon>
-                { new(slotIndex, skillUid, skillCount, skillLevel, skillLearn) };
+                { new(slotIndex, skillUid, skillCount, skillLevel, skillLearn, iconType:IconTypePassive) };
             return ResultCommon.SuccessWithIcons(controls);
         }
         
@@ -138,7 +141,7 @@ namespace GGemCo2DSkill
         public void SetPassiveEquip(int slotIndex, int skillUid, int skillCount, int skillLevel, bool skillLearn)
         {
             if (skillUid <= 0) return;
-            SkillPassiveDatas[slotIndex] = new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn);
+            SkillPassiveDatas[slotIndex] = new SaveDataIcon(slotIndex, skillUid, skillCount, skillLevel, skillLearn, iconType:IconTypePassive);
             SaveDatas();
         }
 
