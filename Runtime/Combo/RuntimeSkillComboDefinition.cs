@@ -84,8 +84,19 @@ namespace GGemCo2DSkill
 
         /// <summary>
         /// 콤보가 시작될 메인 노드 인덱스입니다.
+        /// 기존 저장 데이터와 Inspector 설정을 위한 호환 필드이며, EntryMainNodeIndex가 비어 있을 때 사용합니다.
         /// </summary>
         public int StartNodeIndex = InvalidNodeIndex;
+
+        /// <summary>
+        /// 콤보 진입 위치에서 Main 명령으로 실행할 첫 번째 메인 노드 인덱스입니다.
+        /// </summary>
+        public int EntryMainNodeIndex = InvalidNodeIndex;
+
+        /// <summary>
+        /// 콤보 진입 위치에서 Last 명령으로 실행할 첫 번째 마무리 노드 인덱스입니다.
+        /// </summary>
+        public int EntryLastNodeIndex = InvalidNodeIndex;
 
         /// <summary>
         /// 콤보 그래프를 구성하는 노드 목록입니다.

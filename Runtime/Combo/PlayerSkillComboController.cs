@@ -85,11 +85,11 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 외부 전투 성공 이벤트가 첫 번째 메인 노드를 이미 성립시킨 것으로 보고 콤보 트리를 엽니다.
-        /// 이 메서드는 스킬을 실행하지 않고, 다음 입력이 시작 노드의 다음 연결로 이어지도록 상태만 갱신합니다.
+        /// 외부 전투 성공 이벤트를 트리거 위치로 보고 콤보 트리를 엽니다.
+        /// 이 메서드는 스킬을 실행하지 않고, 다음 Main 또는 Last 입력이 진입 노드로 이어지도록 상태만 갱신합니다.
         /// </summary>
         /// <param name="entryTrigger">콤보를 열게 만든 외부 진입 조건입니다.</param>
-        /// <param name="confirmedSkillUid">외부에서 성공이 확인된 스킬 UID입니다. 0이면 시작 노드 UID 검증을 생략합니다.</param>
+        /// <param name="confirmedSkillUid">외부에서 성공이 확인된 스킬 UID입니다. 트리거 노드가 실제 콤보 노드가 아니므로 현재는 기록용 인자입니다.</param>
         /// <returns>콤보 열기 결과입니다.</returns>
         public SkillComboOpenResult TryOpenComboAtStart(
             SkillComboEntryTrigger entryTrigger,
@@ -112,9 +112,10 @@ namespace GGemCo2DSkill
                     entryTrigger);
             }
 
-            if (!SkillComboGraphResolver.TryGetStartNode(
+            if (!SkillComboGraphResolver.TryResolveEntryNode(
                     definition,
-                    out RuntimeSkillComboNode startNode,
+                    SkillComboCommand.Main,
+                    out RuntimeSkillComboNode entryMainNode,
                     out failReason))
             {
                 return SkillComboOpenResult.Fail(
@@ -122,15 +123,21 @@ namespace GGemCo2DSkill
                     entryTrigger);
             }
 
-            if (confirmedSkillUid > 0 && startNode.SkillUid != confirmedSkillUid)
+            RuntimeSkillComboNode entryLastNode = null;
+            if (!SkillComboGraphResolver.TryResolveEntryNode(
+                    definition,
+                    SkillComboCommand.Last,
+                    out entryLastNode,
+                    out SkillComboUseFailReason lastFailReason) &&
+                lastFailReason != SkillComboUseFailReason.MissingLastNode)
             {
                 return SkillComboOpenResult.Fail(
-                    SkillComboOpenFailReason.ConfirmedSkillMismatch,
+                    ConvertOpenFailReason(lastFailReason),
                     entryTrigger);
             }
 
-            _state.ActivateExternalEntry(startNode, entryTrigger);
-            return SkillComboOpenResult.Opened(startNode, entryTrigger);
+            _state.OpenEntryGate(entryTrigger, confirmedSkillUid);
+            return SkillComboOpenResult.Opened(entryMainNode, entryLastNode, entryTrigger);
         }
 
         /// <summary>
@@ -207,6 +214,15 @@ namespace GGemCo2DSkill
                 }
 
                 return SkillComboGraphResolver.TryGetStartNode(definition, out node, out failReason);
+            }
+
+            if (_state.IsEntryGateActive)
+            {
+                return SkillComboGraphResolver.TryResolveEntryNode(
+                    definition,
+                    command,
+                    out node,
+                    out failReason);
             }
 
             return SkillComboGraphResolver.TryResolveNextNode(
@@ -290,6 +306,7 @@ namespace GGemCo2DSkill
                 SkillComboUseFailReason.EmptyDefinition => SkillComboOpenFailReason.EmptyDefinition,
                 SkillComboUseFailReason.MissingStartNode => SkillComboOpenFailReason.MissingStartNode,
                 SkillComboUseFailReason.InvalidStartNode => SkillComboOpenFailReason.InvalidStartNode,
+                SkillComboUseFailReason.InvalidTransition => SkillComboOpenFailReason.InvalidEntryLastNode,
                 _ => SkillComboOpenFailReason.MissingDefinition,
             };
         }

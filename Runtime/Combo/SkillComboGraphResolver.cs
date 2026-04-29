@@ -17,21 +17,48 @@ namespace GGemCo2DSkill
             out RuntimeSkillComboNode node,
             out SkillComboUseFailReason failReason)
         {
+            return TryResolveEntryNode(
+                definition,
+                SkillComboCommand.Main,
+                out node,
+                out failReason);
+        }
+
+        /// <summary>
+        /// 콤보 진입 위치에서 입력 명령으로 실행할 첫 번째 노드를 찾습니다.
+        /// </summary>
+        /// <param name="definition">해석할 콤보 정의입니다.</param>
+        /// <param name="command">진입 위치에서 선택할 콤보 명령입니다.</param>
+        /// <param name="node">찾은 진입 노드입니다.</param>
+        /// <param name="failReason">실패 시 콤보 해석 실패 이유입니다.</param>
+        /// <returns>진입 노드를 찾으면 true입니다.</returns>
+        public static bool TryResolveEntryNode(
+            RuntimeSkillComboDefinition definition,
+            SkillComboCommand command,
+            out RuntimeSkillComboNode node,
+            out SkillComboUseFailReason failReason)
+        {
             node = null;
 
             if (!TryEnsureDefinition(definition, out failReason))
                 return false;
 
-            if (!TryFindNode(definition, definition.StartNodeIndex, out node))
+            int entryNodeIndex = ResolveEntryNodeIndex(definition, command);
+            if (entryNodeIndex == RuntimeSkillComboDefinition.InvalidNodeIndex ||
+                !TryFindNode(definition, entryNodeIndex, out node))
             {
-                failReason = SkillComboUseFailReason.MissingStartNode;
+                failReason = command == SkillComboCommand.Main
+                    ? SkillComboUseFailReason.MissingStartNode
+                    : SkillComboUseFailReason.MissingLastNode;
                 return false;
             }
 
-            if (!node.IsMain)
+            if (!IsExpectedEntryNodeType(command, node))
             {
                 node = null;
-                failReason = SkillComboUseFailReason.InvalidStartNode;
+                failReason = command == SkillComboCommand.Main
+                    ? SkillComboUseFailReason.InvalidStartNode
+                    : SkillComboUseFailReason.InvalidTransition;
                 return false;
             }
 
@@ -156,6 +183,40 @@ namespace GGemCo2DSkill
 
             failReason = SkillComboUseFailReason.None;
             return true;
+        }
+
+        /// <summary>
+        /// 콤보 진입 위치에서 명령에 대응하는 노드 인덱스를 결정합니다.
+        /// </summary>
+        /// <param name="definition">해석할 콤보 정의입니다.</param>
+        /// <param name="command">진입 위치에서 선택할 콤보 명령입니다.</param>
+        /// <returns>명령에 대응하는 진입 노드 인덱스입니다.</returns>
+        private static int ResolveEntryNodeIndex(
+            RuntimeSkillComboDefinition definition,
+            SkillComboCommand command)
+        {
+            if (definition == null)
+                return RuntimeSkillComboDefinition.InvalidNodeIndex;
+
+            if (command == SkillComboCommand.Main)
+            {
+                return definition.EntryMainNodeIndex != RuntimeSkillComboDefinition.InvalidNodeIndex
+                    ? definition.EntryMainNodeIndex
+                    : definition.StartNodeIndex;
+            }
+
+            return definition.EntryLastNodeIndex;
+        }
+
+        /// <summary>
+        /// 진입 위치에서 선택된 명령이 기대하는 노드 타입과 실제 노드 타입이 일치하는지 확인합니다.
+        /// </summary>
+        /// <param name="command">진입 위치에서 선택한 콤보 명령입니다.</param>
+        /// <param name="node">검사할 콤보 노드입니다.</param>
+        /// <returns>명령과 노드 타입이 일치하면 true입니다.</returns>
+        private static bool IsExpectedEntryNodeType(SkillComboCommand command, RuntimeSkillComboNode node)
+        {
+            return IsExpectedNodeType(command, node);
         }
 
         /// <summary>
