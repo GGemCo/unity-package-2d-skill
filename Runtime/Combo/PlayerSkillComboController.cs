@@ -85,6 +85,55 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 외부 전투 성공 이벤트가 첫 번째 메인 노드를 이미 성립시킨 것으로 보고 콤보 트리를 엽니다.
+        /// 이 메서드는 스킬을 실행하지 않고, 다음 입력이 시작 노드의 다음 연결로 이어지도록 상태만 갱신합니다.
+        /// </summary>
+        /// <param name="entryTrigger">콤보를 열게 만든 외부 진입 조건입니다.</param>
+        /// <param name="confirmedSkillUid">외부에서 성공이 확인된 스킬 UID입니다. 0이면 시작 노드 UID 검증을 생략합니다.</param>
+        /// <returns>콤보 열기 결과입니다.</returns>
+        public SkillComboOpenResult TryOpenComboAtStart(
+            SkillComboEntryTrigger entryTrigger,
+            int confirmedSkillUid = 0)
+        {
+            if (entryTrigger == SkillComboEntryTrigger.None ||
+                entryTrigger == SkillComboEntryTrigger.ManualSkillUse)
+            {
+                return SkillComboOpenResult.Fail(
+                    SkillComboOpenFailReason.InvalidEntryTrigger,
+                    entryTrigger);
+            }
+
+            if (!TryResolveComboDefinition(
+                    out RuntimeSkillComboDefinition definition,
+                    out SkillComboUseFailReason failReason))
+            {
+                return SkillComboOpenResult.Fail(
+                    ConvertOpenFailReason(failReason),
+                    entryTrigger);
+            }
+
+            if (!SkillComboGraphResolver.TryGetStartNode(
+                    definition,
+                    out RuntimeSkillComboNode startNode,
+                    out failReason))
+            {
+                return SkillComboOpenResult.Fail(
+                    ConvertOpenFailReason(failReason),
+                    entryTrigger);
+            }
+
+            if (confirmedSkillUid > 0 && startNode.SkillUid != confirmedSkillUid)
+            {
+                return SkillComboOpenResult.Fail(
+                    SkillComboOpenFailReason.ConfirmedSkillMismatch,
+                    entryTrigger);
+            }
+
+            _state.ActivateExternalEntry(startNode, entryTrigger);
+            return SkillComboOpenResult.Opened(startNode, entryTrigger);
+        }
+
+        /// <summary>
         /// 메인 콤보 명령으로 스킬 사용을 시도합니다.
         /// </summary>
         /// <returns>콤보 명령 처리 결과입니다.</returns>
@@ -230,6 +279,22 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 기존 콤보 해석 실패 이유를 외부 진입 열기 실패 이유로 변환합니다.
+        /// </summary>
+        /// <param name="failReason">콤보 해석 단계의 실패 이유입니다.</param>
+        /// <returns>외부 진입 열기 결과에서 사용할 실패 이유입니다.</returns>
+        private static SkillComboOpenFailReason ConvertOpenFailReason(SkillComboUseFailReason failReason)
+        {
+            return failReason switch
+            {
+                SkillComboUseFailReason.EmptyDefinition => SkillComboOpenFailReason.EmptyDefinition,
+                SkillComboUseFailReason.MissingStartNode => SkillComboOpenFailReason.MissingStartNode,
+                SkillComboUseFailReason.InvalidStartNode => SkillComboOpenFailReason.InvalidStartNode,
+                _ => SkillComboOpenFailReason.MissingDefinition,
+            };
+        }
+
+        /// <summary>
         /// 스킬 UID에 맞는 타겟팅 요청을 구성합니다.
         /// </summary>
         /// <param name="skillUid">실행할 스킬 UID입니다.</param>
@@ -367,6 +432,9 @@ namespace GGemCo2DSkill
         /// <param name="report">스킬 실행 종료 리포트입니다.</param>
         private void OnSkillExecutionFinished(SkillExecutionReport report)
         {
+            if (_state.IsExternalEntry)
+                return;
+
             if (!_state.IsActive || report.SkillUid != _state.CurrentSkillUid)
                 return;
 

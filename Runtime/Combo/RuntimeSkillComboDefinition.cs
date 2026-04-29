@@ -36,6 +36,37 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// 외부 전투 결과가 어떤 조건으로 콤보 트리의 시작 노드를 열었는지 정의합니다.
+    /// </summary>
+    public enum SkillComboEntryTrigger
+    {
+        /// <summary>
+        /// 별도 진입 조건이 없습니다.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// 기본 콤보의 마지막 공격이 성공해 기본 콤보 트리를 열 수 있습니다.
+        /// </summary>
+        BasicComboLastHitSuccess = 1,
+
+        /// <summary>
+        /// 저스트 가드가 성공해 저스트 가드 콤보 트리를 열 수 있습니다.
+        /// </summary>
+        JustGuardSuccess = 2,
+
+        /// <summary>
+        /// 카운터가 성공해 카운터 콤보 트리를 열 수 있습니다.
+        /// </summary>
+        CounterSuccess = 3,
+
+        /// <summary>
+        /// 외부 성공 이벤트 없이 일반 입력으로 콤보가 시작됩니다.
+        /// </summary>
+        ManualSkillUse = 4,
+    }
+
+    /// <summary>
     /// 런타임에서 사용할 플레이어 스킬 콤보 그래프 정의입니다.
     /// </summary>
     [Serializable]
