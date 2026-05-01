@@ -14,8 +14,9 @@ namespace GGemCo2DSkill
         public bool enableSkillChainOnConfirmedDamage = false;
 
         [Header("Debug")]
-        [Tooltip("스킬 패키지 디버그 기능 전체 사용 여부입니다.")]
-        public bool enableSkillDebug = true;
+        [SerializeField, DebugOption("스킬 패키지 디버그 기능 전체 사용 여부입니다.")]
+        private bool enableSkillDebug;
+        public bool EnableSkillDebug => DebugOptionRuntimeUtility.Resolve(enableSkillDebug);
 
         [Tooltip("Damage 이벤트 영역 Gizmo 표시 여부입니다.")]
         public bool enableDamageAreaGizmo = true;

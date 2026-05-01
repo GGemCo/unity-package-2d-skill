@@ -17,7 +17,7 @@ namespace GGemCo2DSkill
         public static SkillTestRuntimeHub Instance { get; private set; }
         public static GGemCoSkillSettings CurrentSettings { get; private set; }
 
-        public bool IsSkillDebugEnabled => CurrentSettings == null || CurrentSettings.enableSkillDebug;
+        public bool IsSkillDebugEnabled => CurrentSettings == null || CurrentSettings.EnableSkillDebug;
         public bool IsDamageAreaGizmoEnabled => IsSkillDebugEnabled && (CurrentSettings == null || CurrentSettings.enableDamageAreaGizmo);
         public Color DamageAreaGizmoColor => CurrentSettings != null ? CurrentSettings.damageAreaGizmoColor : new Color(1f, 0.35f, 0.2f, 0.9f);
         public bool DrawOnlyWhenSelectedCaster => CurrentSettings != null && CurrentSettings.drawOnlyWhenSelectedCaster;
