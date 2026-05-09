@@ -92,12 +92,13 @@ namespace GGemCo2DSkill
                               new GameObject("TableLoaderManagerSkill").AddComponent<TableLoaderManagerSkill>();
 
             var targetTables = ConfigAddressableTableSkill.All;
-            var stepTable = new TableLoadStep(
+            var stepTable = new TablePackLoadStep(
                 id: "core.table.skill",
                 order: 247,
                 localizedKey: LocalizationConstants.Keys.Loading.TextTypeTables(),
                 tableLoader: tableLoader,
-                tables: targetTables
+                tablePack: ConfigAddressableTablePack.Skill,
+                fallbackTables: targetTables
             );
             sender.Register(stepTable);
 
