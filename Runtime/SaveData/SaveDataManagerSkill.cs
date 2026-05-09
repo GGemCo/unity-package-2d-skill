@@ -72,7 +72,7 @@ namespace GGemCo2DSkill
             };
 
             string json = JsonConvert.SerializeObject(saveData);
-            SaveDataFileService.WriteAllText(filePath, json);
+            SaveDataFileService.WriteAllText(filePath, json, SaveDataIdentity.Skill(currentSaveSlot));
             // GcLogger.Log($"데이터가 저장되었습니다. 슬롯 {currentSaveSlot}");
             
             // 메타파일 업데이트
