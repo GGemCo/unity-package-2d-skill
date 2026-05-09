@@ -115,31 +115,12 @@ namespace GGemCo2DSkill
             );
             sender.Register(stepLocalization);
 
-            // 스킬 아이콘 로딩 스텝 등록
-            var addrSkill = CompatObjectFind.FindFirst<AddressableLoaderSkill>() ??
-                             new GameObject("AddressableLoaderSkill").AddComponent<AddressableLoaderSkill>();
-
-            var stepSkill = new AddressableTaskStep(
-                id: "core.image.icon.skill",
-                order: 340,
-                localizedKey: LocalizationConstants.Keys.Loading.TextTypeSkill(),
-                startTask: () => addrSkill.LoadAtlasesAsync(),
-                getProgress: () => addrSkill.GetPrefabLoadProgress()
-            );
-            sender.Register(stepSkill);
-            
-            // 플레이어 스킬 런타임 시퀀스 파일 로드
-            var addrSkillRuntimeSequencePlayer = CompatObjectFind.FindFirst<AddressableLoaderSkillRuntimeSequencePlayer>() ??
-                             new GameObject("AddressableLoaderSkillRuntimeSequencePlayer").AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
-
-            var stepSkillRuntimeSequencePlayer = new AddressableTaskStep(
-                id: "skill.runtimesequence.player",
-                order: 345,
-                localizedKey: LocalizationConstants.Keys.Loading.TextTypeSkill(),
-                startTask: () => addrSkillRuntimeSequencePlayer.LoadAsync(),
-                getProgress: () => addrSkillRuntimeSequencePlayer.GetLoadProgress()
-            );
-            sender.Register(stepSkillRuntimeSequencePlayer);
+            // 스킬 아이콘 Atlas와 플레이어 런타임 시퀀스는 선로드 대상에서 제외합니다.
+            // 로더 인스턴스만 준비해 두고, 실제 사용 시 지연 로드합니다.
+            _ = CompatObjectFind.FindFirst<AddressableLoaderSkill>() ??
+                new GameObject("AddressableLoaderSkill").AddComponent<AddressableLoaderSkill>();
+            _ = CompatObjectFind.FindFirst<AddressableLoaderSkillRuntimeSequencePlayer>() ??
+                new GameObject("AddressableLoaderSkillRuntimeSequencePlayer").AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
 
             // 스킬 세이브 데이터
             var saveData = CompatObjectFind.FindFirst<SaveDataLoaderSkill>() ?? new GameObject("SaveDataLoaderSkill").AddComponent<SaveDataLoaderSkill>();

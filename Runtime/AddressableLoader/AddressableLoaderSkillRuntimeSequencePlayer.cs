@@ -9,24 +9,24 @@ using UnityEngine.ResourceManagement.AsyncOperations;
 namespace GGemCo2DSkill
 {
     /// <summary>
-    /// 이펙트 프리팹 로드
+    /// 플레이어 스킬 런타임 시퀀스를 Addressables에서 로드하고 캐싱합니다.
     /// </summary>
     public class AddressableLoaderSkillRuntimeSequencePlayer : MonoBehaviour
     {
         public static AddressableLoaderSkillRuntimeSequencePlayer Instance { get; private set; }
+
         private readonly Dictionary<string, SkillRuntimeSequence> _handles = new Dictionary<string, SkillRuntimeSequence>();
         private readonly HashSet<AsyncOperationHandle> _activeHandles = new HashSet<AsyncOperationHandle>();
         private float _prefabLoadProgress;
 
 #if UNITY_EDITOR
         /// <summary>
-        /// Play Mode 스킬 테스트(에디터)에서 Addressables 로딩을 우회하기 위한 오버라이드 캐시.
+        /// Play Mode 스킬 테스트에서 Addressables 로딩을 우회하기 위한 오버라이드 캐시입니다.
         /// </summary>
         private static readonly Dictionary<string, SkillRuntimeSequence> EditorOverrides = new(StringComparer.Ordinal);
 
         /// <summary>
         /// 에디터 테스트용 시퀀스를 등록합니다.
-        /// - 동일 key가 이미 Addressables handle로 로드되어 있다면, 오버라이드가 우선됩니다.
         /// </summary>
         public static void RegisterEditorOverride(string key, SkillRuntimeSequence sequence)
         {
@@ -41,7 +41,7 @@ namespace GGemCo2DSkill
 
         public static void ClearEditorOverrides() => EditorOverrides.Clear();
 #endif
-        
+
         private void Awake()
         {
             _prefabLoadProgress = 0f;
@@ -71,6 +71,10 @@ namespace GGemCo2DSkill
             EditorOverrides.Clear();
 #endif
         }
+
+        /// <summary>
+        /// 플레이어 시퀀스 전체를 선로드합니다.
+        /// </summary>
         public async Task LoadAsync()
         {
             try
@@ -85,42 +89,76 @@ namespace GGemCo2DSkill
                     return;
                 }
 
-                int totalCount = locationHandle.Result.Count;
+                int totalCount = Mathf.Max(1, locationHandle.Result.Count);
                 int loadedCount = 0;
 
                 foreach (var location in locationHandle.Result)
                 {
-                    string address = location.PrimaryKey;
-                    var loadHandle = Addressables.LoadAssetAsync<SkillRuntimeSequence>(address);
-
-                    while (!loadHandle.IsDone)
-                    {
-                        _prefabLoadProgress = (loadedCount + loadHandle.PercentComplete) / totalCount;
-                        await Task.Yield();
-                    }
-                    _activeHandles.Add(loadHandle);
-
-                    SkillRuntimeSequence prefab = await loadHandle.Task;
-                    if (!prefab) continue;
-                    _handles[address] = prefab;
+                    await LoadByKeyAsync(location.PrimaryKey);
                     loadedCount++;
+                    _prefabLoadProgress = loadedCount / (float)totalCount;
                 }
-                _activeHandles.Add(locationHandle);
 
-                _prefabLoadProgress = 1f; // 100%
-                // GcLogger.Log($"총 {loadedCount}/{totalCount}개의 프리팹을 성공적으로 로드했습니다.");
+                Addressables.Release(locationHandle);
+                _prefabLoadProgress = 1f;
             }
             catch (Exception ex)
             {
                 GcLogger.LogError($"프리팹 로딩 중 오류 발생: {ex.Message}");
             }
         }
-        
+
+        /// <summary>
+        /// 지정 키의 플레이어 시퀀스를 반환합니다.
+        /// </summary>
         public SkillRuntimeSequence GetSkillRuntimeSequenceByKey(string key)
         {
+#if UNITY_EDITOR
+            if (!string.IsNullOrEmpty(key) && EditorOverrides.TryGetValue(key, out var editorOverride) && editorOverride != null)
+            {
+                return editorOverride;
+            }
+#endif
             if (_handles.TryGetValue(key, out var prefab))
             {
                 return prefab;
+            }
+
+            GcLogger.LogError($"Addressables에서 {key} 프리팹을 찾을 수 없습니다.");
+            return null;
+        }
+
+        /// <summary>
+        /// 지정 키의 플레이어 시퀀스를 필요할 때만 비동기로 지연 로드합니다.
+        /// </summary>
+        /// <param name="key">시퀀스 Addressables 키입니다.</param>
+        /// <returns>로드된 시퀀스입니다. 실패 시 null입니다.</returns>
+        public async Task<SkillRuntimeSequence> LoadByKeyAsync(string key)
+        {
+#if UNITY_EDITOR
+            if (!string.IsNullOrEmpty(key) && EditorOverrides.TryGetValue(key, out var editorOverride) && editorOverride != null)
+            {
+                return editorOverride;
+            }
+#endif
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                return null;
+            }
+
+            if (_handles.TryGetValue(key, out var cached) && cached != null)
+            {
+                return cached;
+            }
+
+            var loadHandle = Addressables.LoadAssetAsync<SkillRuntimeSequence>(key);
+            _activeHandles.Add(loadHandle);
+            SkillRuntimeSequence sequence = await loadHandle.Task;
+
+            if (loadHandle.Status == AsyncOperationStatus.Succeeded && sequence != null)
+            {
+                _handles[key] = sequence;
+                return sequence;
             }
 
             GcLogger.LogError($"Addressables에서 {key} 프리팹을 찾을 수 없습니다.");

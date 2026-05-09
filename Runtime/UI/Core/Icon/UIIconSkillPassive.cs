@@ -1,4 +1,5 @@
 ﻿using GGemCo2DCore;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 namespace GGemCo2DSkill
@@ -67,10 +68,13 @@ namespace GGemCo2DSkill
             if (string.IsNullOrEmpty(path))
             {
                 ImageIcon.sprite = null;
+                CacheNormalIconSprite(null);
                 return;
             }
 
-            ImageIcon.sprite = AddressableLoaderSkill.Instance.GetSkillPassiveIconImageByName(path);
+            Sprite sprite = AddressableLoaderSkill.Instance.GetSkillPassiveIconImageByName(path);
+            ImageIcon.sprite = sprite;
+            CacheNormalIconSprite(sprite);
         }
         /// <summary>
         /// 아이콘 이미지 경로 가져오기 

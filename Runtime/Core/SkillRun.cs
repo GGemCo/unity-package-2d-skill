@@ -88,9 +88,16 @@ namespace GGemCo2DSkill
                 }
                 else if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Player)
                 {
-                    _sequence =
-                        AddressableLoaderSkillRuntimeSequencePlayer.Instance.GetSkillRuntimeSequenceByKey(
-                            runtimeSequenceKey);
+                    // 플레이어 시퀀스는 시작 로딩에서 제외될 수 있으므로,
+                    // 실제 스킬 사용 시점에 필요한 키만 지연 로드합니다.
+                    var runtimeSequenceLoader = AddressableLoaderSkillRuntimeSequencePlayer.Instance;
+                    if (runtimeSequenceLoader == null)
+                    {
+                        runtimeSequenceLoader = new GameObject(nameof(AddressableLoaderSkillRuntimeSequencePlayer))
+                            .AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
+                    }
+
+                    _sequence = await runtimeSequenceLoader.LoadByKeyAsync(runtimeSequenceKey);
                 }
 
                 _nextEventIndex = 0;
