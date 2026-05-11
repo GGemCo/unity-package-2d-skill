@@ -32,4 +32,128 @@ namespace GGemCo2DSkill
         [Tooltip("AreaDefinition의 크기 계수를 이벤트별로 가산/보정하고 싶을 때 사용(1=기본)")]
         public float scale;
     }
+
+    /// <summary>
+    /// 스킬 이벤트가 위치 중심점을 어디에서 가져올지 정의합니다.
+    /// </summary>
+    public enum SkillPositionReferenceMode
+    {
+        /// <summary>
+        /// 기존 타겟팅 규칙을 그대로 사용합니다.
+        /// </summary>
+        CurrentTargeting = 0,
+
+        /// <summary>
+        /// 스킬 실행 시작 시점에 저장된 타겟팅 스냅샷을 사용합니다.
+        /// </summary>
+        SkillStartSnapshot = 1,
+
+        /// <summary>
+        /// 같은 스킬 실행 중 이전 이벤트가 기록한 이름 있는 위치 앵커를 사용합니다.
+        /// 앵커를 찾지 못하면 해당 이벤트를 처리하지 않습니다.
+        /// </summary>
+        NamedPositionAnchor = 2,
+
+        /// <summary>
+        /// 이름 있는 위치 앵커를 우선 사용하고, 없으면 기존 타겟팅 규칙을 사용합니다.
+        /// </summary>
+        NamedPositionAnchorOrCurrent = 3,
+    }
+
+    /// <summary>
+    /// 스킬 이벤트가 계산한 위치를 이후 이벤트에서 참조할 수 있도록 저장하는 설정입니다.
+    /// </summary>
+    [Serializable]
+    public struct SkillPositionAnchorWriteOptions
+    {
+        /// <summary>
+        /// 위치 앵커를 저장할지 여부입니다.
+        /// </summary>
+        public bool enabled;
+
+        /// <summary>
+        /// 같은 스킬 실행 안에서 위치 앵커를 찾을 때 사용할 키입니다.
+        /// </summary>
+        [Tooltip("같은 스킬 실행 안에서 이후 이벤트가 참조할 위치 앵커 키입니다.")]
+        public string key;
+    }
+
+    /// <summary>
+    /// 스킬 이벤트가 사용할 위치 기준점을 지정하는 설정입니다.
+    /// </summary>
+    [Serializable]
+    public struct SkillPositionReference
+    {
+        /// <summary>
+        /// 위치 기준점 해석 방식입니다.
+        /// </summary>
+        public SkillPositionReferenceMode mode;
+
+        /// <summary>
+        /// 이름 있는 위치 앵커를 참조할 때 사용할 키입니다.
+        /// </summary>
+        [Tooltip("NamedPositionAnchor 모드에서 참조할 위치 앵커 키입니다.")]
+        public string key;
+    }
+
+    /// <summary>
+    /// 스킬 실행 중 특정 이벤트가 계산한 위치 정보를 보관하는 스냅샷입니다.
+    /// </summary>
+    public readonly struct SkillPositionAnchorSnapshot
+    {
+        /// <summary>
+        /// 이벤트가 계산한 최종 월드 위치입니다.
+        /// </summary>
+        public readonly Vector3 Position;
+
+        /// <summary>
+        /// 이벤트 시점에 해석된 2D 전방 방향입니다.
+        /// </summary>
+        public readonly Vector3 Forward;
+
+        /// <summary>
+        /// 이벤트 시점에 해석된 캐스터 위치입니다.
+        /// </summary>
+        public readonly Vector3 CasterPosition;
+
+        /// <summary>
+        /// 이벤트 시점에 해석된 타겟 위치입니다.
+        /// </summary>
+        public readonly Vector3 TargetPosition;
+
+        /// <summary>
+        /// 이벤트 시점에 해석된 지면 기준점입니다.
+        /// </summary>
+        public readonly Vector3 GroundPoint;
+
+        /// <summary>
+        /// 스킬 사용 애니메이션 기준으로 위치가 기록된 시간입니다.
+        /// </summary>
+        public readonly float Time;
+
+        /// <summary>
+        /// 위치 앵커 스냅샷을 생성합니다.
+        /// </summary>
+        /// <param name="position">이벤트가 계산한 최종 월드 위치입니다.</param>
+        /// <param name="forward">이벤트 시점에 해석된 2D 전방 방향입니다.</param>
+        /// <param name="casterPosition">이벤트 시점에 해석된 캐스터 위치입니다.</param>
+        /// <param name="targetPosition">이벤트 시점에 해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
+        /// <param name="time">스킬 사용 애니메이션 기준 기록 시간입니다.</param>
+        public SkillPositionAnchorSnapshot(
+            Vector3 position,
+            Vector3 forward,
+            Vector3 casterPosition,
+            Vector3 targetPosition,
+            Vector3 groundPoint,
+            float time)
+        {
+            Position = position;
+            Forward = forward;
+            CasterPosition = casterPosition;
+            TargetPosition = targetPosition;
+            GroundPoint = groundPoint;
+            Time = time;
+        }
+    }
 }

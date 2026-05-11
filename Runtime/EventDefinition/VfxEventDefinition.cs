@@ -44,6 +44,10 @@ namespace GGemCo2DSkill
         public bool attachToTarget;
         public Vector3 localOffset;
 
+        [Header("Position Anchor")]
+        [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 안에 저장합니다.")]
+        public SkillPositionAnchorWriteOptions positionAnchorWrite;
+
         [Header("Sorting")]
         [Tooltip("스킬 이벤트가 VFX의 Sorting Layer를 덮어쓸지 여부입니다.")]
         public bool overrideSortingLayer;

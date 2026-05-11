@@ -48,6 +48,11 @@ namespace GGemCo2DSkillEditor
         [Tooltip("기준 위치로부터 적용할 로컬 오프셋입니다.")]
         [SerializeField] private Vector2 offset;
 
+        [Header("Position Anchor")]
+
+        [Tooltip("켜면 이 VFX가 계산한 최종 생성 위치를 같은 스킬 실행 안에 저장합니다.")]
+        [SerializeField] private SkillPositionAnchorWriteOptions positionAnchorWrite;
+
         [Header("Sorting")]
 
         [Tooltip("켜면 이 VFX의 Sorting Layer를 스킬 이벤트 설정값으로 덮어씁니다.")]
@@ -93,6 +98,11 @@ namespace GGemCo2DSkillEditor
         /// 기준 위치에 적용할 이펙트 오프셋을 반환합니다.
         /// </summary>
         public Vector2 Offset => offset;
+
+        /// <summary>
+        /// 스킬 VFX가 계산한 최종 생성 위치를 이후 이벤트에서 참조하도록 저장할 설정을 반환합니다.
+        /// </summary>
+        public SkillPositionAnchorWriteOptions PositionAnchorWrite => positionAnchorWrite;
 
         /// <summary>
         /// 스킬 VFX 생성 시 Sorting Layer를 명시적으로 덮어쓸지 여부를 반환합니다.

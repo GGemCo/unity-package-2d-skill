@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Config;
 using GGemCo2DCore;
@@ -31,6 +32,7 @@ namespace GGemCo2DSkill
         private Vector3 _snapshotCasterPos;
         private Vector3 _snapshotTargetPos;
         private Vector3 _snapshotGroundPoint;
+        private readonly Dictionary<string, SkillPositionAnchorSnapshot> _positionAnchors = new(StringComparer.Ordinal);
 
         private bool _isLoading;
         private bool _isEnded;
@@ -40,6 +42,11 @@ namespace GGemCo2DSkill
         public bool IsDone { get; private set; }
         public int SkillUid => _skill != null ? _skill.Uid : 0;
         public GameObject Caster => _ctx.caster;
+
+        /// <summary>
+        /// Use 애니메이션 기준으로 현재 스킬 이벤트 시퀀스가 진행된 시간입니다.
+        /// </summary>
+        public float CurrentTime => _time;
 
         public SkillRun(SkillExecutor owner, RuntimeSkillDefinition skill, SkillTargetContext ctx,
             ICharacterAnimationController animController,
@@ -52,6 +59,34 @@ namespace GGemCo2DSkill
             _actionController = actionController;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
+        }
+
+        /// <summary>
+        /// 같은 스킬 실행 안에서 이후 이벤트가 참조할 수 있도록 위치 앵커를 저장합니다.
+        /// </summary>
+        /// <param name="key">위치 앵커를 식별할 키입니다.</param>
+        /// <param name="snapshot">저장할 위치 스냅샷입니다.</param>
+        public void SavePositionAnchor(string key, SkillPositionAnchorSnapshot snapshot)
+        {
+            if (string.IsNullOrWhiteSpace(key))
+                return;
+
+            _positionAnchors[key.Trim()] = snapshot;
+        }
+
+        /// <summary>
+        /// 같은 스킬 실행 안에서 이전 이벤트가 저장한 위치 앵커를 조회합니다.
+        /// </summary>
+        /// <param name="key">조회할 위치 앵커 키입니다.</param>
+        /// <param name="snapshot">조회된 위치 스냅샷입니다.</param>
+        /// <returns>위치 앵커를 찾았으면 <see langword="true"/>입니다.</returns>
+        public bool TryGetPositionAnchor(string key, out SkillPositionAnchorSnapshot snapshot)
+        {
+            snapshot = default;
+            if (string.IsNullOrWhiteSpace(key))
+                return false;
+
+            return _positionAnchors.TryGetValue(key.Trim(), out snapshot);
         }
 
         public void Start()

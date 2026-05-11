@@ -92,6 +92,7 @@ namespace GGemCo2DSkill
             }
             return;
 
+            // todo. 정리 필요
             int level = saveDataIcon?.Level ?? 1;
             if (textLevel != null) textLevel.text = $"Lv.{level}";
             if (textNeedLevel != null)

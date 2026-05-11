@@ -271,6 +271,7 @@ namespace GGemCo2DSkillEditor
                             angle = dmg.Angle,
                             localOffset = new Vector3(dmg.Offset.x, dmg.Offset.y, 0f)
                         };
+                        def.damageCenterReference = dmg.DamageCenterReference;
 
                         // dmg.DamageTypeUid는 현재 DamageEventDefinition에 매핑 필드가 없으므로 보관하지 않는다.
                         // 필요 시 DamageEventDefinition에 damageTypeUid(또는 DamageTypeId)를 추가하고 여기서 매핑한다.
@@ -303,6 +304,7 @@ namespace GGemCo2DSkillEditor
                         def.vfxUid = fx.VFXUid;
                         def.attachToTarget = fx.Anchor == (int)SkillSpawnVfxClip.AnchorType.Target;
                         def.localOffset = new Vector3(fx.Offset.x, fx.Offset.y, 0f);
+                        def.positionAnchorWrite = fx.PositionAnchorWrite;
                         def.lifetimeMode = fx.LifetimeMode;
                         def.lifetimeSeconds = fx.LifetimeSeconds;
                         def.overrideSortingLayer = fx.OverrideSortingLayer;

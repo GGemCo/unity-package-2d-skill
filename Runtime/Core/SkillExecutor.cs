@@ -242,6 +242,7 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 런타임 이벤트 유형에 따라 실제 스킬 효과를 실행합니다.
         /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="sequence">이벤트 페이로드를 제공하는 런타임 시퀀스입니다.</param>
@@ -270,10 +271,10 @@ namespace GGemCo2DSkill
                     // Damage 클립 구간 동안(Start~End) Gizmo 표시가 가능하도록 duration을 전달합니다.
                     // EndTime이 비정상(=StartTime)인 경우에도 최소 1프레임은 보이도록 보정합니다.
                     float damageGizmoDuration = Mathf.Max(0.05f, e.EndTime - e.StartTime);
-                    HandleDamage(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint, damageGizmoDuration);
+                    HandleDamage(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint, damageGizmoDuration);
                     break;
                 case ConfigCommonSkill.SkillEventType.SpawnVfx:
-                    HandleVfx(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+                    HandleVfx(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
                 case ConfigCommonSkill.SkillEventType.ApplyAffect:
                     HandleApplyStatus(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
@@ -1615,6 +1616,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         /// <param name="gizmoDurationSeconds">에디터 디버그용 데미지 영역 표시 시간입니다.</param>
         private void HandleDamage(
+            SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -1642,8 +1644,11 @@ namespace GGemCo2DSkill
             Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
             Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
             Vector3 groundPoint = ctx.groundPoint;
+            bool useDamageStartSnapshot =
+                def.damageCenterReference.mode == SkillPositionReferenceMode.SkillStartSnapshot ||
+                (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter);
 
-            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
+            if (useDamageStartSnapshot)
             {
                 casterPos = snapshotCasterPos;
                 targetPos = snapshotTargetPos;
@@ -1674,6 +1679,9 @@ namespace GGemCo2DSkill
                     center = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
                     break;
             }
+
+            if (!TryApplyDamagePositionReference(run, def, ref center, ref resolvedForward, skill))
+                return;
 
 #if UNITY_EDITOR
             // SkillTestRuntimeHub가 에디터 전용 데미지 영역 데이터를 보관하고,
@@ -1841,6 +1849,48 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// 데미지 이벤트의 위치 참조 설정에 따라 판정 중심과 방향을 이름 있는 위치 앵커로 교체합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
+        /// <param name="def">데미지 이벤트 정의입니다.</param>
+        /// <param name="center">현재 계산된 데미지 영역 중심입니다.</param>
+        /// <param name="resolvedForward">현재 계산된 데미지 영역 방향입니다.</param>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <returns>데미지 처리를 계속할 수 있으면 <see langword="true"/>입니다.</returns>
+        private static bool TryApplyDamagePositionReference(
+            SkillRun run,
+            DamageEventDefinition def,
+            ref Vector3 center,
+            ref Vector3 resolvedForward,
+            RuntimeSkillDefinition skill)
+        {
+            if (def == null)
+                return false;
+
+            var reference = def.damageCenterReference;
+            if (reference.mode != SkillPositionReferenceMode.NamedPositionAnchor &&
+                reference.mode != SkillPositionReferenceMode.NamedPositionAnchorOrCurrent)
+            {
+                return true;
+            }
+
+            if (run != null && run.TryGetPositionAnchor(reference.key, out var snapshot))
+            {
+                center = snapshot.Position;
+                if (snapshot.Forward.sqrMagnitude > 1e-6f)
+                    resolvedForward = snapshot.Forward.normalized;
+                return true;
+            }
+
+            if (reference.mode == SkillPositionReferenceMode.NamedPositionAnchorOrCurrent)
+                return true;
+
+            Debug.LogWarning(
+                $"[SkillExecutor] Damage position anchor not found. skillUid={skill?.Uid ?? 0}, key={reference.key}");
+            return false;
+        }
+
         private static bool IsDamageTargetStateAllowed(DamageEventDefinition def, CharacterBase target)
         {
             if (def == null || target == null)
@@ -1866,8 +1916,45 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 안의 이름 있는 위치 앵커로 저장합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <param name="spawnPos">VFX가 생성될 최종 월드 위치입니다.</param>
+        /// <param name="resolvedForward">이벤트 시점에 해석된 2D 전방 방향입니다.</param>
+        /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
+        /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
+        private static void SaveVfxPositionAnchorIfNeeded(
+            SkillRun run,
+            VfxEventDefinition def,
+            Vector3 spawnPos,
+            Vector3 resolvedForward,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector3 groundPoint)
+        {
+            if (run == null || def == null || !def.positionAnchorWrite.enabled)
+                return;
+
+            if (string.IsNullOrWhiteSpace(def.positionAnchorWrite.key))
+                return;
+
+            var snapshot = new SkillPositionAnchorSnapshot(
+                spawnPos,
+                resolvedForward,
+                casterPos,
+                targetPos,
+                groundPoint,
+                run.CurrentTime);
+
+            run.SavePositionAnchor(def.positionAnchorWrite.key, snapshot);
+        }
+
+        /// <summary>
         /// 이펙트 이벤트 정의를 바탕으로 생성 위치를 계산하고 이펙트를 생성합니다.
         /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">이펙트 이벤트 페이로드 오브젝트입니다.</param>
@@ -1875,6 +1962,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         private void HandleVfx(
+            SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -1928,6 +2016,14 @@ namespace GGemCo2DSkill
 
             // localOffset은 월드 오프셋으로 처리(2D 프로젝트 기준: z는 그대로)
             spawnPos += def.localOffset;
+            SaveVfxPositionAnchorIfNeeded(
+                run,
+                def,
+                spawnPos,
+                ResolveForward2D(ctx.caster, ctx.forward),
+                casterPos,
+                targetPos,
+                groundPoint);
 
             // ----------------------
             // Vfx create

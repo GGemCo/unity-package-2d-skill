@@ -94,6 +94,10 @@ namespace GGemCo2DSkillEditor
         [Tooltip("[영역 오프셋] 영역 중심을 로컬 좌표로 이동. 캐스터/타겟 기준 중심점에 더해져 판정됨")]
         [SerializeField] private Vector2 offset = Vector2.zero;
 
+        [Header("Position Reference")]
+        [Tooltip("데미지 영역 중심을 기존 타겟팅, 스킬 시작 스냅샷, 또는 이름 있는 위치 앵커 중 어디에서 가져올지 지정합니다.")]
+        [SerializeField] private SkillPositionReference damageCenterReference;
+
         /// <summary>
         /// 적중 시 대상(Target)에게 적용되는 추가 효과 목록입니다.
         /// </summary>
@@ -203,6 +207,11 @@ namespace GGemCo2DSkillEditor
         /// 영역 중심 오프셋 값을 반환합니다.
         /// </summary>
         public Vector2 Offset => offset;
+
+        /// <summary>
+        /// 데미지 영역 중심을 계산할 때 사용할 위치 참조 설정을 반환합니다.
+        /// </summary>
+        public SkillPositionReference DamageCenterReference => damageCenterReference;
 
         /// <summary>
         /// 적중 시 적용될 추가 효과 목록을 반환합니다.

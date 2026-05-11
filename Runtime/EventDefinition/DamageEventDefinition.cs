@@ -12,6 +12,10 @@ namespace GGemCo2DSkill
         [Header("Area")]
         public SkillAreaSpec area = SkillAreaSpec.Default;
 
+        [Header("Position Reference")]
+        [Tooltip("데미지 영역 중심을 기존 타겟팅, 스킬 시작 스냅샷, 또는 이름 있는 위치 앵커 중 어디에서 가져올지 지정합니다.")]
+        public SkillPositionReference damageCenterReference;
+
         [Header("Hit Policy")]
         public string hitGroupId = "HitGroup_0";
         public bool allowMultiHit = false;
