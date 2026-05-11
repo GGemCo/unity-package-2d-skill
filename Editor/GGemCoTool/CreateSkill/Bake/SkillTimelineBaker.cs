@@ -305,6 +305,10 @@ namespace GGemCo2DSkillEditor
                         def.localOffset = new Vector3(fx.Offset.x, fx.Offset.y, 0f);
                         def.lifetimeMode = fx.LifetimeMode;
                         def.lifetimeSeconds = fx.LifetimeSeconds;
+                        def.overrideSortingLayer = fx.OverrideSortingLayer;
+                        def.sortingLayerOverride = fx.SortingLayerOverride;
+                        def.overrideSortingOrder = fx.OverrideSortingOrder;
+                        def.sortingOrderOverride = fx.SortingOrderOverride;
                         return def;
                     };
 

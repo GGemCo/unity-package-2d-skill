@@ -1,5 +1,6 @@
 using System;
 using Config;
+using GGemCo2DCore;
 using GGemCo2DSkill;
 using UnityEngine;
 
@@ -47,6 +48,20 @@ namespace GGemCo2DSkillEditor
         [Tooltip("기준 위치로부터 적용할 로컬 오프셋입니다.")]
         [SerializeField] private Vector2 offset;
 
+        [Header("Sorting")]
+
+        [Tooltip("켜면 이 VFX의 Sorting Layer를 스킬 이벤트 설정값으로 덮어씁니다.")]
+        [SerializeField] private bool overrideSortingLayer;
+
+        [Tooltip("overrideSortingLayer가 켜져 있을 때 적용할 Sorting Layer입니다.")]
+        [SerializeField] private ConfigSortingLayer.Keys sortingLayerOverride = ConfigSortingLayer.Keys.CharacterTop;
+
+        [Tooltip("켜면 이 VFX의 Sorting Order를 스킬 이벤트 설정값으로 고정합니다.")]
+        [SerializeField] private bool overrideSortingOrder;
+
+        [Tooltip("overrideSortingOrder가 켜져 있을 때 적용할 Sorting Order입니다.")]
+        [SerializeField] private int sortingOrderOverride;
+
         [Header("Lifetime")]
 
         [Tooltip("이펙트 지속시간 해석 정책입니다.")]
@@ -78,6 +93,26 @@ namespace GGemCo2DSkillEditor
         /// 기준 위치에 적용할 이펙트 오프셋을 반환합니다.
         /// </summary>
         public Vector2 Offset => offset;
+
+        /// <summary>
+        /// 스킬 VFX 생성 시 Sorting Layer를 명시적으로 덮어쓸지 여부를 반환합니다.
+        /// </summary>
+        public bool OverrideSortingLayer => overrideSortingLayer;
+
+        /// <summary>
+        /// 스킬 VFX 생성 시 적용할 Sorting Layer 값을 반환합니다.
+        /// </summary>
+        public ConfigSortingLayer.Keys SortingLayerOverride => sortingLayerOverride;
+
+        /// <summary>
+        /// 스킬 VFX 생성 시 Sorting Order를 명시적으로 고정할지 여부를 반환합니다.
+        /// </summary>
+        public bool OverrideSortingOrder => overrideSortingOrder;
+
+        /// <summary>
+        /// 스킬 VFX 생성 시 적용할 Sorting Order 값을 반환합니다.
+        /// </summary>
+        public int SortingOrderOverride => sortingOrderOverride;
 
         /// <summary>
         /// 이펙트 지속시간 정책을 반환합니다.

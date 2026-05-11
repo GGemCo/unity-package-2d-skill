@@ -353,6 +353,30 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// 스킬 이벤트 정의와 계산된 생성 위치를 Core VFX 생성 요청으로 변환합니다.
+        /// </summary>
+        /// <param name="def">스킬 Timeline에서 Bake된 VFX 이벤트 정의입니다.</param>
+        /// <param name="spawnPos">타겟팅 규칙과 오프셋을 반영한 월드 생성 위치입니다.</param>
+        /// <returns>VFX 매니저에 전달할 생성 요청입니다.</returns>
+        private static VfxSpawnRequest BuildVfxSpawnRequest(VfxEventDefinition def, Vector3 spawnPos)
+        {
+            TryResolveVfxDuration(def, out var vfxDuration);
+
+            return new VfxSpawnRequest
+            {
+                VfxUid = def != null ? def.vfxUid : 0,
+                WorldPosition = spawnPos,
+                DurationOverride = vfxDuration,
+                SortingLayerOverride = def != null && def.overrideSortingLayer
+                    ? def.sortingLayerOverride
+                    : (ConfigSortingLayer.Keys?)null,
+                SortingOrderOverride = def != null && def.overrideSortingOrder
+                    ? def.sortingOrderOverride
+                    : (int?)null,
+            };
+        }
+
         private static Vector2 ResolveCurrentFacing2D(GameObject caster)
         {
             if (caster == null)
@@ -1914,8 +1938,7 @@ namespace GGemCo2DSkill
             // 1) Core VfxManager 기반 생성(권장)
             if (sceneGame != null && sceneGame.VfxManager != null)
             {
-                TryResolveVfxDuration(def, out var vfxDuration);
-                vfx = sceneGame.VfxManager.CreateVfx(def.vfxUid, vfxDuration);
+                vfx = sceneGame.VfxManager.CreateVfx(BuildVfxSpawnRequest(def, spawnPos));
             }
 
             // 2) 폴백: 프리팹 직접 Instantiate

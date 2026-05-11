@@ -1,5 +1,7 @@
 ﻿using UnityEngine;
 
+using GGemCo2DCore;
+
 namespace GGemCo2DSkill
 {
     /// <summary>
@@ -41,6 +43,19 @@ namespace GGemCo2DSkill
         [Header("Spawn Rule")]
         public bool attachToTarget;
         public Vector3 localOffset;
+
+        [Header("Sorting")]
+        [Tooltip("스킬 이벤트가 VFX의 Sorting Layer를 덮어쓸지 여부입니다.")]
+        public bool overrideSortingLayer;
+
+        [Tooltip("overrideSortingLayer가 켜져 있을 때 적용할 Sorting Layer입니다.")]
+        public ConfigSortingLayer.Keys sortingLayerOverride = ConfigSortingLayer.Keys.CharacterTop;
+
+        [Tooltip("스킬 이벤트가 VFX의 Sorting Order를 고정할지 여부입니다.")]
+        public bool overrideSortingOrder;
+
+        [Tooltip("overrideSortingOrder가 켜져 있을 때 적용할 Sorting Order입니다.")]
+        public int sortingOrderOverride;
 
         [Header("Overrides")]
         public TargetingOverride targetingOverride; // 타겟/지점 중심을 이벤트별로 바꿀 수 있음
