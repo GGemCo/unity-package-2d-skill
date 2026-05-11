@@ -11,7 +11,7 @@ namespace GGemCo2DSkill
     public sealed class ProjectileEventDefinition : ScriptableObject
     {
         [Header("Projectile (Core Table)")]
-        [Tooltip("projectile.txt 의 Uid")]
+        [Tooltip("Core projectile_linear/projectile_arc/projectile_path 테이블의 Uid")]
         public int projectileUid;
 
         [Header("Combat")]
