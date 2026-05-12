@@ -469,7 +469,7 @@ namespace GGemCo2DSkillEditor
                         def.visualSprite = proj.VisualSprite;
                         def.visualAnimatorController = proj.VisualAnimatorController;
                         def.visualVfxUidOverride = proj.VisualVfxUidOverride;
-                        def.useLinearThenSegmentsBehaviorOverride = proj.UseLinearThenSegmentsBehaviorOverride;
+                        def.useProjectileHitBehaviorOverride = proj.UseProjectileHitBehaviorOverride;
                         def.hitLifetimeMode = proj.HitLifetimeMode;
                         def.damageApplyMode = proj.DamageApplyMode;
                         def.tickDamageIntervalSeconds = Mathf.Max(0f, proj.TickDamageIntervalSeconds);

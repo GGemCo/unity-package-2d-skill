@@ -1601,11 +1601,11 @@ namespace GGemCo2DSkill
                 attackId: attackId,
                 allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
                 elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, gameObject, damageApplied: true),
-                useHitLifetimeModeOverride: def.useLinearThenSegmentsBehaviorOverride,
+                useHitLifetimeModeOverride: def.useProjectileHitBehaviorOverride,
                 hitLifetimeModeOverride: def.hitLifetimeMode,
-                useDamageApplyModeOverride: def.useLinearThenSegmentsBehaviorOverride,
+                useDamageApplyModeOverride: def.useProjectileHitBehaviorOverride,
                 damageApplyModeOverride: def.damageApplyMode,
-                useTickDamageIntervalOverride: def.useLinearThenSegmentsBehaviorOverride && def.damageApplyMode == ProjectileConstants.DamageApplyMode.PeriodicOverlap,
+                useTickDamageIntervalOverride: def.useProjectileHitBehaviorOverride && def.damageApplyMode == ProjectileConstants.DamageApplyMode.PeriodicOverlap,
                 tickDamageIntervalOverride: Mathf.Max(0f, def.tickDamageIntervalSeconds));
 
             casterChar.LaunchProjectile(meta);

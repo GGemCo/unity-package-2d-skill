@@ -1,7 +1,8 @@
-using System;
+﻿using System;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace GGemCo2DSkillEditor
 {
@@ -56,15 +57,15 @@ namespace GGemCo2DSkillEditor
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private GGemCo2DSkill.TargetingOverride targetingOverride;
 
-        [Header("Linear Then Segments Behavior Override")]
-        [Tooltip("LinearThenSegments 타입에서 충돌 후 제거 정책과 데미지 방식을 이벤트 단위로 덮어쓸지 여부입니다.")]
-        [SerializeField] private bool useLinearThenSegmentsBehaviorOverride = false;
+        [Header("Projectile Hit Behavior Override")]
+        [Tooltip("프로젝타일의 적중 생명 주기와 데미지 방식을 이벤트 단위로 덮어쓸지 여부입니다.")]
+        [SerializeField] private bool useProjectileHitBehaviorOverride = false;
 
-        [Tooltip("LinearThenSegments 타입에서 타겟/지형 충돌 시 발사체를 언제 제거할지 결정합니다.")]
+        [Tooltip("프로젝타일이 타겟/지형과 충돌했을 때 발사체를 언제 제거할지 결정합니다.")]
         [SerializeField] private ProjectileConstants.HitLifetimeMode hitLifetimeMode = ProjectileConstants.HitLifetimeMode.DestroyOnTargetHit;
 
-        [Tooltip("LinearThenSegments 타입에서 데미지 적용 방식을 이벤트 단위로 지정합니다.")]
-        [SerializeField] private ProjectileConstants.DamageApplyMode damageApplyMode = ProjectileConstants.DamageApplyMode.OnHitDestroy;
+        [Tooltip("프로젝타일이 데미지를 적용하는 방식을 이벤트 단위로 지정합니다.")]
+        [SerializeField] private ProjectileConstants.DamageApplyMode damageApplyMode = ProjectileConstants.DamageApplyMode.OnHit;
 
         [Tooltip("PeriodicOverlap일 때 몇 초 간격으로 데미지를 적용할지 설정합니다.")]
         [SerializeField] private float tickDamageIntervalSeconds = 0.25f;
@@ -129,17 +130,17 @@ namespace GGemCo2DSkillEditor
         public GGemCo2DSkill.TargetingOverride TargetingOverride => targetingOverride;
 
         /// <summary>
-        /// LinearThenSegments 타입에서 충돌 후 제거 정책과 데미지 방식을 덮어쓸지 여부입니다.
+        /// 프로젝타일 적중 생명 주기와 데미지 방식을 덮어쓸지 여부입니다.
         /// </summary>
-        public bool UseLinearThenSegmentsBehaviorOverride => useLinearThenSegmentsBehaviorOverride;
+        public bool UseProjectileHitBehaviorOverride => useProjectileHitBehaviorOverride;
 
         /// <summary>
-        /// LinearThenSegments 타입에서 타겟/지형 충돌 시 발사체를 언제 제거할지 결정합니다.
+        /// 프로젝타일이 타겟/지형과 충돌했을 때 발사체를 언제 제거할지 결정합니다.
         /// </summary>
         public ProjectileConstants.HitLifetimeMode HitLifetimeMode => hitLifetimeMode;
 
         /// <summary>
-        /// LinearThenSegments 타입에서 사용할 데미지 적용 방식입니다.
+        /// 프로젝타일에서 사용할 데미지 적용 방식입니다.
         /// </summary>
         public ProjectileConstants.DamageApplyMode DamageApplyMode => damageApplyMode;
 

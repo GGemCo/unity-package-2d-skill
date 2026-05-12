@@ -1,5 +1,6 @@
 ﻿using GGemCo2DCore;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace GGemCo2DSkill
 {
@@ -31,15 +32,15 @@ namespace GGemCo2DSkill
         public RuntimeAnimatorController visualAnimatorController;
         public int visualVfxUidOverride = 0;
 
-        [Header("Linear Then Segments Behavior Override")]
-        [Tooltip("LinearThenSegments 타입에서 충돌 후 제거 정책을 이벤트 단위로 덮어쓸지 여부입니다.")]
-        public bool useLinearThenSegmentsBehaviorOverride = false;
+        [Header("Projectile Hit Behavior Override")]
+        [Tooltip("프로젝타일의 적중 생명 주기와 데미지 방식을 이벤트 단위로 덮어쓸지 여부입니다.")]
+        public bool useProjectileHitBehaviorOverride = false;
 
-        [Tooltip("LinearThenSegments 타입에서 타겟/지형 충돌 시 발사체를 언제 제거할지 결정합니다.")]
+        [Tooltip("프로젝타일이 타겟/지형과 충돌했을 때 발사체를 언제 제거할지 결정합니다.")]
         public ProjectileConstants.HitLifetimeMode hitLifetimeMode = ProjectileConstants.HitLifetimeMode.DestroyOnTargetHit;
 
-        [Tooltip("LinearThenSegments 타입에서 데미지 적용 방식을 이벤트 단위로 덮어씁니다.")]
-        public ProjectileConstants.DamageApplyMode damageApplyMode = ProjectileConstants.DamageApplyMode.OnHitDestroy;
+        [Tooltip("프로젝타일이 데미지를 적용하는 방식을 이벤트 단위로 덮어씁니다.")]
+        public ProjectileConstants.DamageApplyMode damageApplyMode = ProjectileConstants.DamageApplyMode.OnHit;
 
         [Tooltip("PeriodicOverlap일 때 몇 초 간격으로 데미지를 적용할지 설정합니다.")]
         public float tickDamageIntervalSeconds = 0.25f;
