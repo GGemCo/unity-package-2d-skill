@@ -1952,6 +1952,104 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// VFX 이벤트의 앵커 설정을 런타임 생성 위치 기준점으로 해석합니다.
+        /// </summary>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <returns>이벤트가 사용해야 할 생성 위치 기준점입니다.</returns>
+        private static VfxSpawnAnchor ResolveVfxSpawnAnchor(VfxEventDefinition def)
+        {
+            if (def == null)
+                return VfxSpawnAnchor.Caster;
+
+            // 기존 RuntimeSequence 에셋은 Target 앵커를 attachToTarget 플래그로만 저장했습니다.
+            // 새 spawnAnchor 필드가 없던 에셋도 타겟 부착 VFX는 이전처럼 타겟 기준으로 처리합니다.
+            if (def.attachToTarget)
+                return VfxSpawnAnchor.Target;
+
+            return def.spawnAnchor;
+        }
+
+        /// <summary>
+        /// VFX 이벤트에 명시된 타겟팅 오버라이드로 생성 월드 위치를 계산합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
+        /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
+        /// <returns>타겟팅 오버라이드가 가리키는 VFX 생성 월드 위치입니다.</returns>
+        private static Vector3 ResolveVfxTargetingOverridePosition(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            VfxEventDefinition def,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector3 groundPoint)
+        {
+            switch (def.targetingOverride.mode)
+            {
+                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                    return groundPoint;
+                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
+                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                    return targetPos;
+                case ConfigCommonSkill.SkillTargetingMode.Self:
+                    return casterPos;
+                default:
+                    var fwd = ResolveForward2D(ctx.caster, ctx.forward);
+                    float range = def.targetingOverride.rangeOverride > 0f
+                        ? def.targetingOverride.rangeOverride
+                        : SkillRangeResolver.GetPlacementRange(skill);
+                    return SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
+            }
+        }
+
+        /// <summary>
+        /// VFX 이벤트의 앵커 설정에 따라 실제 생성 월드 위치를 계산합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
+        /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
+        /// <returns>VFX를 생성할 월드 위치입니다.</returns>
+        private static Vector3 ResolveVfxSpawnPosition(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            VfxEventDefinition def,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector3 groundPoint)
+        {
+            if (def != null && def.targetingOverride.enabled)
+                return ResolveVfxTargetingOverridePosition(skill, ctx, def, casterPos, targetPos, groundPoint);
+
+            switch (ResolveVfxSpawnAnchor(def))
+            {
+                case VfxSpawnAnchor.Target:
+                    return targetPos;
+                case VfxSpawnAnchor.Ground:
+                    return groundPoint;
+                case VfxSpawnAnchor.Caster:
+                default:
+                    return casterPos;
+            }
+        }
+
+        /// <summary>
+        /// 생성된 VFX를 타겟 Transform에 부착해야 하는지 확인합니다.
+        /// </summary>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <returns>타겟에 부착해야 하면 <see langword="true"/>입니다.</returns>
+        private static bool ShouldAttachVfxToTarget(VfxEventDefinition def)
+        {
+            return ResolveVfxSpawnAnchor(def) == VfxSpawnAnchor.Target;
+        }
+
+        /// <summary>
         /// 이펙트 이벤트 정의를 바탕으로 생성 위치를 계산하고 이펙트를 생성합니다.
         /// </summary>
         /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
@@ -1986,33 +2084,8 @@ namespace GGemCo2DSkill
                 groundPoint = snapshotGroundPoint;
             }
 
-            // 기본은 caster 기준. attachToTarget이면 target 기준.
-            Vector3 spawnPos = def.attachToTarget ? targetPos : casterPos;
-            if (!def.attachToTarget)
-            {
-                var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
-                if (def.targetingOverride.enabled)
-                    mode = def.targetingOverride.mode;
-
-                switch (mode)
-                {
-                    case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
-                        spawnPos = groundPoint;
-                        break;
-                    case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
-                    case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
-                        spawnPos = targetPos;
-                        break;
-                    default:
-                        // Forward / fallback
-                        var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
-                        float range = SkillRangeResolver.GetPlacementRange(skill);
-                        if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
-                            range = def.targetingOverride.rangeOverride;
-                        spawnPos = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
-                        break;
-                }
-            }
+            // VFX의 생성 위치는 스킬 타겟팅 모드가 아니라 SkillSpawnVfxClip의 Anchor 설정을 기준으로 결정합니다.
+            Vector3 spawnPos = ResolveVfxSpawnPosition(skill, ctx, def, casterPos, targetPos, groundPoint);
 
             // localOffset은 월드 오프셋으로 처리(2D 프로젝트 기준: z는 그대로)
             spawnPos += def.localOffset;
@@ -2040,7 +2113,7 @@ namespace GGemCo2DSkill
             // 2) 폴백: 프리팹 직접 Instantiate
             if (vfx == null) return;
 
-            if (def.attachToTarget && ctx.lockedTarget != null)
+            if (ShouldAttachVfxToTarget(def) && ctx.lockedTarget != null)
             {
                 vfx.transform.SetParent(ctx.lockedTarget.transform, worldPositionStays: true);
             }

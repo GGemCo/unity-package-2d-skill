@@ -31,6 +31,30 @@ namespace GGemCo2DSkill
         Infinite = 3
     }
 
+    /// <summary>
+    /// 스킬 이벤트로 생성되는 이펙트의 월드 위치 기준점을 정의합니다.
+    /// </summary>
+    public enum VfxSpawnAnchor
+    {
+        /// <summary>
+        /// 시전자 위치를 기준으로 이펙트를 생성합니다.
+        /// </summary>
+        Caster = 0,
+
+        /// <summary>
+        /// 잠금 타겟 위치를 기준으로 이펙트를 생성합니다.
+        /// </summary>
+        Target = 1,
+
+        /// <summary>
+        /// 지면 좌표 또는 스냅샷 지면 기준점을 기준으로 이펙트를 생성합니다.
+        /// </summary>
+        Ground = 2
+    }
+
+    /// <summary>
+    /// 스킬 런타임에서 VFX 이벤트 하나를 실행하기 위한 설정입니다.
+    /// </summary>
     public sealed class VfxEventDefinition : ScriptableObject
     {
         [Header("Vfx")]
@@ -41,6 +65,10 @@ namespace GGemCo2DSkill
         public float lifetimeSeconds = 2f;
 
         [Header("Spawn Rule")]
+        [Tooltip("이 VFX를 생성할 월드 위치 기준점입니다.")]
+        public VfxSpawnAnchor spawnAnchor = VfxSpawnAnchor.Caster;
+
+        [Tooltip("레거시 타겟 부착 플래그입니다. true이면 Target 앵커처럼 처리하고 생성 후 타겟 Transform에 부착합니다.")]
         public bool attachToTarget;
         public Vector3 localOffset;
 

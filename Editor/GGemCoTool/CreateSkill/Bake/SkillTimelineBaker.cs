@@ -48,6 +48,25 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
+        /// Timeline VFX 클립의 Anchor 값을 런타임 VFX 생성 앵커로 변환합니다.
+        /// </summary>
+        /// <param name="anchorRaw">Timeline 클립에 저장된 Anchor enum 원시 값입니다.</param>
+        /// <returns>런타임에서 사용할 VFX 생성 앵커입니다.</returns>
+        private static VfxSpawnAnchor ConvertVfxSpawnAnchor(int anchorRaw)
+        {
+            switch ((SkillSpawnVfxClip.AnchorType)anchorRaw)
+            {
+                case SkillSpawnVfxClip.AnchorType.Target:
+                    return VfxSpawnAnchor.Target;
+                case SkillSpawnVfxClip.AnchorType.Ground:
+                    return VfxSpawnAnchor.Ground;
+                case SkillSpawnVfxClip.AnchorType.Caster:
+                default:
+                    return VfxSpawnAnchor.Caster;
+            }
+        }
+
+        /// <summary>
         /// 타임라인을 메모리 상의 런타임 데이터로 변환합니다.
         /// Play Mode 테스트에서 Addressables 로딩 없이 즉시 사용할 수 있는 이벤트 배열과 임시 Payload 인스턴스를 생성합니다.
         /// </summary>
@@ -301,8 +320,10 @@ namespace GGemCo2DSkillEditor
                     return () =>
                     {
                         var def = ScriptableObject.CreateInstance<VfxEventDefinition>();
+                        var spawnAnchor = ConvertVfxSpawnAnchor(fx.Anchor);
                         def.vfxUid = fx.VFXUid;
-                        def.attachToTarget = fx.Anchor == (int)SkillSpawnVfxClip.AnchorType.Target;
+                        def.spawnAnchor = spawnAnchor;
+                        def.attachToTarget = spawnAnchor == VfxSpawnAnchor.Target;
                         def.localOffset = new Vector3(fx.Offset.x, fx.Offset.y, 0f);
                         def.positionAnchorWrite = fx.PositionAnchorWrite;
                         def.lifetimeMode = fx.LifetimeMode;
