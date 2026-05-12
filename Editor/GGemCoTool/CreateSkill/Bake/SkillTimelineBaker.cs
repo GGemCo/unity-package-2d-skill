@@ -478,6 +478,28 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillLaserClip laser:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<LaserEventDefinition>();
+                        def.laserUid = laser.LaserUid;
+                        def.damageType = laser.DamageType;
+                        def.damage = laser.Damage;
+                        def.durationSeconds = Mathf.Max(0f, laser.DurationSeconds);
+                        def.tickIntervalSeconds = Mathf.Max(0f, laser.TickIntervalSeconds);
+                        def.maxDistance = Mathf.Max(0f, laser.MaxDistance);
+                        def.updateAimContinuously = laser.UpdateAimContinuously;
+                        def.scaleMultiplier = laser.ScaleMultiplier;
+                        def.visualType = laser.VisualType;
+                        def.visualSprite = laser.VisualSprite;
+                        def.visualAnimatorController = laser.VisualAnimatorController;
+                        def.visualVfxUidOverride = laser.VisualVfxUidOverride;
+                        def.allowSkillChainOnConfirmedDamage = laser.AllowSkillChainOnConfirmedDamage;
+                        def.onHitElementGauges = laser.OnHitElementGauges;
+                        def.targetingOverride = laser.TargetingOverride;
+                        return def;
+                    };
+
                 default:
                     return null;
             }

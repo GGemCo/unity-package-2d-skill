@@ -67,6 +67,11 @@ namespace Config
             /// 런타임 Temp HP(비저장 보호막/임시 하트)를 적용합니다.
             /// </summary>
             ApplyTempHp = 10,
+
+            /// <summary>
+            /// 분리된 Laser 시스템을 사용해 레이저를 생성하거나 발사합니다.
+            /// </summary>
+            Laser = 11,
         }
 
         /// <summary>

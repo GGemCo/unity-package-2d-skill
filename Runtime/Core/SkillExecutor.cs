@@ -286,6 +286,9 @@ namespace GGemCo2DSkill
                 case ConfigCommonSkill.SkillEventType.Projectile:
                     HandleProjectile(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
+                case ConfigCommonSkill.SkillEventType.Laser:
+                    HandleLaser(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+                    break;
                 case ConfigCommonSkill.SkillEventType.PositionHold:
                     float positionHoldDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
                     HandlePositionHold(run, ctx, payload, positionHoldDuration);
@@ -1489,6 +1492,120 @@ namespace GGemCo2DSkill
         private void ClearPendingGroundSlamState()
         {
             _pendingGroundSlamState = default;
+        }
+
+        /// <summary>
+        /// 레이저 이벤트 정의를 바탕으로 발사 대상과 좌표를 계산하고 분리된 레이저 시스템을 호출합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">레이저 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
+        private void HandleLaser(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            if (payloadObj is not LaserEventDefinition def) return;
+            if (ctx.caster == null) return;
+
+            var casterChar = ctx.caster.GetComponent<CharacterBase>();
+            if (casterChar == null) return;
+
+            Vector3 casterPos = ctx.caster.transform.position;
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
+            {
+                casterPos = snapshotCasterPos;
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+            var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
+            if (def.targetingOverride.enabled)
+                mode = def.targetingOverride.mode;
+
+            CharacterBase targetChar = null;
+            if (ctx.lockedTarget != null)
+                targetChar = ctx.lockedTarget.GetComponent<CharacterBase>();
+
+            bool usePosOverride = false;
+            Vector2 posOverride = default;
+
+            switch (mode)
+            {
+                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                    usePosOverride = true;
+                    posOverride = new Vector2(groundPoint.x, groundPoint.y);
+                    break;
+
+                case ConfigCommonSkill.SkillTargetingMode.Self:
+                    targetChar = casterChar;
+                    usePosOverride = false;
+                    break;
+
+                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
+                    if (targetChar != null)
+                    {
+                        usePosOverride = false;
+                    }
+                    else
+                    {
+                        usePosOverride = true;
+                        posOverride = new Vector2(targetPos.x, targetPos.y);
+                    }
+                    break;
+
+                default:
+                    var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                    float range = SkillRangeResolver.GetPlacementRange(skill);
+                    if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
+                        range = def.targetingOverride.rangeOverride;
+
+                    var p = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
+                    usePosOverride = true;
+                    posOverride = new Vector2(p.x, p.y);
+                    break;
+            }
+
+            int attackId = ++_attackSequence;
+            _chainUnlockByAttackId[attackId] = def.allowSkillChainOnConfirmedDamage;
+
+            var meta = new MetadataLaser(
+                uid: def.laserUid,
+                damageType: def.damageType,
+                damage: def.damage,
+                target: targetChar,
+                owner: casterChar,
+                scaleMultiplier: def.scaleMultiplier,
+                visualType: def.visualType,
+                visualSprite: def.visualSprite,
+                visualAnimatorController: def.visualAnimatorController,
+                visualVfxUidOverride: def.visualVfxUidOverride,
+                useTargetPositionOverride: usePosOverride,
+                targetPositionOverride: posOverride,
+                skillUid: skill.Uid,
+                attackId: attackId,
+                allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
+                elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, gameObject, damageApplied: true),
+                useDurationOverride: true,
+                durationOverride: Mathf.Max(0f, def.durationSeconds),
+                useTickIntervalOverride: true,
+                tickIntervalOverride: Mathf.Max(0f, def.tickIntervalSeconds),
+                useMaxDistanceOverride: def.maxDistance > 0f,
+                maxDistanceOverride: Mathf.Max(0f, def.maxDistance),
+                updateAimContinuously: def.updateAimContinuously);
+
+            casterChar.LaunchLaser(meta);
         }
 
         /// <summary>
