@@ -6,12 +6,12 @@ namespace GGemCo2DSkill
     /// <summary>
     /// 레이저 발사 이벤트 정의입니다.
     /// - Projectile 시스템과 분리된 Laser 시스템을 스킬 Timeline에서 호출하기 위한 Payload 입니다.
-    /// - 정적 정의는 Core projectile 테이블의 Type=Laser Row를 재사용합니다.
+    /// - 정적 정의는 Core laser 테이블을 참조합니다.
     /// </summary>
     public sealed class LaserEventDefinition : ScriptableObject
     {
-        [Header("Laser (Core Projectile Table / Type=Laser)")]
-        [Tooltip("Core projectile 테이블에서 Type이 Laser인 UID입니다.")]
+        [Header("Laser (Core Laser Table)")]
+        [Tooltip("Core laser 테이블 UID입니다.")]
         public int laserUid;
 
         [Header("Combat")]

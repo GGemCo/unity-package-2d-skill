@@ -1517,6 +1517,9 @@ namespace GGemCo2DSkill
             var casterChar = ctx.caster.GetComponent<CharacterBase>();
             if (casterChar == null) return;
 
+            if (TableLoaderManager.Instance == null || TableLoaderManager.Instance.GetLaserData(def.laserUid, false) == null)
+                return;
+
             Vector3 casterPos = ctx.caster.transform.position;
             Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
             Vector3 groundPoint = ctx.groundPoint;
@@ -1630,6 +1633,9 @@ namespace GGemCo2DSkill
 
             var casterChar = ctx.caster.GetComponent<CharacterBase>();
             if (casterChar == null) return;
+
+            if (TableLoaderManager.Instance == null)
+                return;
 
             // ----------------------
             // Center/Target resolve (Vfx와 동일한 정책)

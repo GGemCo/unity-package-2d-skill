@@ -8,13 +8,13 @@ namespace GGemCo2DSkillEditor
     /// <summary>
     /// 레이저 발사 이벤트를 정의하는 스킬 Timeline 클립입니다.
     /// - Projectile 이벤트와 분리된 Laser 전용 런타임 경로를 사용합니다.
-    /// - 정적 데이터는 Core projectile 테이블의 Type=Laser Row를 재사용합니다.
+    /// - 정적 데이터는 Core laser 테이블을 참조합니다.
     /// </summary>
     [Serializable]
     public sealed class SkillLaserClip : SkillEventClipBase
     {
-        [Header("Laser (Core Projectile Table / Type=Laser)")]
-        [Tooltip("Core projectile 테이블에서 Type이 Laser인 UID입니다.")]
+        [Header("Laser (Core Laser Table)")]
+        [Tooltip("Core laser 테이블 UID입니다.")]
         [SerializeField] private int laserUid = 0;
 
         [Header("Combat")]
