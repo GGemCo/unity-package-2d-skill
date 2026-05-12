@@ -56,6 +56,18 @@ namespace GGemCo2DSkillEditor
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private GGemCo2DSkill.TargetingOverride targetingOverride;
 
+        [Header("Linear Then Segments Behavior Override")]
+        [Tooltip("LinearThenSegments 타입에서 충돌 후 제거 정책과 데미지 방식을 이벤트 단위로 덮어쓸지 여부입니다.")]
+        [SerializeField] private bool useLinearThenSegmentsBehaviorOverride = false;
+
+        [Tooltip("LinearThenSegments 타입에서 타겟/지형 충돌 시 발사체를 언제 제거할지 결정합니다.")]
+        [SerializeField] private ProjectileConstants.HitLifetimeMode hitLifetimeMode = ProjectileConstants.HitLifetimeMode.DestroyOnTargetHit;
+
+        [Tooltip("LinearThenSegments 타입에서 데미지 적용 방식을 이벤트 단위로 지정합니다.")]
+        [SerializeField] private ProjectileConstants.DamageApplyMode damageApplyMode = ProjectileConstants.DamageApplyMode.OnHitDestroy;
+
+        [Tooltip("PeriodicOverlap일 때 몇 초 간격으로 데미지를 적용할지 설정합니다.")]
+        [SerializeField] private float tickDamageIntervalSeconds = 0.25f;
 
         [Header("Chain Cancel")]
         [Tooltip("이 Projectile 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
@@ -116,6 +128,25 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         public GGemCo2DSkill.TargetingOverride TargetingOverride => targetingOverride;
 
+        /// <summary>
+        /// LinearThenSegments 타입에서 충돌 후 제거 정책과 데미지 방식을 덮어쓸지 여부입니다.
+        /// </summary>
+        public bool UseLinearThenSegmentsBehaviorOverride => useLinearThenSegmentsBehaviorOverride;
+
+        /// <summary>
+        /// LinearThenSegments 타입에서 타겟/지형 충돌 시 발사체를 언제 제거할지 결정합니다.
+        /// </summary>
+        public ProjectileConstants.HitLifetimeMode HitLifetimeMode => hitLifetimeMode;
+
+        /// <summary>
+        /// LinearThenSegments 타입에서 사용할 데미지 적용 방식입니다.
+        /// </summary>
+        public ProjectileConstants.DamageApplyMode DamageApplyMode => damageApplyMode;
+
+        /// <summary>
+        /// PeriodicOverlap일 때 사용할 틱 데미지 간격(초)입니다.
+        /// </summary>
+        public float TickDamageIntervalSeconds => tickDamageIntervalSeconds;
 
         /// <summary>
         /// 이 Projectile 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다.

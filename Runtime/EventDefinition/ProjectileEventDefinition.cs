@@ -31,6 +31,19 @@ namespace GGemCo2DSkill
         public RuntimeAnimatorController visualAnimatorController;
         public int visualVfxUidOverride = 0;
 
+        [Header("Linear Then Segments Behavior Override")]
+        [Tooltip("LinearThenSegments 타입에서 충돌 후 제거 정책을 이벤트 단위로 덮어쓸지 여부입니다.")]
+        public bool useLinearThenSegmentsBehaviorOverride = false;
+
+        [Tooltip("LinearThenSegments 타입에서 타겟/지형 충돌 시 발사체를 언제 제거할지 결정합니다.")]
+        public ProjectileConstants.HitLifetimeMode hitLifetimeMode = ProjectileConstants.HitLifetimeMode.DestroyOnTargetHit;
+
+        [Tooltip("LinearThenSegments 타입에서 데미지 적용 방식을 이벤트 단위로 덮어씁니다.")]
+        public ProjectileConstants.DamageApplyMode damageApplyMode = ProjectileConstants.DamageApplyMode.OnHitDestroy;
+
+        [Tooltip("PeriodicOverlap일 때 몇 초 간격으로 데미지를 적용할지 설정합니다.")]
+        public float tickDamageIntervalSeconds = 0.25f;
+
         [Header("Chain Cancel")]
         [Tooltip("이 Projectile 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
         public bool allowSkillChainOnConfirmedDamage = false;

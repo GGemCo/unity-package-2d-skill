@@ -469,6 +469,10 @@ namespace GGemCo2DSkillEditor
                         def.visualSprite = proj.VisualSprite;
                         def.visualAnimatorController = proj.VisualAnimatorController;
                         def.visualVfxUidOverride = proj.VisualVfxUidOverride;
+                        def.useLinearThenSegmentsBehaviorOverride = proj.UseLinearThenSegmentsBehaviorOverride;
+                        def.hitLifetimeMode = proj.HitLifetimeMode;
+                        def.damageApplyMode = proj.DamageApplyMode;
+                        def.tickDamageIntervalSeconds = Mathf.Max(0f, proj.TickDamageIntervalSeconds);
                         def.allowSkillChainOnConfirmedDamage = proj.AllowSkillChainOnConfirmedDamage;
                         def.targetingOverride = proj.TargetingOverride;
                         return def;
