@@ -1517,7 +1517,11 @@ namespace GGemCo2DSkill
             var casterChar = ctx.caster.GetComponent<CharacterBase>();
             if (casterChar == null) return;
 
-            if (TableLoaderManager.Instance == null || TableLoaderManager.Instance.GetLaserData(def.laserUid, false) == null)
+            if (TableLoaderManager.Instance == null)
+                return;
+
+            var laserInfo = TableLoaderManager.Instance.GetLaserData(def.laserUid, false);
+            if (laserInfo == null)
                 return;
 
             Vector3 casterPos = ctx.caster.transform.position;
@@ -1608,8 +1612,198 @@ namespace GGemCo2DSkill
                 maxDistanceOverride: Mathf.Max(0f, def.maxDistance),
                 updateAimContinuously: def.updateAimContinuously);
 
+
+            RegisterLaserDebugGizmo(
+                casterChar,
+                targetChar,
+                usePosOverride,
+                posOverride,
+                ctx.forward,
+                laserInfo,
+                def);
+
             casterChar.LaunchLaser(meta);
         }
+
+        /// <summary>
+        /// Skill 테스트 허브에 레이저 예상 범위 기즈모를 등록합니다.
+        /// </summary>
+        /// <param name="casterChar">캐스터 캐릭터입니다.</param>
+        /// <param name="targetChar">고정 타겟 캐릭터입니다.</param>
+        /// <param name="usePosOverride">좌표 오버라이드 사용 여부입니다.</param>
+        /// <param name="posOverride">좌표 오버라이드 값입니다.</param>
+        /// <param name="forward">캐스터 전방 방향입니다.</param>
+        /// <param name="laserInfo">레이저 테이블 정보입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        private void RegisterLaserDebugGizmo(
+            CharacterBase casterChar,
+            CharacterBase targetChar,
+            bool usePosOverride,
+            Vector2 posOverride,
+            Vector3 forward,
+            StruckTableLaser laserInfo,
+            LaserEventDefinition def)
+        {
+            if (casterChar == null || SkillTestRuntimeHub.Instance == null || laserInfo == null)
+                return;
+
+            Vector3 start = casterChar.transform.position + (Vector3)laserInfo.StartPosition;
+            Vector2 direction = ResolveLaserPreviewDirection(casterChar, targetChar, usePosOverride, posOverride, forward, start);
+            float maxDistance = def.maxDistance > 0f ? def.maxDistance : Mathf.Max(0f, laserInfo.MaxDistance);
+            if (maxDistance <= 0f)
+                return;
+
+            Vector3 end = start + (Vector3)(direction * maxDistance);
+            bool hasBlockHit = TryResolveLaserPreviewEnd(casterChar, laserInfo, start, direction, maxDistance, out Vector3 blockedEnd, out Vector3 blockPoint);
+            if (hasBlockHit)
+                end = blockedEnd;
+
+            float duration = def.durationSeconds > 0f
+                ? def.durationSeconds
+                : SkillTestRuntimeHub.CurrentSettings != null ? SkillTestRuntimeHub.CurrentSettings.defaultLaserGizmoDuration : 0.2f;
+
+            SkillTestRuntimeHub.Instance.RegisterLaser(start, end, duration, casterChar.gameObject, hasBlockHit, blockPoint);
+        }
+
+        /// <summary>
+        /// 레이저 프리뷰용 방향 벡터를 계산합니다.
+        /// </summary>
+        private static Vector2 ResolveLaserPreviewDirection(
+            CharacterBase casterChar,
+            CharacterBase targetChar,
+            bool usePosOverride,
+            Vector2 posOverride,
+            Vector3 forward,
+            Vector3 start)
+        {
+            Vector2 direction;
+            if (targetChar != null)
+            {
+                direction = ((Vector2)targetChar.transform.position - (Vector2)start);
+            }
+            else if (usePosOverride)
+            {
+                direction = posOverride - (Vector2)start;
+            }
+            else
+            {
+                direction = new Vector2(forward.x, forward.y);
+            }
+
+            if (direction.sqrMagnitude <= 1e-6f)
+            {
+                direction = casterChar != null && casterChar.IsFlipped() ? Vector2.left : Vector2.right;
+            }
+
+            return direction.normalized;
+        }
+
+        /// <summary>
+        /// 레이저 정책에 맞춰 프리뷰 종료점을 계산합니다.
+        /// </summary>
+        private static bool TryResolveLaserPreviewEnd(
+            CharacterBase casterChar,
+            StruckTableLaser laserInfo,
+            Vector2 start,
+            Vector2 direction,
+            float maxDistance,
+            out Vector3 end,
+            out Vector3 blockPoint)
+        {
+            end = start + direction * maxDistance;
+            blockPoint = Vector3.zero;
+
+            int layerMask = Physics2D.GetLayerCollisionMask(casterChar.gameObject.layer);
+            ContactFilter2D filter = new ContactFilter2D
+            {
+                useLayerMask = true,
+                useTriggers = true,
+            };
+            filter.SetLayerMask(layerMask);
+
+            RaycastHit2D[] hits = new RaycastHit2D[32];
+            int count = Physics2D.Raycast(start, direction, filter, hits, maxDistance);
+            if (count <= 0)
+                return false;
+
+            bool hasNearestGround = false;
+            RaycastHit2D nearestGround = default;
+            bool hasNearestHostile = false;
+            RaycastHit2D nearestHostile = default;
+
+            for (int i = 0; i < count; i++)
+            {
+                RaycastHit2D hit = hits[i];
+                Collider2D col = hit.collider;
+                if (!col)
+                    continue;
+
+                CharacterBase hitCharacter = CombatHitTargetUtility.ResolveTargetCharacter(col);
+                if (hitCharacter != null && hitCharacter == casterChar)
+                    continue;
+
+                bool isGround = col.CompareTag(ConfigTags.GetValue(ConfigTags.Keys.MapGround));
+                if (isGround)
+                {
+                    if (!hasNearestGround || hit.distance < nearestGround.distance)
+                    {
+                        hasNearestGround = true;
+                        nearestGround = hit;
+                    }
+
+                    continue;
+                }
+
+                if (!CombatHitTargetUtility.TryResolveHostileTarget(casterChar, col, out _))
+                    continue;
+
+                if (!hasNearestHostile || hit.distance < nearestHostile.distance)
+                {
+                    hasNearestHostile = true;
+                    nearestHostile = hit;
+                }
+            }
+
+            switch (laserInfo.BlockMode)
+            {
+                case LaserConstants.BlockMode.StopAtGround:
+                    if (hasNearestGround)
+                    {
+                        blockPoint = nearestGround.point != Vector2.zero ? (Vector3)nearestGround.point : (Vector3)(start + direction * nearestGround.distance);
+                        end = blockPoint;
+                        return true;
+                    }
+                    break;
+
+                case LaserConstants.BlockMode.StopAtHostile:
+                    if (laserInfo.HitMode == LaserConstants.HitMode.FirstHitOnly && hasNearestHostile)
+                    {
+                        blockPoint = nearestHostile.point != Vector2.zero ? (Vector3)nearestHostile.point : (Vector3)(start + direction * nearestHostile.distance);
+                        end = blockPoint;
+                        return true;
+                    }
+                    break;
+
+                case LaserConstants.BlockMode.StopAtGroundOrHostile:
+                    if (laserInfo.HitMode == LaserConstants.HitMode.FirstHitOnly && hasNearestHostile && (!hasNearestGround || nearestHostile.distance <= nearestGround.distance))
+                    {
+                        blockPoint = nearestHostile.point != Vector2.zero ? (Vector3)nearestHostile.point : (Vector3)(start + direction * nearestHostile.distance);
+                        end = blockPoint;
+                        return true;
+                    }
+
+                    if (hasNearestGround)
+                    {
+                        blockPoint = nearestGround.point != Vector2.zero ? (Vector3)nearestGround.point : (Vector3)(start + direction * nearestGround.distance);
+                        end = blockPoint;
+                        return true;
+                    }
+                    break;
+            }
+
+            return false;
+        }
+
 
         /// <summary>
         /// 투사체 이벤트 정의를 바탕으로 발사 대상과 좌표를 계산하고 투사체를 생성합니다.
@@ -2609,6 +2803,7 @@ namespace GGemCo2DSkill
         {
 #if UNITY_EDITOR
             SkillTestRuntimeHub.Instance?.ClearDamageAreas(caster);
+            SkillTestRuntimeHub.Instance?.ClearLasers(caster);
 #endif
         }
 

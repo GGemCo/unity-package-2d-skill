@@ -18,8 +18,10 @@ namespace GGemCo2DSkill
         public static GGemCoSkillSettings CurrentSettings { get; private set; }
 
         public bool IsSkillDebugEnabled => CurrentSettings == null || CurrentSettings.EnableSkillDebug;
-        public bool IsDamageAreaGizmoEnabled => IsSkillDebugEnabled && (CurrentSettings == null || CurrentSettings.enableDamageAreaGizmo);
+        public bool IsDamageAreaGizmoEnabled => IsSkillDebugEnabled && (CurrentSettings == null || CurrentSettings.EnableDamageAreaGizmo);
+        public bool IsLaserGizmoEnabled => IsSkillDebugEnabled && (CurrentSettings == null || CurrentSettings.EnableLaserGizmo);
         public Color DamageAreaGizmoColor => CurrentSettings != null ? CurrentSettings.damageAreaGizmoColor : new Color(1f, 0.35f, 0.2f, 0.9f);
+        public Color LaserGizmoColor => CurrentSettings != null ? CurrentSettings.laserGizmoColor : new Color(0.2f, 0.95f, 1f, 0.95f);
         public bool DrawOnlyWhenSelectedCaster => CurrentSettings != null && CurrentSettings.drawOnlyWhenSelectedCaster;
         
         [Header("Spawn")]
@@ -49,6 +51,7 @@ namespace GGemCo2DSkill
         private readonly List<GameObject> _spawned = new();
         private readonly Dictionary<int, SkillTestTargetSnapshot> _snapshots = new();
         private readonly List<SkillDebugAreaRecord> _activeDamageAreas = new(8);
+        private readonly List<SkillDebugLaserRecord> _activeLasers = new(8);
         private readonly Vector2 _monsterSpawnPosition = new(150, 0);
 
         private SkillExecutor _selectedExecutor;
@@ -62,6 +65,7 @@ namespace GGemCo2DSkill
 
         public IReadOnlyList<GameObject> Spawned => _spawned;
         public IReadOnlyList<SkillDebugAreaRecord> ActiveDamageAreas => _activeDamageAreas;
+        public IReadOnlyList<SkillDebugLaserRecord> ActiveLasers => _activeLasers;
         public GameObject SelectedMonster { get; private set; }
         public Transform LockedTarget => lockedTarget;
         public bool UseManualLockedTarget => useManualLockedTarget;
@@ -91,6 +95,7 @@ namespace GGemCo2DSkill
         private void Update()
         {
             CleanupExpiredDamageAreas();
+            CleanupExpiredLasers();
             UpdateAutoResetState();
         }
 
@@ -156,6 +161,24 @@ namespace GGemCo2DSkill
                 var area = _activeDamageAreas[i];
                 if (area == null || now >= area.ExpireTime)
                     _activeDamageAreas.RemoveAt(i);
+            }
+        }
+
+
+        /// <summary>
+        /// 만료된 레이저 기즈모 기록을 정리합니다.
+        /// </summary>
+        private void CleanupExpiredLasers()
+        {
+            if (_activeLasers.Count == 0)
+                return;
+
+            float now = Time.time;
+            for (int i = _activeLasers.Count - 1; i >= 0; i--)
+            {
+                var laser = _activeLasers[i];
+                if (laser == null || now >= laser.ExpireTime)
+                    _activeLasers.RemoveAt(i);
             }
         }
 
@@ -234,6 +257,59 @@ namespace GGemCo2DSkill
 
                 if (caster == null || area.CasterInstanceId == casterId)
                     _activeDamageAreas.RemoveAt(i);
+            }
+        }
+
+
+        /// <summary>
+        /// 레이저 범위 기즈모를 등록합니다.
+        /// </summary>
+        /// <param name="start">레이저 시작점입니다.</param>
+        /// <param name="end">레이저 종료점입니다.</param>
+        /// <param name="durationSeconds">기즈모 유지 시간입니다.</param>
+        /// <param name="caster">레이저를 생성한 캐스터 오브젝트입니다.</param>
+        /// <param name="hasBlockHit">차단 지점 존재 여부입니다.</param>
+        /// <param name="blockPoint">차단 지점입니다.</param>
+        public void RegisterLaser(
+            Vector3 start,
+            Vector3 end,
+            float durationSeconds,
+            GameObject caster,
+            bool hasBlockHit,
+            Vector3 blockPoint)
+        {
+            if (!IsLaserGizmoEnabled)
+                return;
+
+            var settings = CurrentSettings;
+            float resolvedDuration = durationSeconds > 0f
+                ? durationSeconds
+                : settings != null ? settings.defaultLaserGizmoDuration : 0.2f;
+
+            _activeLasers.Add(SkillDebugLaserRecord.Create(start, end, resolvedDuration, caster, hasBlockHit, blockPoint));
+        }
+
+        /// <summary>
+        /// 지정한 캐스터의 레이저 기즈모를 정리합니다.
+        /// </summary>
+        /// <param name="caster">정리할 캐스터입니다. null이면 전체를 정리합니다.</param>
+        public void ClearLasers(GameObject caster)
+        {
+            if (_activeLasers.Count == 0)
+                return;
+
+            int casterId = caster != null ? caster.GetInstanceID() : 0;
+            for (int i = _activeLasers.Count - 1; i >= 0; i--)
+            {
+                var laser = _activeLasers[i];
+                if (laser == null)
+                {
+                    _activeLasers.RemoveAt(i);
+                    continue;
+                }
+
+                if (caster == null || laser.CasterInstanceId == casterId)
+                    _activeLasers.RemoveAt(i);
             }
         }
 

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using UnityEditor;
 using UnityEngine;
 using GGemCo2DSkill;
@@ -10,32 +10,57 @@ namespace GGemCo2DSkillEditor
         [DrawGizmo(GizmoType.NonSelected | GizmoType.Selected | GizmoType.InSelectionHierarchy)]
         private static void DrawSkillBridgeGizmos(SkillTestRuntimeHub hub, GizmoType gizmoType)
         {
-            if (hub == null || !hub.IsDamageAreaGizmoEnabled)
-                return;
-
-            var areas = hub.ActiveDamageAreas;
-            if (areas == null || areas.Count == 0)
+            if (hub == null)
                 return;
 
             var prevColor = Gizmos.color;
             var prevMatrix = Gizmos.matrix;
 
-            Gizmos.color = hub.DamageAreaGizmoColor;
-
             int selectedCasterId = hub.SelectedMonster != null ? hub.SelectedMonster.GetInstanceID() : 0;
             bool drawOnlySelectedCaster = hub.DrawOnlyWhenSelectedCaster;
 
-            for (int i = 0; i < areas.Count; i++)
+            if (hub.IsDamageAreaGizmoEnabled)
             {
-                var area = areas[i];
-                if (area == null)
-                    continue;
+                var areas = hub.ActiveDamageAreas;
+                if (areas != null && areas.Count > 0)
+                {
+                    Gizmos.color = hub.DamageAreaGizmoColor;
 
-                if (drawOnlySelectedCaster && selectedCasterId != 0 && area.CasterInstanceId != selectedCasterId)
-                    continue;
+                    for (int i = 0; i < areas.Count; i++)
+                    {
+                        var area = areas[i];
+                        if (area == null)
+                            continue;
 
-                Gizmos.matrix = area.Matrix;
-                DrawArea(area);
+                        if (drawOnlySelectedCaster && selectedCasterId != 0 && area.CasterInstanceId != selectedCasterId)
+                            continue;
+
+                        Gizmos.matrix = area.Matrix;
+                        DrawArea(area);
+                    }
+                }
+            }
+
+            if (hub.IsLaserGizmoEnabled)
+            {
+                var lasers = hub.ActiveLasers;
+                if (lasers != null && lasers.Count > 0)
+                {
+                    Gizmos.color = hub.LaserGizmoColor;
+                    Gizmos.matrix = Matrix4x4.identity;
+
+                    for (int i = 0; i < lasers.Count; i++)
+                    {
+                        var laser = lasers[i];
+                        if (laser == null)
+                            continue;
+
+                        if (drawOnlySelectedCaster && selectedCasterId != 0 && laser.CasterInstanceId != selectedCasterId)
+                            continue;
+
+                        DrawLaser(laser);
+                    }
+                }
             }
 
             Gizmos.matrix = prevMatrix;
@@ -65,6 +90,24 @@ namespace GGemCo2DSkillEditor
                     DrawPolygon(area.PolygonPoints);
                     break;
             }
+        }
+
+        /// <summary>
+        /// 레이저 선분과 시작/종료/차단 지점을 그립니다.
+        /// </summary>
+        /// <param name="laser">그릴 레이저 기록입니다.</param>
+        private static void DrawLaser(SkillDebugLaserRecord laser)
+        {
+            Vector3 start = laser.Start;
+            Vector3 end = laser.End;
+            Gizmos.DrawLine(start, end);
+
+            float size = Mathf.Max(0.08f, HandleUtility.GetHandleSize(start) * 0.05f);
+            Gizmos.DrawWireSphere(start, size);
+            Gizmos.DrawWireSphere(end, size * 0.85f);
+
+            if (laser.HasBlockHit)
+                Gizmos.DrawSphere(laser.BlockPoint, size * 0.45f);
         }
 
         private static void DrawPolygon(Vector2[] points)

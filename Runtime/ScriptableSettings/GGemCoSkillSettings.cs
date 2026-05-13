@@ -1,4 +1,4 @@
-using GGemCo2DCore;
+﻿using GGemCo2DCore;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -18,8 +18,9 @@ namespace GGemCo2DSkill
         private bool enableSkillDebug;
         public bool EnableSkillDebug => DebugOptionRuntimeUtility.Resolve(enableSkillDebug);
 
-        [Tooltip("Damage 이벤트 영역 Gizmo 표시 여부입니다.")]
-        public bool enableDamageAreaGizmo = true;
+        [SerializeField, Tooltip("Damage 이벤트 영역 Gizmo 표시 여부입니다.")]
+        private bool enableDamageAreaGizmo;
+        public bool EnableDamageAreaGizmo => EnableSkillDebug && DebugOptionRuntimeUtility.Resolve(enableDamageAreaGizmo);
 
         [Tooltip("Play Mode 진입 시 SkillTestRuntimeHub 자동 생성 여부입니다.")]
         public bool enableSkillTestRuntimeBridgeAutoSpawn = true;
@@ -45,6 +46,18 @@ namespace GGemCo2DSkill
 
         [Tooltip("Damage 이벤트 Gizmo 기본 색상입니다.")]
         public Color damageAreaGizmoColor = new(1f, 0.35f, 0.2f, 0.9f);
+
+        [Header("레이저")]
+        [SerializeField, Tooltip("레이저 이벤트 영역 Gizmo 표시 여부입니다.")]
+        private bool enableLaserGizmo;
+        public bool EnableLaserGizmo => EnableSkillDebug && DebugOptionRuntimeUtility.Resolve(enableLaserGizmo);
+        
+        [Tooltip("Laser 이벤트 Gizmo 기본 유지 시간(초)입니다.")]
+        [Min(0.01f)]
+        public float defaultLaserGizmoDuration = 0.2f;
+
+        [Tooltip("Laser 이벤트 Gizmo 기본 색상입니다.")]
+        public Color laserGizmoColor = new(0.2f, 0.95f, 1f, 0.95f);
 
         [Tooltip("선택된 캐스터의 영역만 표시할지 여부입니다.")]
         public bool drawOnlyWhenSelectedCaster = false;
