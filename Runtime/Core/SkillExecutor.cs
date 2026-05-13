@@ -617,6 +617,16 @@ namespace GGemCo2DSkill
             normalizedFall = fall / sum;
         }
 
+        /// <summary>
+        /// 레이저 데미지 활성 지속 시간을 Core 레이저 시스템에 전달할 값으로 보정합니다.
+        /// </summary>
+        /// <param name="value">스킬 이벤트 정의에 저장된 데미지 활성 지속 시간입니다.</param>
+        /// <returns>0 이하이면 레이저 종료까지 유지하는 의미의 -1, 양수이면 해당 값을 반환합니다.</returns>
+        private static float NormalizeLaserDamageActiveDuration(float value)
+        {
+            return value <= 0f ? -1f : value;
+        }
+
         private static bool TryResolveLockedTargetMotion(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -1606,8 +1616,11 @@ namespace GGemCo2DSkill
                 elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, gameObject, damageApplied: true),
                 useDurationOverride: true,
                 durationOverride: Mathf.Max(0f, def.durationSeconds),
-                useTickIntervalOverride: true,
-                tickIntervalOverride: Mathf.Max(0f, def.tickIntervalSeconds),
+                useDamageTimingOverride: true,
+                damageStartDelayOverride: Mathf.Max(0f, def.damageStartDelaySeconds),
+                damageActiveDurationOverride: NormalizeLaserDamageActiveDuration(def.damageActiveDurationSeconds),
+                damageTickIntervalOverride: Mathf.Max(0f, def.damageTickIntervalSeconds),
+                damageTickOnStartOverride: def.damageTickOnStart,
                 useMaxDistanceOverride: def.maxDistance > 0f,
                 maxDistanceOverride: Mathf.Max(0f, def.maxDistance),
                 updateAimContinuously: def.updateAimContinuously);

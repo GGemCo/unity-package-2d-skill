@@ -22,8 +22,17 @@ namespace GGemCo2DSkill
         [Tooltip("레이저 유지 시간(초)입니다. 0 이하이면 1프레임성 레이저처럼 동작합니다.")]
         public float durationSeconds = 0.25f;
 
-        [Tooltip("레이저가 같은 대상을 다시 때릴 수 있는 주기(초)입니다. 0이면 진입 시 1회만 적용합니다.")]
-        public float tickIntervalSeconds = 0f;
+        [Tooltip("레이저 발사 후 데미지 적용을 시작할 지연 시간(초)입니다.")]
+        public float damageStartDelaySeconds = 0f;
+
+        [Tooltip("데미지 판정을 유지할 시간(초)입니다. 0 이하이면 레이저 유지 시간 동안 계속 판정합니다.")]
+        public float damageActiveDurationSeconds = -1f;
+
+        [Tooltip("같은 대상에게 반복 데미지를 줄 간격(초)입니다. 0이면 진입 시 1회만 적용합니다.")]
+        public float damageTickIntervalSeconds = 0f;
+
+        [Tooltip("반복 데미지 간격이 있을 때 판정 시작 즉시 1회 데미지를 적용할지 여부입니다.")]
+        public bool damageTickOnStart = true;
 
         [Header("Range / Aim")]
         [Tooltip("최대 사거리 오버라이드입니다. 0 이하이면 타겟/좌표 기반 거리 또는 기본값을 사용합니다.")]

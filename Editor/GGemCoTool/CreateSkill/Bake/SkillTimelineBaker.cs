@@ -67,6 +67,16 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
+        /// 레이저 데미지 활성 지속 시간을 런타임 이벤트 정의에서 사용하는 값으로 보정합니다.
+        /// </summary>
+        /// <param name="value">타임라인 클립에 저장된 데미지 활성 지속 시간입니다.</param>
+        /// <returns>0 이하이면 레이저 종료까지 유지하는 의미의 -1, 양수이면 해당 값을 반환합니다.</returns>
+        private static float NormalizeLaserDamageActiveDuration(float value)
+        {
+            return value <= 0f ? -1f : value;
+        }
+
+        /// <summary>
         /// 타임라인을 메모리 상의 런타임 데이터로 변환합니다.
         /// Play Mode 테스트에서 Addressables 로딩 없이 즉시 사용할 수 있는 이벤트 배열과 임시 Payload 인스턴스를 생성합니다.
         /// </summary>
@@ -486,7 +496,10 @@ namespace GGemCo2DSkillEditor
                         def.damageType = laser.DamageType;
                         def.damage = laser.Damage;
                         def.durationSeconds = Mathf.Max(0f, laser.DurationSeconds);
-                        def.tickIntervalSeconds = Mathf.Max(0f, laser.TickIntervalSeconds);
+                        def.damageStartDelaySeconds = Mathf.Max(0f, laser.DamageStartDelaySeconds);
+                        def.damageActiveDurationSeconds = NormalizeLaserDamageActiveDuration(laser.DamageActiveDurationSeconds);
+                        def.damageTickIntervalSeconds = Mathf.Max(0f, laser.DamageTickIntervalSeconds);
+                        def.damageTickOnStart = laser.DamageTickOnStart;
                         def.maxDistance = Mathf.Max(0f, laser.MaxDistance);
                         def.updateAimContinuously = laser.UpdateAimContinuously;
                         def.scaleMultiplier = laser.ScaleMultiplier;

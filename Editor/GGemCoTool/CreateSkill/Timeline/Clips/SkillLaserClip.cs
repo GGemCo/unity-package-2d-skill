@@ -28,8 +28,17 @@ namespace GGemCo2DSkillEditor
         [Tooltip("레이저 유지 시간(초)입니다.")]
         [SerializeField] private float durationSeconds = 0.25f;
 
-        [Tooltip("같은 대상을 다시 때릴 수 있는 간격(초)입니다. 0이면 진입 시 1회만 적용합니다.")]
-        [SerializeField] private float tickIntervalSeconds = 0f;
+        [Tooltip("레이저 발사 후 데미지 적용을 시작할 지연 시간(초)입니다.")]
+        [SerializeField] private float damageStartDelaySeconds = 0f;
+
+        [Tooltip("데미지 판정을 유지할 시간(초)입니다. 0 이하이면 레이저 유지 시간 동안 계속 판정합니다.")]
+        [SerializeField] private float damageActiveDurationSeconds = -1f;
+
+        [Tooltip("같은 대상에게 반복 데미지를 줄 간격(초)입니다. 0이면 진입 시 1회만 적용합니다.")]
+        [SerializeField] private float damageTickIntervalSeconds = 0f;
+
+        [Tooltip("반복 데미지 간격이 있을 때 판정 시작 즉시 1회 데미지를 적용할지 여부입니다.")]
+        [SerializeField] private bool damageTickOnStart = true;
 
         [Header("Range / Aim")]
         [Tooltip("최대 사거리 오버라이드입니다. 0 이하이면 타겟/좌표 기반 거리 또는 기본값을 사용합니다.")]
@@ -91,9 +100,24 @@ namespace GGemCo2DSkillEditor
         public float DurationSeconds => durationSeconds;
 
         /// <summary>
-        /// 주기 데미지 간격입니다.
+        /// 데미지 적용을 시작할 지연 시간입니다.
         /// </summary>
-        public float TickIntervalSeconds => tickIntervalSeconds;
+        public float DamageStartDelaySeconds => damageStartDelaySeconds;
+
+        /// <summary>
+        /// 데미지 판정을 유지할 시간입니다.
+        /// </summary>
+        public float DamageActiveDurationSeconds => damageActiveDurationSeconds;
+
+        /// <summary>
+        /// 같은 대상에게 반복 데미지를 줄 간격입니다.
+        /// </summary>
+        public float DamageTickIntervalSeconds => damageTickIntervalSeconds;
+
+        /// <summary>
+        /// 반복 데미지 간격이 있을 때 판정 시작 즉시 데미지를 적용할지 여부입니다.
+        /// </summary>
+        public bool DamageTickOnStart => damageTickOnStart;
 
         /// <summary>
         /// 최대 사거리 오버라이드입니다.
