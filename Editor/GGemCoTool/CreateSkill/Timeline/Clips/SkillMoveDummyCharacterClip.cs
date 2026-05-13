@@ -19,7 +19,9 @@ namespace GGemCo2DSkillEditor
         [Header("Move Target")]
         [SerializeField] private DummyMoveTargetMode moveTargetMode = DummyMoveTargetMode.GroundPoint;
         [SerializeField] private string namedAnchorKey;
+        [Tooltip("AbsoluteWorld 모드에서 사용할 지면 기준 좌표입니다. 공중 높이는 별도 공중 이벤트로 제어합니다.")]
         [SerializeField] private Vector3 absoluteWorldPosition;
+        [Tooltip("지면 기준 목표 위치에 더할 오프셋입니다.")]
         [SerializeField] private Vector3 localOffset;
         [SerializeField] private bool useSnapshotCenter;
 

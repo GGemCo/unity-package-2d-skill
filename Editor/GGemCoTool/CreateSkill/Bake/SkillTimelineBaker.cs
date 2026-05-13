@@ -533,7 +533,7 @@ namespace GGemCo2DSkillEditor
                         def.namedAnchorKey = spawnDummy.NamedAnchorKey;
                         def.localOffset = spawnDummy.LocalOffset;
                         def.useSnapshotCenter = spawnDummy.UseSnapshotCenter;
-                        def.faceLockedTarget = spawnDummy.FaceLockedTarget;
+                        def.spawnFacing = spawnDummy.SpawnFacing;
                         def.fadeInEnabled = spawnDummy.FadeInEnabled;
                         def.fadeInDurationSeconds = Mathf.Max(0f, spawnDummy.FadeInDurationSeconds);
                         def.initialAnimationName = spawnDummy.InitialAnimationName;
@@ -577,6 +577,20 @@ namespace GGemCo2DSkillEditor
                         def.fadeOutDurationSeconds = Mathf.Max(0f, despawnDummy.FadeOutDurationSeconds);
                         def.destroyAfterFade = despawnDummy.DestroyAfterFade;
                         def.missingActorPolicy = despawnDummy.MissingActorPolicy;
+                        return def;
+                    };
+
+                case SkillSetDummyAirborneStateClip airborneDummy:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<SetDummyAirborneStateEventDefinition>();
+                        def.actorKey = airborneDummy.ActorKey;
+                        def.airborneEnabled = airborneDummy.AirborneEnabled;
+                        def.targetAirHeight = Mathf.Max(0f, airborneDummy.TargetAirHeight);
+                        def.durationSeconds = Mathf.Max(0f, airborneDummy.DurationSeconds);
+                        def.easing = airborneDummy.Easing;
+                        def.allowReplace = airborneDummy.AllowReplace;
+                        def.missingActorPolicy = airborneDummy.MissingActorPolicy;
                         return def;
                     };
 

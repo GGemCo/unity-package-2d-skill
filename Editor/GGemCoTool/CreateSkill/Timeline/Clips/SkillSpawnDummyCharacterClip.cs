@@ -25,7 +25,8 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private string namedAnchorKey;
         [SerializeField] private Vector3 localOffset;
         [SerializeField] private bool useSnapshotCenter;
-        [SerializeField] private bool faceLockedTarget = true;
+        [Tooltip("생성 직후 적용할 바라보기 방향입니다. None이면 기본 방향을 유지합니다.")]
+        [SerializeField] private CharacterConstants.FacingDirection8 spawnFacing = CharacterConstants.FacingDirection8.None;
 
         [Header("Presentation")]
         [SerializeField] private bool fadeInEnabled;
@@ -80,9 +81,9 @@ namespace GGemCo2DSkillEditor
         public bool UseSnapshotCenter => useSnapshotCenter;
 
         /// <summary>
-        /// 고정 타겟 방향 보정 여부를 반환합니다.
+        /// 생성 직후 적용할 바라보기 방향을 반환합니다.
         /// </summary>
-        public bool FaceLockedTarget => faceLockedTarget;
+        public CharacterConstants.FacingDirection8 SpawnFacing => spawnFacing;
 
         /// <summary>
         /// 페이드 인 사용 여부를 반환합니다.

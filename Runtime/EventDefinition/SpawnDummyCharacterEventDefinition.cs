@@ -32,8 +32,8 @@ namespace GGemCo2DSkill
         [Tooltip("true이면 생성 위치 계산에 현재 시점 대신 스킬 시작 스냅샷(caster/target/ground)을 사용합니다.")]
         public bool useSnapshotCenter;
 
-        [Tooltip("true이면 생성 직후 고정 타겟 방향을 바라보도록 좌우 방향을 보정합니다.")]
-        public bool faceLockedTarget = true;
+        [Tooltip("생성 직후 적용할 바라보기 방향입니다. None이면 프리팹 기본 방향을 유지합니다.")]
+        public CharacterConstants.FacingDirection8 spawnFacing = CharacterConstants.FacingDirection8.None;
 
         [Header("Presentation")]
         [Tooltip("true이면 생성 시 페이드 인을 재생합니다.")]

@@ -87,6 +87,11 @@ namespace Config
             /// 스킬 실행 중 생성된 더미 캐릭터를 제거합니다.
             /// </summary>
             DespawnDummyCharacter = 14,
+
+            /// <summary>
+            /// 스킬 실행 중 생성된 더미 캐릭터의 공중 상태(높이/중력)를 제어합니다.
+            /// </summary>
+            SetDummyAirborneState = 15,
         }
 
         /// <summary>

@@ -19,10 +19,10 @@ namespace GGemCo2DSkill
         [Tooltip("moveTargetMode가 NamedPositionAnchor일 때 참조할 위치 앵커 키입니다.")]
         public string namedAnchorKey;
 
-        [Tooltip("moveTargetMode가 AbsoluteWorld일 때 사용할 절대 월드 좌표입니다.")]
+        [Tooltip("moveTargetMode가 AbsoluteWorld일 때 사용할 지면 기준 절대 월드 좌표입니다. 공중 높이는 별도 이벤트로 제어합니다.")]
         public Vector3 absoluteWorldPosition;
 
-        [Tooltip("해석된 목표 위치에 더할 오프셋입니다.")]
+        [Tooltip("해석된 지면 목표 위치에 더할 오프셋입니다. 공중 높이 오프셋은 포함하지 않습니다.")]
         public Vector3 localOffset;
 
         [Tooltip("true이면 목표 위치 계산에 현재 시점 대신 스킬 시작 스냅샷(target/ground)을 사용합니다.")]

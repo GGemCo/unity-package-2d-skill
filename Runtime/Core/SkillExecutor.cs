@@ -162,6 +162,21 @@ namespace GGemCo2DSkill
             public Coroutine ActiveMoveCoroutine;
 
             /// <summary>
+            /// 진행 중인 공중 높이 보정 코루틴입니다.
+            /// </summary>
+            public Coroutine ActiveAirHeightCoroutine;
+
+            /// <summary>
+            /// 지면 기준 이동 좌표입니다. 실제 월드 Y는 이 값에 AirHeight를 더해 계산합니다.
+            /// </summary>
+            public Vector3 GroundPosition;
+
+            /// <summary>
+            /// 지면 기준 공중 높이(+Y)입니다.
+            /// </summary>
+            public float AirHeight;
+
+            /// <summary>
             /// 더미 캐릭터 제어 잠금 토큰입니다.
             /// </summary>
             public object ControlLockToken;
@@ -170,6 +185,16 @@ namespace GGemCo2DSkill
             /// 더미 캐릭터 브레인 잠금 토큰입니다.
             /// </summary>
             public object BrainLockToken;
+
+            /// <summary>
+            /// 공중 상태에서 사용하는 중력 오버라이드 컨트롤러입니다.
+            /// </summary>
+            public CharacterPhysicsOverrideController PhysicsOverrideController;
+
+            /// <summary>
+            /// 공중 상태 중력 오버라이드 해제에 사용할 핸들입니다.
+            /// </summary>
+            public CharacterPhysicsOverrideHandle GravityOverrideHandle;
         }
 
         /// <summary>
@@ -364,6 +389,9 @@ namespace GGemCo2DSkill
                     break;
                 case ConfigCommonSkill.SkillEventType.DespawnDummyCharacter:
                     HandleDespawnDummyCharacter(payload);
+                    break;
+                case ConfigCommonSkill.SkillEventType.SetDummyAirborneState:
+                    HandleSetDummyAirborneState(payload);
                     break;
                 default:
                     break;
@@ -2921,8 +2949,8 @@ namespace GGemCo2DSkill
 
             ConfigureDummyCharacterRuntime(character);
 
-            if (def.faceLockedTarget)
-                ApplyDummyFacingToTarget(character, targetPos);
+            if (def.spawnFacing != CharacterConstants.FacingDirection8.None)
+                character.SetFacing(def.spawnFacing);
 
             if (!string.IsNullOrWhiteSpace(def.initialAnimationName))
                 PlayDummyAnimation(character, def.initialAnimationName, def.initialAnimationLoop, def.initialAnimationTimeScale);
@@ -2939,10 +2967,13 @@ namespace GGemCo2DSkill
                 Character = character,
                 DespawnOnSkillEnd = def.despawnOnSkillEnd,
                 DespawnOnCancel = def.despawnOnCancel,
+                GroundPosition = new Vector3(spawnPos.x, spawnPos.y, character.transform.position.z),
+                AirHeight = 0f,
             };
 
             ApplyDummyRuntimeLocks(handle);
             _dummyActors[actorKey] = handle;
+            ApplyDummyWorldPosition(handle);
 
             if (def.fadeInEnabled && def.fadeInDurationSeconds > 0f)
             {
@@ -3033,6 +3064,31 @@ namespace GGemCo2DSkill
                 fadeOutDurationSeconds: def.fadeOutDurationSeconds,
                 destroyAfterFade: def.destroyAfterFade,
                 removeFromRegistry: true);
+        }
+
+        /// <summary>
+        /// 스킬 이벤트로 더미 캐릭터의 공중 상태(높이/중력)를 제어합니다.
+        /// </summary>
+        /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
+        private void HandleSetDummyAirborneState(UnityEngine.Object payloadObj)
+        {
+            if (payloadObj is not SetDummyAirborneStateEventDefinition def)
+                return;
+
+            if (!TryGetDummyActorHandle(def.actorKey, def.missingActorPolicy, out var handle))
+                return;
+
+            if (handle.Character == null)
+                return;
+
+            float targetAirHeight = def.airborneEnabled ? Mathf.Max(0f, def.targetAirHeight) : 0f;
+            StartDummyAirHeightTransition(
+                handle,
+                targetAirHeight: targetAirHeight,
+                durationSeconds: Mathf.Max(0f, def.durationSeconds),
+                easing: def.easing,
+                allowReplace: def.allowReplace,
+                keepAirborneGravity: def.airborneEnabled || targetAirHeight > 0f);
         }
 
         /// <summary>
@@ -3194,9 +3250,9 @@ namespace GGemCo2DSkill
             if (handle == null || handle.Character == null || def == null)
                 return;
 
+            SyncDummyGroundFromTransform(handle);
             var character = handle.Character;
-            targetPosition.z = character.transform.position.z;
-            var motion = ResolveMotionController(character.gameObject);
+            Vector3 targetGroundPosition = new Vector3(targetPosition.x, targetPosition.y, handle.GroundPosition.z);
 
             if (handle.ActiveMoveCoroutine != null)
             {
@@ -3207,13 +3263,8 @@ namespace GGemCo2DSkill
                 handle.ActiveMoveCoroutine = null;
             }
 
-            Vector3 current = character.transform.position;
-            Vector2 delta = new Vector2(targetPosition.x - current.x, targetPosition.y - current.y);
-            float distance = delta.magnitude;
-            float duration = Mathf.Max(0f, def.durationSeconds);
-
-            bool isSkillMotionPlaying = motion != null && motion.IsPlaying(MotionChannel.Skill);
-            if (isSkillMotionPlaying)
+            var motion = ResolveMotionController(character.gameObject);
+            if (motion != null && motion.IsPlaying(MotionChannel.Skill))
             {
                 if (!def.allowReplace)
                     return;
@@ -3221,38 +3272,31 @@ namespace GGemCo2DSkill
                 motion.CancelMotion(MotionChannel.Skill, reason: 9202);
             }
 
+            Vector3 currentGroundPosition = handle.GroundPosition;
+            Vector2 delta = new Vector2(
+                targetGroundPosition.x - currentGroundPosition.x,
+                targetGroundPosition.y - currentGroundPosition.y);
+            float distance = delta.magnitude;
+            float duration = Mathf.Max(0f, def.durationSeconds);
+
             if (distance <= 1e-4f || duration <= 0f)
             {
-                character.transform.position = targetPosition;
+                handle.GroundPosition = targetGroundPosition;
+                ApplyDummyWorldPosition(handle);
                 return;
             }
 
-            if (motion != null)
-            {
-                var request = new MotionRequest(
-                    channel: MotionChannel.Skill,
-                    kind: MotionKind.Linear,
-                    direction: delta / distance,
-                    durationSeconds: duration,
-                    distance: distance,
-                    easeType: def.easing,
-                    stopAtEnd: def.stopAtEnd,
-                    useMovePosition: def.useMovePosition,
-                    allowReplace: def.allowReplace);
-
-                if (motion.TryStartMotion(in request))
-                    return;
-
-                // 모션 시작에 실패했지만 동일 채널 모션이 유지 중이면 Transform 보간 폴백을 수행하지 않습니다.
-                if (motion.IsPlaying(MotionChannel.Skill))
-                    return;
-            }
-
-            handle.ActiveMoveCoroutine = StartCoroutine(CoMoveDummyByTransform(handle, current, targetPosition, duration, def.easing));
+            // 더미는 지면 좌표와 공중 높이를 분리 관리하므로 Transform 보간으로 지면 좌표만 갱신합니다.
+            handle.ActiveMoveCoroutine = StartCoroutine(CoMoveDummyByTransform(
+                handle,
+                currentGroundPosition,
+                targetGroundPosition,
+                duration,
+                def.easing));
         }
 
         /// <summary>
-        /// 모션 컨트롤러를 사용할 수 없을 때 Transform 보간으로 더미 캐릭터를 이동시킵니다.
+        /// 더미 캐릭터의 지면 좌표를 보간하여 이동시키고, 공중 높이를 합성해 최종 위치를 갱신합니다.
         /// </summary>
         /// <param name="handle">이동 대상 더미 핸들입니다.</param>
         /// <param name="from">시작 위치입니다.</param>
@@ -3281,14 +3325,212 @@ namespace GGemCo2DSkill
                 elapsed += Time.deltaTime;
                 float t = Mathf.Clamp01(elapsed / duration);
                 float eased = Easing.Apply(t, easeType);
-                handle.Character.transform.position = Vector3.LerpUnclamped(from, to, eased);
+                handle.GroundPosition = Vector3.LerpUnclamped(from, to, eased);
+                ApplyDummyWorldPosition(handle);
                 yield return null;
             }
 
             if (handle.Character != null)
-                handle.Character.transform.position = to;
+            {
+                handle.GroundPosition = to;
+                ApplyDummyWorldPosition(handle);
+            }
 
             handle.ActiveMoveCoroutine = null;
+        }
+
+        /// <summary>
+        /// 더미 캐릭터의 지면 기준 좌표를 현재 Transform 값으로 동기화합니다.
+        /// </summary>
+        /// <param name="handle">동기화할 더미 핸들입니다.</param>
+        private static void SyncDummyGroundFromTransform(DummyActorHandle handle)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            Vector3 worldPosition = handle.Character.transform.position;
+            handle.GroundPosition = new Vector3(
+                worldPosition.x,
+                worldPosition.y - handle.AirHeight,
+                worldPosition.z);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터의 지면 좌표와 공중 높이로 최종 월드 좌표를 계산합니다.
+        /// </summary>
+        /// <param name="handle">대상 더미 핸들입니다.</param>
+        /// <returns>지면 좌표 + 공중 높이가 반영된 월드 좌표입니다.</returns>
+        private static Vector3 ComposeDummyWorldPosition(DummyActorHandle handle)
+        {
+            return new Vector3(
+                handle.GroundPosition.x,
+                handle.GroundPosition.y + Mathf.Max(0f, handle.AirHeight),
+                handle.GroundPosition.z);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터에 현재 지면 좌표/공중 높이를 반영하여 Transform을 갱신합니다.
+        /// </summary>
+        /// <param name="handle">위치를 갱신할 더미 핸들입니다.</param>
+        private static void ApplyDummyWorldPosition(DummyActorHandle handle)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            handle.Character.transform.position = ComposeDummyWorldPosition(handle);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터의 공중 높이 전환을 시작합니다.
+        /// </summary>
+        /// <param name="handle">대상 더미 핸들입니다.</param>
+        /// <param name="targetAirHeight">목표 공중 높이(+Y)입니다.</param>
+        /// <param name="durationSeconds">보간 시간(초)입니다.</param>
+        /// <param name="easing">보간 easing입니다.</param>
+        /// <param name="allowReplace">기존 공중 보간 덮어쓰기 허용 여부입니다.</param>
+        /// <param name="keepAirborneGravity">완료 후에도 공중 중력 오버라이드를 유지할지 여부입니다.</param>
+        private void StartDummyAirHeightTransition(
+            DummyActorHandle handle,
+            float targetAirHeight,
+            float durationSeconds,
+            Easing.EaseType easing,
+            bool allowReplace,
+            bool keepAirborneGravity)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            if (handle.ActiveAirHeightCoroutine != null)
+            {
+                if (!allowReplace)
+                    return;
+
+                StopCoroutine(handle.ActiveAirHeightCoroutine);
+                handle.ActiveAirHeightCoroutine = null;
+            }
+
+            SyncDummyGroundFromTransform(handle);
+
+            float startHeight = Mathf.Max(0f, handle.AirHeight);
+            float endHeight = Mathf.Max(0f, targetAirHeight);
+            float duration = Mathf.Max(0f, durationSeconds);
+
+            if (keepAirborneGravity || startHeight > 0f || endHeight > 0f)
+                EnsureDummyGravityOverride(handle);
+
+            if (Mathf.Abs(endHeight - startHeight) <= 1e-4f || duration <= 0f)
+            {
+                handle.AirHeight = endHeight;
+                ApplyDummyWorldPosition(handle);
+
+                if (!keepAirborneGravity && endHeight <= 0f)
+                    ReleaseDummyGravityOverride(handle);
+                return;
+            }
+
+            handle.ActiveAirHeightCoroutine = StartCoroutine(CoDummyAirHeightTransition(
+                handle,
+                startHeight,
+                endHeight,
+                duration,
+                easing,
+                keepAirborneGravity));
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 공중 높이 전환을 프레임 단위로 보간합니다.
+        /// </summary>
+        /// <param name="handle">대상 더미 핸들입니다.</param>
+        /// <param name="startAirHeight">시작 공중 높이입니다.</param>
+        /// <param name="targetAirHeight">목표 공중 높이입니다.</param>
+        /// <param name="durationSeconds">보간 시간(초)입니다.</param>
+        /// <param name="easing">보간 easing입니다.</param>
+        /// <param name="keepAirborneGravity">완료 후 중력 오버라이드 유지 여부입니다.</param>
+        /// <returns>코루틴 이터레이터입니다.</returns>
+        private IEnumerator CoDummyAirHeightTransition(
+            DummyActorHandle handle,
+            float startAirHeight,
+            float targetAirHeight,
+            float durationSeconds,
+            Easing.EaseType easing,
+            bool keepAirborneGravity)
+        {
+            if (handle == null || handle.Character == null)
+                yield break;
+
+            float duration = Mathf.Max(0.0001f, durationSeconds);
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                if (handle.Character == null)
+                {
+                    handle.ActiveAirHeightCoroutine = null;
+                    ReleaseDummyGravityOverride(handle);
+                    yield break;
+                }
+
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = Easing.Apply(t, easing);
+                handle.AirHeight = Mathf.Lerp(startAirHeight, targetAirHeight, eased);
+                ApplyDummyWorldPosition(handle);
+                yield return null;
+            }
+
+            if (handle.Character != null)
+            {
+                handle.AirHeight = targetAirHeight;
+                ApplyDummyWorldPosition(handle);
+            }
+
+            handle.ActiveAirHeightCoroutine = null;
+
+            if (!keepAirborneGravity && targetAirHeight <= 0f)
+                ReleaseDummyGravityOverride(handle);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터의 중력을 비활성화하는 오버라이드를 획득합니다.
+        /// </summary>
+        /// <param name="handle">중력 오버라이드를 적용할 더미 핸들입니다.</param>
+        private static void EnsureDummyGravityOverride(DummyActorHandle handle)
+        {
+            if (handle == null || handle.Character == null || handle.GravityOverrideHandle.IsValid)
+                return;
+
+            var physicsOverride = handle.Character.GetComponent<CharacterPhysicsOverrideController>();
+            if (physicsOverride == null)
+                physicsOverride = handle.Character.gameObject.AddComponent<CharacterPhysicsOverrideController>();
+
+            if (physicsOverride == null)
+                return;
+
+            handle.PhysicsOverrideController = physicsOverride;
+            handle.GravityOverrideHandle = physicsOverride.AcquireGravityOverride(
+                ownerKey: handle,
+                lifecycleOwner: handle.Character,
+                channel: CharacterPhysicsOverrideChannel.Skill,
+                priority: CharacterPhysicsOverridePriority.Skill,
+                gravityScale: 0f,
+                reason: "SkillDummyAirborne");
+        }
+
+        /// <summary>
+        /// 더미 캐릭터에 적용한 중력 오버라이드를 해제합니다.
+        /// </summary>
+        /// <param name="handle">중력 오버라이드를 해제할 더미 핸들입니다.</param>
+        private static void ReleaseDummyGravityOverride(DummyActorHandle handle)
+        {
+            if (handle == null)
+                return;
+
+            if (handle.PhysicsOverrideController != null && handle.GravityOverrideHandle.IsValid)
+                handle.PhysicsOverrideController.ReleaseGravityOverride(ref handle.GravityOverrideHandle);
+            else
+                handle.GravityOverrideHandle = default;
+
+            handle.PhysicsOverrideController = null;
         }
 
         /// <summary>
@@ -3315,8 +3557,15 @@ namespace GGemCo2DSkill
                 handle.ActiveMoveCoroutine = null;
             }
 
+            if (handle.ActiveAirHeightCoroutine != null)
+            {
+                StopCoroutine(handle.ActiveAirHeightCoroutine);
+                handle.ActiveAirHeightCoroutine = null;
+            }
+
             if (handle.Character == null)
             {
+                ReleaseDummyGravityOverride(handle);
                 if (removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
                     _dummyActors.Remove(handle.ActorKey);
                 return;
@@ -3324,6 +3573,7 @@ namespace GGemCo2DSkill
 
             var motion = ResolveMotionController(handle.Character.gameObject);
             motion?.CancelMotion(MotionChannel.Skill, reason: 9203);
+            ReleaseDummyGravityOverride(handle);
 
             float duration = Mathf.Max(0f, fadeOutDurationSeconds);
             if (fadeOutEnabled && duration > 0f)
@@ -3515,25 +3765,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 더미 캐릭터가 목표 위치를 바라보도록 방향을 보정합니다.
-        /// </summary>
-        /// <param name="character">방향을 보정할 캐릭터입니다.</param>
-        /// <param name="targetPosition">바라볼 목표 위치입니다.</param>
-        private static void ApplyDummyFacingToTarget(CharacterBase character, Vector3 targetPosition)
-        {
-            if (character == null)
-                return;
-
-            Vector2 direction = new Vector2(
-                targetPosition.x - character.transform.position.x,
-                targetPosition.y - character.transform.position.y);
-            if (direction.sqrMagnitude <= 1e-6f)
-                return;
-
-            character.SetFacing(direction);
-        }
-
-        /// <summary>
         /// 더미 캐릭터 제어/브레인 잠금을 적용합니다.
         /// </summary>
         /// <param name="handle">잠금을 적용할 더미 핸들입니다.</param>
@@ -3595,12 +3826,19 @@ namespace GGemCo2DSkill
                 handle.ActiveFadeCoroutine = null;
             }
 
+            if (handle.ActiveAirHeightCoroutine != null)
+            {
+                StopCoroutine(handle.ActiveAirHeightCoroutine);
+                handle.ActiveAirHeightCoroutine = null;
+            }
+
             var character = handle.Character;
             if (character != null)
             {
                 var motion = ResolveMotionController(character.gameObject);
                 motion?.CancelMotion(MotionChannel.Skill, reason: 9201);
 
+                ReleaseDummyGravityOverride(handle);
                 ReleaseDummyRuntimeLocks(handle);
 
                 if (destroyGameObject)
@@ -3618,6 +3856,7 @@ namespace GGemCo2DSkill
             }
             else
             {
+                ReleaseDummyGravityOverride(handle);
                 ReleaseDummyRuntimeLocks(handle);
             }
 
@@ -3625,6 +3864,7 @@ namespace GGemCo2DSkill
                 _dummyActors.Remove(handle.ActorKey);
 
             handle.Character = null;
+            handle.AirHeight = 0f;
         }
 
         /// <summary>
@@ -3639,7 +3879,11 @@ namespace GGemCo2DSkill
             foreach (var pair in _dummyActors)
             {
                 if (pair.Value == null || pair.Value.Character == null)
+                {
+                    if (pair.Value != null)
+                        ReleaseDummyGravityOverride(pair.Value);
                     keysToRemove.Add(pair.Key);
+                }
             }
 
             for (int i = 0; i < keysToRemove.Count; i++)
