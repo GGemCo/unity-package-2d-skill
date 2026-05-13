@@ -508,6 +508,8 @@ namespace GGemCo2DSkillEditor
                         def.raycastAngleOverrideDeg = laser.RaycastAngleOverrideDeg;
                         def.useVfxAngleSyncModeOverride = laser.UseVfxAngleSyncModeOverride;
                         def.vfxAngleSyncModeOverride = laser.VfxAngleSyncModeOverride;
+                        def.startAnchor = laser.StartAnchor;
+                        def.namedAnchorKey = laser.NamedAnchorKey;
                         def.startPositionOverrideMode = laser.StartPositionOverrideMode;
                         def.startPositionOverride = laser.StartPositionOverride;
                         def.startPointUpdateMode = laser.StartPointUpdateMode;

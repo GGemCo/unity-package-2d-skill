@@ -1,6 +1,7 @@
 using System;
 using Config;
 using GGemCo2DCore;
+using GGemCo2DSkill;
 using UnityEngine;
 
 namespace GGemCo2DSkillEditor
@@ -67,13 +68,19 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private LaserConstants.VfxAngleSyncMode vfxAngleSyncModeOverride = LaserConstants.VfxAngleSyncMode.FollowRaycast;
 
         [Header("Start Position Override")]
+        [Tooltip("레이저 시작점 오버라이드 값을 어떤 기준점에서 해석할지 정의합니다.")]
+        [SerializeField] private LaserStartAnchor startAnchor = LaserStartAnchor.Caster;
+
+        [Tooltip("startAnchor가 NamedPositionAnchor일 때 참조할 위치 앵커 키입니다.")]
+        [SerializeField] private string namedAnchorKey;
+
         [Tooltip("레이저 시작점 오버라이드 해석 방식입니다.")]
         [SerializeField] private LaserConstants.StartPositionOverrideMode startPositionOverrideMode = LaserConstants.StartPositionOverrideMode.UseLaserTable;
 
-        [Tooltip("레이저 시작점 오버라이드 값입니다. 모드에 따라 월드 좌표 또는 오프셋으로 해석됩니다.")]
+        [Tooltip("레이저 시작점 오버라이드 값입니다. 기준점과 모드에 따라 월드 좌표 또는 오프셋으로 해석됩니다.")]
         [SerializeField] private Vector2 startPositionOverride = Vector2.zero;
 
-        [Tooltip("레이저 시작점을 발사 후에도 계속 갱신할지, 발사 시점에 고정할지 정의합니다.")]
+        [Tooltip("레이저 시작점을 발사 후에도 계속 갱신할지, 발사 시점에 고정할지 정의합니다. startAnchor가 Caster가 아니면 현재는 발사 시점 좌표로 고정됩니다.")]
         [SerializeField] private LaserConstants.StartPointUpdateMode startPointUpdateMode = LaserConstants.StartPointUpdateMode.FollowOwner;
 
         [Header("Visual Overrides (optional)")]
@@ -187,6 +194,16 @@ namespace GGemCo2DSkillEditor
         /// VFX 각도 동기화 모드 오버라이드 값입니다.
         /// </summary>
         public LaserConstants.VfxAngleSyncMode VfxAngleSyncModeOverride => vfxAngleSyncModeOverride;
+
+        /// <summary>
+        /// 레이저 시작점 오버라이드 기준점입니다.
+        /// </summary>
+        public LaserStartAnchor StartAnchor => startAnchor;
+
+        /// <summary>
+        /// 이름 있는 위치 앵커 키입니다.
+        /// </summary>
+        public string NamedAnchorKey => namedAnchorKey;
 
         /// <summary>
         /// 레이저 시작점 오버라이드 해석 방식입니다.

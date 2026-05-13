@@ -368,7 +368,7 @@ namespace GGemCo2DSkill
                     HandleProjectile(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
                 case ConfigCommonSkill.SkillEventType.Laser:
-                    HandleLaser(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+                    HandleLaser(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
                 case ConfigCommonSkill.SkillEventType.PositionHold:
                     float positionHoldDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
@@ -1600,6 +1600,7 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 레이저 이벤트 정의를 바탕으로 발사 대상과 좌표를 계산하고 분리된 레이저 시스템을 호출합니다.
         /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">레이저 이벤트 페이로드 오브젝트입니다.</param>
@@ -1607,6 +1608,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         private void HandleLaser(
+            SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -1687,6 +1689,20 @@ namespace GGemCo2DSkill
                     break;
             }
 
+            LaserConstants.StartPositionOverrideMode resolvedStartPositionOverrideMode = def.startPositionOverrideMode;
+            Vector2 resolvedStartPositionOverride = def.startPositionOverride;
+            LaserConstants.StartPointUpdateMode resolvedStartPointUpdateMode = def.startPointUpdateMode;
+
+            if (def.startAnchor != LaserStartAnchor.Caster)
+            {
+                if (!TryResolveLaserStartAnchorPosition(run, def, casterPos, targetPos, groundPoint, out var startAnchorPosition))
+                    return;
+
+                resolvedStartPositionOverrideMode = LaserConstants.StartPositionOverrideMode.WorldPosition;
+                resolvedStartPositionOverride = ResolveLaserStartPointByAnchor(laserInfo, def, startAnchorPosition);
+                resolvedStartPointUpdateMode = LaserConstants.StartPointUpdateMode.SnapshotAtLaunch;
+            }
+
             int attackId = ++_attackSequence;
             _chainUnlockByAttackId[attackId] = def.allowSkillChainOnConfirmedDamage;
 
@@ -1723,9 +1739,9 @@ namespace GGemCo2DSkill
                 raycastAngleOverrideDeg: def.raycastAngleOverrideDeg,
                 useVfxAngleSyncModeOverride: def.useVfxAngleSyncModeOverride,
                 vfxAngleSyncModeOverride: def.vfxAngleSyncModeOverride,
-                startPositionOverrideMode: def.startPositionOverrideMode,
-                startPositionOverride: def.startPositionOverride,
-                startPointUpdateMode: def.startPointUpdateMode);
+                startPositionOverrideMode: resolvedStartPositionOverrideMode,
+                startPositionOverride: resolvedStartPositionOverride,
+                startPointUpdateMode: resolvedStartPointUpdateMode);
 
 
             RegisterLaserDebugGizmo(
@@ -1862,6 +1878,86 @@ namespace GGemCo2DSkill
             Vector2 raycastDirection)
         {
             return LaserAimPolicyUtility.ResolvePreviewVisualDirection(laserInfo, meta, raycastDirection);
+        }
+
+
+        /// <summary>
+        /// 레이저 시작점 기준 앵커를 해석하여 월드 위치를 계산합니다.
+        /// startAnchor가 Caster가 아니면 Skill 계층에서 먼저 월드 위치를 확정한 뒤 Core 레이저에 전달합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="casterPos">해석된 캐스터 위치입니다.</param>
+        /// <param name="targetPos">해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">해석된 지면 기준점입니다.</param>
+        /// <param name="anchorPosition">계산된 기준 앵커의 월드 위치입니다.</param>
+        /// <returns>기준 앵커 해석에 성공하면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveLaserStartAnchorPosition(
+            SkillRun run,
+            LaserEventDefinition def,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector3 groundPoint,
+            out Vector3 anchorPosition)
+        {
+            anchorPosition = casterPos;
+            if (def == null)
+                return false;
+
+            switch (def.startAnchor)
+            {
+                case LaserStartAnchor.Target:
+                    anchorPosition = targetPos;
+                    return true;
+                case LaserStartAnchor.Ground:
+                    anchorPosition = groundPoint;
+                    return true;
+                case LaserStartAnchor.NamedPositionAnchor:
+                    if (TryResolveNamedAnchorPosition(run, def.namedAnchorKey, out anchorPosition))
+                        return true;
+
+                    Debug.LogWarning($"[SkillExecutor] Laser named start anchor not found. key={def.namedAnchorKey}");
+                    return false;
+                case LaserStartAnchor.Caster:
+                default:
+                    anchorPosition = casterPos;
+                    return true;
+            }
+        }
+
+        /// <summary>
+        /// 기준 앵커 위치와 레이저 시작점 오버라이드 정책을 조합하여 최종 월드 시작점을 계산합니다.
+        /// startAnchor가 Caster가 아닌 경우 Core 레이저에는 이 계산 결과를 WorldPosition으로 전달합니다.
+        /// </summary>
+        /// <param name="laserInfo">레이저 테이블 정보입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="anchorPosition">해석된 기준 앵커의 월드 위치입니다.</param>
+        /// <returns>기준 앵커와 오버라이드 정책이 반영된 최종 월드 시작점입니다.</returns>
+        private static Vector2 ResolveLaserStartPointByAnchor(
+            StruckTableLaser laserInfo,
+            LaserEventDefinition def,
+            Vector3 anchorPosition)
+        {
+            Vector2 anchorPosition2D = anchorPosition;
+            Vector2 tableOffset = laserInfo != null ? laserInfo.StartPosition : Vector2.zero;
+            if (def == null)
+                return anchorPosition2D + tableOffset;
+
+            switch (def.startPositionOverrideMode)
+            {
+                case LaserConstants.StartPositionOverrideMode.ReplaceTableOffset:
+                    return anchorPosition2D + def.startPositionOverride;
+
+                case LaserConstants.StartPositionOverrideMode.AddToTableOffset:
+                    return anchorPosition2D + tableOffset + def.startPositionOverride;
+
+                case LaserConstants.StartPositionOverrideMode.WorldPosition:
+                    return def.startPositionOverride;
+
+                case LaserConstants.StartPositionOverrideMode.UseLaserTable:
+                default:
+                    return anchorPosition2D + tableOffset;
+            }
         }
 
         /// <summary>
