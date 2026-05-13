@@ -1624,6 +1624,12 @@ namespace GGemCo2DSkill
                 useMaxDistanceOverride: def.maxDistance > 0f,
                 maxDistanceOverride: Mathf.Max(0f, def.maxDistance),
                 updateAimContinuously: def.updateAimContinuously,
+                useRaycastDirectionModeOverride: def.useRaycastDirectionModeOverride,
+                raycastDirectionModeOverride: def.raycastDirectionModeOverride,
+                useRaycastAngleOverride: def.useRaycastAngleOverride,
+                raycastAngleOverrideDeg: def.raycastAngleOverrideDeg,
+                useVfxAngleSyncModeOverride: def.useVfxAngleSyncModeOverride,
+                vfxAngleSyncModeOverride: def.vfxAngleSyncModeOverride,
                 startPositionOverrideMode: def.startPositionOverrideMode,
                 startPositionOverride: def.startPositionOverride,
                 startPointUpdateMode: def.startPointUpdateMode);

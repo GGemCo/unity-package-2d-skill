@@ -47,6 +47,25 @@ namespace GGemCo2DSkillEditor
         [Tooltip("레이저 유지 시간 동안 타겟/방향을 계속 갱신할지 여부입니다.")]
         [SerializeField] private bool updateAimContinuously = false;
 
+        [Header("Angle Overrides")]
+        [Tooltip("레이캐스트 방향 모드 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 RaycastDirectionMode 대신 이 값을 사용합니다.")]
+        [SerializeField] private bool useRaycastDirectionModeOverride = false;
+
+        [Tooltip("레이캐스트 방향 모드 오버라이드 값입니다.")]
+        [SerializeField] private LaserConstants.RaycastDirectionMode raycastDirectionModeOverride = LaserConstants.RaycastDirectionMode.TowardTarget;
+
+        [Tooltip("레이캐스트 각도 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 RaycastAngleDeg 대신 이 값을 사용합니다.")]
+        [SerializeField] private bool useRaycastAngleOverride = false;
+
+        [Tooltip("레이캐스트 각도 오버라이드 값(도)입니다. RaycastDirectionMode가 ByAngle일 때 사용됩니다.")]
+        [SerializeField] private float raycastAngleOverrideDeg = 0f;
+
+        [Tooltip("VFX 각도 동기화 모드 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 VfxAngleSyncMode 대신 이 값을 사용합니다.")]
+        [SerializeField] private bool useVfxAngleSyncModeOverride = false;
+
+        [Tooltip("VFX 각도 동기화 모드 오버라이드 값입니다.")]
+        [SerializeField] private LaserConstants.VfxAngleSyncMode vfxAngleSyncModeOverride = LaserConstants.VfxAngleSyncMode.FollowRaycast;
+
         [Header("Start Position Override")]
         [Tooltip("레이저 시작점 오버라이드 해석 방식입니다.")]
         [SerializeField] private LaserConstants.StartPositionOverrideMode startPositionOverrideMode = LaserConstants.StartPositionOverrideMode.UseLaserTable;
@@ -138,6 +157,36 @@ namespace GGemCo2DSkillEditor
         /// 지속 시간 동안 에임을 계속 갱신할지 여부입니다.
         /// </summary>
         public bool UpdateAimContinuously => updateAimContinuously;
+
+        /// <summary>
+        /// 레이캐스트 방향 모드 오버라이드 사용 여부입니다.
+        /// </summary>
+        public bool UseRaycastDirectionModeOverride => useRaycastDirectionModeOverride;
+
+        /// <summary>
+        /// 레이캐스트 방향 모드 오버라이드 값입니다.
+        /// </summary>
+        public LaserConstants.RaycastDirectionMode RaycastDirectionModeOverride => raycastDirectionModeOverride;
+
+        /// <summary>
+        /// 레이캐스트 각도 오버라이드 사용 여부입니다.
+        /// </summary>
+        public bool UseRaycastAngleOverride => useRaycastAngleOverride;
+
+        /// <summary>
+        /// 레이캐스트 각도 오버라이드 값입니다.
+        /// </summary>
+        public float RaycastAngleOverrideDeg => raycastAngleOverrideDeg;
+
+        /// <summary>
+        /// VFX 각도 동기화 모드 오버라이드 사용 여부입니다.
+        /// </summary>
+        public bool UseVfxAngleSyncModeOverride => useVfxAngleSyncModeOverride;
+
+        /// <summary>
+        /// VFX 각도 동기화 모드 오버라이드 값입니다.
+        /// </summary>
+        public LaserConstants.VfxAngleSyncMode VfxAngleSyncModeOverride => vfxAngleSyncModeOverride;
 
         /// <summary>
         /// 레이저 시작점 오버라이드 해석 방식입니다.
