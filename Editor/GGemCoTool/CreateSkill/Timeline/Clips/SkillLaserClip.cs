@@ -47,6 +47,16 @@ namespace GGemCo2DSkillEditor
         [Tooltip("레이저 유지 시간 동안 타겟/방향을 계속 갱신할지 여부입니다.")]
         [SerializeField] private bool updateAimContinuously = false;
 
+        [Header("Start Position Override")]
+        [Tooltip("레이저 시작점 오버라이드 해석 방식입니다.")]
+        [SerializeField] private LaserConstants.StartPositionOverrideMode startPositionOverrideMode = LaserConstants.StartPositionOverrideMode.UseLaserTable;
+
+        [Tooltip("레이저 시작점 오버라이드 값입니다. 모드에 따라 월드 좌표 또는 오프셋으로 해석됩니다.")]
+        [SerializeField] private Vector2 startPositionOverride = Vector2.zero;
+
+        [Tooltip("레이저 시작점을 발사 후에도 계속 갱신할지, 발사 시점에 고정할지 정의합니다.")]
+        [SerializeField] private LaserConstants.StartPointUpdateMode startPointUpdateMode = LaserConstants.StartPointUpdateMode.FollowOwner;
+
         [Header("Visual Overrides (optional)")]
         [Tooltip("레이저 비주얼 스케일 배율입니다.")]
         [SerializeField] private float scaleMultiplier = 1f;
@@ -128,6 +138,21 @@ namespace GGemCo2DSkillEditor
         /// 지속 시간 동안 에임을 계속 갱신할지 여부입니다.
         /// </summary>
         public bool UpdateAimContinuously => updateAimContinuously;
+
+        /// <summary>
+        /// 레이저 시작점 오버라이드 해석 방식입니다.
+        /// </summary>
+        public LaserConstants.StartPositionOverrideMode StartPositionOverrideMode => startPositionOverrideMode;
+
+        /// <summary>
+        /// 레이저 시작점 오버라이드 값입니다.
+        /// </summary>
+        public Vector2 StartPositionOverride => startPositionOverride;
+
+        /// <summary>
+        /// 레이저 시작점 갱신 방식입니다.
+        /// </summary>
+        public LaserConstants.StartPointUpdateMode StartPointUpdateMode => startPointUpdateMode;
 
         /// <summary>
         /// 비주얼 스케일 배율입니다.

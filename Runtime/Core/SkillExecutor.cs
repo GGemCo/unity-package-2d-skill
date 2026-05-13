@@ -1623,7 +1623,10 @@ namespace GGemCo2DSkill
                 damageTickOnStartOverride: def.damageTickOnStart,
                 useMaxDistanceOverride: def.maxDistance > 0f,
                 maxDistanceOverride: Mathf.Max(0f, def.maxDistance),
-                updateAimContinuously: def.updateAimContinuously);
+                updateAimContinuously: def.updateAimContinuously,
+                startPositionOverrideMode: def.startPositionOverrideMode,
+                startPositionOverride: def.startPositionOverride,
+                startPointUpdateMode: def.startPointUpdateMode);
 
 
             RegisterLaserDebugGizmo(
@@ -1633,7 +1636,8 @@ namespace GGemCo2DSkill
                 posOverride,
                 ctx.forward,
                 laserInfo,
-                def);
+                def,
+                meta);
 
             casterChar.LaunchLaser(meta);
         }
@@ -1648,6 +1652,7 @@ namespace GGemCo2DSkill
         /// <param name="forward">캐스터 전방 방향입니다.</param>
         /// <param name="laserInfo">레이저 테이블 정보입니다.</param>
         /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="meta">실제 런타임 발사에 사용할 레이저 메타데이터입니다.</param>
         private void RegisterLaserDebugGizmo(
             CharacterBase casterChar,
             CharacterBase targetChar,
@@ -1655,12 +1660,16 @@ namespace GGemCo2DSkill
             Vector2 posOverride,
             Vector3 forward,
             StruckTableLaser laserInfo,
-            LaserEventDefinition def)
+            LaserEventDefinition def,
+            MetadataLaser meta)
         {
             if (casterChar == null || SkillTestRuntimeHub.Instance == null || laserInfo == null)
                 return;
 
-            Vector3 start = casterChar.transform.position + (Vector3)laserInfo.StartPosition;
+            Vector3 start = LaserStartPointResolver.ResolveCurrentStartPoint(
+                laserInfo,
+                meta,
+                casterChar.transform.position);
             Vector2 direction = ResolveLaserPreviewDirection(casterChar, targetChar, usePosOverride, posOverride, forward, start);
             float maxDistance = def.maxDistance > 0f ? def.maxDistance : Mathf.Max(0f, laserInfo.MaxDistance);
             if (maxDistance <= 0f)

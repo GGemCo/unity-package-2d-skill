@@ -41,6 +41,16 @@ namespace GGemCo2DSkill
         [Tooltip("레이저 유지 시간 동안 타겟/조준 방향을 계속 갱신할지 여부입니다.")]
         public bool updateAimContinuously = false;
 
+        [Header("Start Position Override")]
+        [Tooltip("레이저 시작점 오버라이드 해석 방식입니다.")]
+        public LaserConstants.StartPositionOverrideMode startPositionOverrideMode = LaserConstants.StartPositionOverrideMode.UseLaserTable;
+
+        [Tooltip("레이저 시작점 오버라이드 값입니다. 모드에 따라 월드 좌표 또는 오프셋으로 해석됩니다.")]
+        public Vector2 startPositionOverride = Vector2.zero;
+
+        [Tooltip("레이저 시작점을 발사 후에도 계속 갱신할지, 발사 시점에 고정할지 정의합니다.")]
+        public LaserConstants.StartPointUpdateMode startPointUpdateMode = LaserConstants.StartPointUpdateMode.FollowOwner;
+
         [Header("Visual Overrides (optional)")]
         public float scaleMultiplier = 1f;
         public ProjectileConstants.ProjectileVisualType visualType = ProjectileConstants.ProjectileVisualType.Default;
