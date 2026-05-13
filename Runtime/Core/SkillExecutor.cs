@@ -2927,9 +2927,11 @@ namespace GGemCo2DSkill
             int mapUid = sceneGame.mapManager != null ? sceneGame.mapManager.GetCurrentMapUid() : 0;
             var regenData = new CharacterRegenData(def.characterUid, spawnPos, flip: false, mapUid, defaultVisible: true);
 
-            GameObject dummyObject = def.sourceType == DummyCharacterSourceType.Npc
-                ? sceneGame.CharacterManager.CreateNpc(def.characterUid, regenData)
-                : sceneGame.CharacterManager.CreateMonster(def.characterUid, regenData);
+            CharacterConstants.Type sourceType = ResolveDummySourceCharacterType(def.sourceType);
+            GameObject dummyObject = sceneGame.CharacterManager.CreateDummyCharacter(
+                sourceType,
+                def.characterUid,
+                regenData);
 
             if (dummyObject == null)
             {
@@ -2989,6 +2991,18 @@ namespace GGemCo2DSkill
             {
                 SetDummyVisualAlpha(character, 1f);
             }
+        }
+
+        /// <summary>
+        /// 스킬 더미 소스 타입을 코어 캐릭터 타입으로 변환합니다.
+        /// </summary>
+        /// <param name="sourceType">스킬 이벤트에서 지정한 더미 소스 타입입니다.</param>
+        /// <returns>CharacterManager에서 사용하는 코어 캐릭터 타입입니다.</returns>
+        private static CharacterConstants.Type ResolveDummySourceCharacterType(DummyCharacterSourceType sourceType)
+        {
+            return sourceType == DummyCharacterSourceType.Npc
+                ? CharacterConstants.Type.Npc
+                : CharacterConstants.Type.Monster;
         }
 
         /// <summary>
@@ -3747,8 +3761,6 @@ namespace GGemCo2DSkill
                     mb.enabled = false;
             }
 
-            StripDummyUnneededScripts(character);
-
             var rb = character.characterRigidbody2D != null
                 ? character.characterRigidbody2D
                 : character.GetComponentInParent<Rigidbody2D>();
@@ -3771,76 +3783,16 @@ namespace GGemCo2DSkill
         /// 애니메이션/이동에 필요한 컴포넌트와 필수 의존성만 유지합니다.
         /// </summary>
         /// <param name="character">정리 대상 더미 캐릭터입니다.</param>
-        private static void StripDummyUnneededScripts(CharacterBase character)
-        {
-            if (character == null)
-                return;
-
-            var behaviours = character.GetComponentsInChildren<MonoBehaviour>(includeInactive: true);
-            for (int i = 0; i < behaviours.Length; i++)
-            {
-                var behaviour = behaviours[i];
-                if (behaviour == null)
-                    continue;
-
-                if (IsRequiredDummyBehaviour(behaviour))
-                    continue;
-
-                if (!IsStripTargetBehaviour(behaviour))
-                    continue;
-
-                behaviour.enabled = false;
-                UnityEngine.Object.Destroy(behaviour);
-            }
-        }
-
         /// <summary>
         /// 더미 캐릭터 런타임에서 반드시 유지해야 하는 스크립트인지 판별합니다.
         /// </summary>
         /// <param name="behaviour">판별 대상 스크립트입니다.</param>
         /// <returns>유지 대상이면 <see langword="true"/>를 반환합니다.</returns>
-        private static bool IsRequiredDummyBehaviour(MonoBehaviour behaviour)
-        {
-            return behaviour is CharacterBase ||
-                   behaviour is SkillDummyCharacterMarker ||
-                   behaviour is ICharacterAnimationController ||
-                   behaviour is ICharacterMotionController ||
-                   behaviour is CharacterHitStopController ||
-                   behaviour is CharacterCrowdControlController ||
-                   behaviour is CharacterPhysicsOverrideController;
-        }
-
         /// <summary>
         /// 더미 캐릭터 런타임에서 제거 대상 스크립트인지 판별합니다.
         /// </summary>
         /// <param name="behaviour">판별 대상 스크립트입니다.</param>
         /// <returns>제거 대상이면 <see langword="true"/>를 반환합니다.</returns>
-        private static bool IsStripTargetBehaviour(MonoBehaviour behaviour)
-        {
-            if (behaviour == null)
-                return false;
-
-            Type type = behaviour.GetType();
-            string typeName = type.Name;
-            string typeNamespace = type.Namespace ?? string.Empty;
-
-            if (behaviour is CharacterBaseController ||
-                behaviour is MonsterBrainTicker ||
-                behaviour is IMonsterBrain ||
-                string.Equals(typeName, "MonsterBtRunner", StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            if (typeNamespace.StartsWith("GGemCo2DCore", StringComparison.Ordinal) ||
-                typeNamespace.StartsWith("GGemCo2DAffect", StringComparison.Ordinal))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
         /// <summary>
         /// 더미 캐릭터 제어/브레인 잠금을 적용합니다.
         /// </summary>
