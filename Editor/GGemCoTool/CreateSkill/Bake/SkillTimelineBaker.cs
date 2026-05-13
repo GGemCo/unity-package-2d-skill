@@ -596,6 +596,23 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillPlayDummyCharacterAnimationClip playDummyAnimation:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<PlayDummyCharacterAnimationEventDefinition>();
+                        def.actorKey = playDummyAnimation.ActorKey;
+                        def.animationName = playDummyAnimation.AnimationName;
+                        def.loop = playDummyAnimation.Loop;
+                        def.timeScale = Mathf.Max(0f, playDummyAnimation.TimeScale);
+                        def.durationPolicy = playDummyAnimation.DurationPolicy;
+                        def.endPolicy = playDummyAnimation.EndPolicy;
+                        def.endAnimationName = playDummyAnimation.EndAnimationName;
+                        def.endAnimationLoop = playDummyAnimation.EndAnimationLoop;
+                        def.endAnimationTimeScale = Mathf.Max(0f, playDummyAnimation.EndAnimationTimeScale);
+                        def.missingActorPolicy = playDummyAnimation.MissingActorPolicy;
+                        return def;
+                    };
+
                 default:
                     return null;
             }

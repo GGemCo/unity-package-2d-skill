@@ -92,6 +92,11 @@ namespace Config
             /// 스킬 실행 중 생성된 더미 캐릭터의 공중 상태(높이/중력)를 제어합니다.
             /// </summary>
             SetDummyAirborneState = 15,
+
+            /// <summary>
+            /// 스킬 실행 중 생성된 더미 캐릭터에 특정 애니메이션을 재생합니다.
+            /// </summary>
+            PlayDummyCharacterAnimation = 16,
         }
 
         /// <summary>

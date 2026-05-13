@@ -85,4 +85,41 @@ namespace GGemCo2DSkill
         /// </summary>
         Warn = 1,
     }
+
+    /// <summary>
+    /// 더미 캐릭터 애니메이션 이벤트의 지속 시간 해석 방식을 정의합니다.
+    /// </summary>
+    public enum DummyAnimationDurationPolicy
+    {
+        /// <summary>
+        /// 애니메이션을 재생만 하고 종료 타이밍은 별도로 제어하지 않습니다.
+        /// </summary>
+        FireAndForget = 0,
+
+        /// <summary>
+        /// 타임라인 클립 구간(Start~End)을 애니메이션 유지 시간으로 사용합니다.
+        /// </summary>
+        UseClipWindow = 1,
+    }
+
+    /// <summary>
+    /// 더미 캐릭터 애니메이션 유지 시간이 끝났을 때 적용할 후속 정책입니다.
+    /// </summary>
+    public enum DummyAnimationEndPolicy
+    {
+        /// <summary>
+        /// 후속 애니메이션 전환 없이 현재 상태를 유지합니다.
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// 기본 Wait 애니메이션으로 복귀합니다.
+        /// </summary>
+        PlayWait = 1,
+
+        /// <summary>
+        /// 지정한 커스텀 애니메이션으로 전환합니다.
+        /// </summary>
+        PlayCustom = 2,
+    }
 }

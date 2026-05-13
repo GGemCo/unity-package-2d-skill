@@ -167,6 +167,17 @@ namespace GGemCo2DSkill
             public Coroutine ActiveAirHeightCoroutine;
 
             /// <summary>
+            /// 진행 중인 애니메이션 후속 전환 코루틴입니다.
+            /// </summary>
+            public Coroutine ActiveAnimationCoroutine;
+
+            /// <summary>
+            /// 애니메이션 후속 전환 요청 버전입니다.
+            /// 새 애니메이션 요청이 들어오면 기존 대기 코루틴을 무효화하는 데 사용합니다.
+            /// </summary>
+            public int AnimationRequestVersion;
+
+            /// <summary>
             /// 지면 기준 이동 좌표입니다. 실제 월드 Y는 이 값에 AirHeight를 더해 계산합니다.
             /// </summary>
             public Vector3 GroundPosition;
@@ -392,6 +403,10 @@ namespace GGemCo2DSkill
                     break;
                 case ConfigCommonSkill.SkillEventType.SetDummyAirborneState:
                     HandleSetDummyAirborneState(payload);
+                    break;
+                case ConfigCommonSkill.SkillEventType.PlayDummyCharacterAnimation:
+                    float dummyAnimationDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
+                    HandlePlayDummyCharacterAnimation(payload, dummyAnimationDuration);
                     break;
                 default:
                     break;
@@ -3047,18 +3062,6 @@ namespace GGemCo2DSkill
 
             ConfigureDummyCharacterRuntime(character);
 
-            if (def.spawnFacing != CharacterConstants.FacingDirection8.None)
-                character.SetFacing(def.spawnFacing);
-
-            if (!string.IsNullOrWhiteSpace(def.initialAnimationName))
-                PlayDummyAnimation(character, def.initialAnimationName, def.initialAnimationLoop, def.initialAnimationTimeScale);
-
-            var marker = character.GetComponent<SkillDummyCharacterMarker>();
-            if (marker == null)
-                marker = character.gameObject.AddComponent<SkillDummyCharacterMarker>();
-
-            marker.Bind(actorKey, run != null ? run.SkillUid : (skill != null ? skill.Uid : 0));
-
             var handle = new DummyActorHandle
             {
                 ActorKey = actorKey,
@@ -3068,6 +3071,18 @@ namespace GGemCo2DSkill
                 GroundPosition = new Vector3(spawnPos.x, spawnPos.y, character.transform.position.z),
                 AirHeight = 0f,
             };
+
+            if (def.spawnFacing != CharacterConstants.FacingDirection8.None)
+                character.SetFacing(def.spawnFacing);
+
+            if (!string.IsNullOrWhiteSpace(def.initialAnimationName))
+                PlayDummyAnimation(handle, def.initialAnimationName, def.initialAnimationLoop, def.initialAnimationTimeScale);
+
+            var marker = character.GetComponent<SkillDummyCharacterMarker>();
+            if (marker == null)
+                marker = character.gameObject.AddComponent<SkillDummyCharacterMarker>();
+
+            marker.Bind(actorKey, run != null ? run.SkillUid : (skill != null ? skill.Uid : 0));
 
             ApplyDummyRuntimeLocks(handle);
             _dummyActors[actorKey] = handle;
@@ -3150,7 +3165,7 @@ namespace GGemCo2DSkill
 
             if (def.playMoveAnimation && !string.IsNullOrWhiteSpace(def.moveAnimationName))
             {
-                PlayDummyAnimation(handle.Character, def.moveAnimationName, def.moveAnimationLoop, def.moveAnimationTimeScale);
+                PlayDummyAnimation(handle, def.moveAnimationName, def.moveAnimationLoop, def.moveAnimationTimeScale);
             }
 
             StartDummyMove(handle, moveTarget, def);
@@ -3199,6 +3214,44 @@ namespace GGemCo2DSkill
                 easing: def.easing,
                 allowReplace: def.allowReplace,
                 keepAirborneGravity: def.airborneEnabled || targetAirHeight > 0f);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터에 지정한 애니메이션을 재생하고 필요 시 후속 애니메이션 전환을 예약합니다.
+        /// </summary>
+        /// <param name="payloadObj">애니메이션 이벤트 정의 페이로드입니다.</param>
+        /// <param name="eventDurationSeconds">타임라인 클립 구간에서 계산한 이벤트 지속 시간(초)입니다.</param>
+        private void HandlePlayDummyCharacterAnimation(UnityEngine.Object payloadObj, float eventDurationSeconds)
+        {
+            if (payloadObj is not PlayDummyCharacterAnimationEventDefinition def)
+                return;
+
+            if (!TryGetDummyActorHandle(def.actorKey, def.missingActorPolicy, out var handle))
+                return;
+
+            PlayDummyAnimation(handle, def.animationName, def.loop, def.timeScale);
+
+            if (def.durationPolicy != DummyAnimationDurationPolicy.UseClipWindow)
+                return;
+
+            if (def.endPolicy == DummyAnimationEndPolicy.None)
+                return;
+
+            float duration = Mathf.Max(0f, eventDurationSeconds);
+            if (duration <= 0f)
+            {
+                ApplyDummyAnimationEndPolicy(handle, def.endPolicy, def.endAnimationName, def.endAnimationLoop, def.endAnimationTimeScale);
+                return;
+            }
+
+            handle.ActiveAnimationCoroutine = StartCoroutine(DummyAnimationFollowupCoroutine(
+                handle,
+                ++handle.AnimationRequestVersion,
+                duration,
+                def.endPolicy,
+                def.endAnimationName,
+                def.endAnimationLoop,
+                def.endAnimationTimeScale));
         }
 
         /// <summary>
@@ -3673,6 +3726,8 @@ namespace GGemCo2DSkill
                 handle.ActiveAirHeightCoroutine = null;
             }
 
+            CancelDummyAnimationFollowup(handle);
+
             if (handle.Character == null)
             {
                 ReleaseDummyGravityOverride(handle);
@@ -3799,6 +3854,115 @@ namespace GGemCo2DSkill
                 Color color = sr.color;
                 color.a = clamped;
                 sr.color = color;
+            }
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 애니메이션 요청을 시작합니다.
+        /// 기존에 예약된 후속 애니메이션 전환이 있으면 취소한 뒤 새 애니메이션을 재생합니다.
+        /// </summary>
+        /// <param name="handle">애니메이션을 재생할 더미 핸들입니다.</param>
+        /// <param name="animationName">재생할 애니메이션 이름입니다.</param>
+        /// <param name="loop">루프 재생 여부입니다.</param>
+        /// <param name="timeScale">재생 속도 배율입니다.</param>
+        private void PlayDummyAnimation(DummyActorHandle handle, string animationName, bool loop, float timeScale)
+        {
+            if (handle == null)
+                return;
+
+            CancelDummyAnimationFollowup(handle);
+            PlayDummyAnimation(handle.Character, animationName, loop, timeScale);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터에 예약된 애니메이션 후속 전환을 취소합니다.
+        /// </summary>
+        /// <param name="handle">취소할 더미 핸들입니다.</param>
+        private void CancelDummyAnimationFollowup(DummyActorHandle handle)
+        {
+            if (handle == null)
+                return;
+
+            if (handle.ActiveAnimationCoroutine != null)
+            {
+                StopCoroutine(handle.ActiveAnimationCoroutine);
+                handle.ActiveAnimationCoroutine = null;
+            }
+
+            handle.AnimationRequestVersion++;
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 애니메이션 유지 시간이 끝난 뒤 후속 애니메이션 전환을 처리합니다.
+        /// </summary>
+        /// <param name="handle">후속 전환을 적용할 더미 핸들입니다.</param>
+        /// <param name="requestVersion">예약 당시의 애니메이션 요청 버전입니다.</param>
+        /// <param name="durationSeconds">대기 시간(초)입니다.</param>
+        /// <param name="endPolicy">대기 완료 후 적용할 종료 정책입니다.</param>
+        /// <param name="endAnimationName">커스텀 종료 애니메이션 이름입니다.</param>
+        /// <param name="endAnimationLoop">커스텀 종료 애니메이션 루프 여부입니다.</param>
+        /// <param name="endAnimationTimeScale">커스텀 종료 애니메이션 재생 속도 배율입니다.</param>
+        /// <returns>코루틴 이터레이터입니다.</returns>
+        private IEnumerator DummyAnimationFollowupCoroutine(
+            DummyActorHandle handle,
+            int requestVersion,
+            float durationSeconds,
+            DummyAnimationEndPolicy endPolicy,
+            string endAnimationName,
+            bool endAnimationLoop,
+            float endAnimationTimeScale)
+        {
+            float remaining = Mathf.Max(0f, durationSeconds);
+            while (remaining > 0f)
+            {
+                if (handle == null || handle.Character == null)
+                    yield break;
+
+                if (handle.AnimationRequestVersion != requestVersion)
+                    yield break;
+
+                remaining -= Time.deltaTime;
+                yield return null;
+            }
+
+            if (handle == null || handle.Character == null)
+                yield break;
+
+            if (handle.AnimationRequestVersion != requestVersion)
+                yield break;
+
+            handle.ActiveAnimationCoroutine = null;
+            ApplyDummyAnimationEndPolicy(handle, endPolicy, endAnimationName, endAnimationLoop, endAnimationTimeScale);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 애니메이션 종료 정책을 적용합니다.
+        /// </summary>
+        /// <param name="handle">종료 정책을 적용할 더미 핸들입니다.</param>
+        /// <param name="endPolicy">적용할 종료 정책입니다.</param>
+        /// <param name="endAnimationName">커스텀 종료 애니메이션 이름입니다.</param>
+        /// <param name="endAnimationLoop">커스텀 종료 애니메이션 루프 여부입니다.</param>
+        /// <param name="endAnimationTimeScale">커스텀 종료 애니메이션 재생 속도 배율입니다.</param>
+        private static void ApplyDummyAnimationEndPolicy(
+            DummyActorHandle handle,
+            DummyAnimationEndPolicy endPolicy,
+            string endAnimationName,
+            bool endAnimationLoop,
+            float endAnimationTimeScale)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            switch (endPolicy)
+            {
+                case DummyAnimationEndPolicy.PlayWait:
+                    PlayDummyAnimation(handle.Character, ICharacterAnimationController.WaitForwardAnim, true, 1f);
+                    break;
+                case DummyAnimationEndPolicy.PlayCustom:
+                    PlayDummyAnimation(handle.Character, endAnimationName, endAnimationLoop, endAnimationTimeScale);
+                    break;
+                default:
+                    break;
             }
         }
 
@@ -3956,6 +4120,8 @@ namespace GGemCo2DSkill
                 StopCoroutine(handle.ActiveAirHeightCoroutine);
                 handle.ActiveAirHeightCoroutine = null;
             }
+
+            CancelDummyAnimationFollowup(handle);
 
             var character = handle.Character;
             if (character != null)
