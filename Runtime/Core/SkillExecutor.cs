@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -1644,6 +1644,7 @@ namespace GGemCo2DSkill
 
         /// <summary>
         /// Skill 테스트 허브에 레이저 예상 범위 기즈모를 등록합니다.
+        /// 실제 LaserBeam과 동일한 조준 정책을 사용하여 Raycast 선분과 시각 회전 가이드를 함께 기록합니다.
         /// </summary>
         /// <param name="casterChar">캐스터 캐릭터입니다.</param>
         /// <param name="targetChar">고정 타겟 캐릭터입니다.</param>
@@ -1670,11 +1671,13 @@ namespace GGemCo2DSkill
                 laserInfo,
                 meta,
                 casterChar.transform.position);
-            Vector2 direction = ResolveLaserPreviewDirection(casterChar, targetChar, usePosOverride, posOverride, forward, start);
+            Vector2 direction = ResolveLaserPreviewDirection(casterChar, targetChar, usePosOverride, posOverride, forward, laserInfo, meta, start);
             float maxDistance = def.maxDistance > 0f ? def.maxDistance : Mathf.Max(0f, laserInfo.MaxDistance);
             if (maxDistance <= 0f)
                 return;
 
+            Vector2 visualDirection = ResolveLaserPreviewVisualDirection(laserInfo, meta, direction);
+            LaserConstants.VfxAngleSyncMode vfxAngleSyncMode = LaserAimPolicyUtility.ResolveVfxAngleSyncMode(laserInfo, meta);
             Vector3 end = start + (Vector3)(direction * maxDistance);
             bool hasBlockHit = TryResolveLaserPreviewEnd(casterChar, laserInfo, start, direction, maxDistance, out Vector3 blockedEnd, out Vector3 blockPoint);
             if (hasBlockHit)
@@ -1684,40 +1687,82 @@ namespace GGemCo2DSkill
                 ? def.durationSeconds
                 : SkillTestRuntimeHub.CurrentSettings != null ? SkillTestRuntimeHub.CurrentSettings.defaultLaserGizmoDuration : 0.2f;
 
-            SkillTestRuntimeHub.Instance.RegisterLaser(start, end, duration, casterChar.gameObject, hasBlockHit, blockPoint);
+            SkillTestRuntimeHub.Instance.RegisterLaser(
+                start,
+                end,
+                duration,
+                casterChar.gameObject,
+                hasBlockHit,
+                blockPoint,
+                direction,
+                visualDirection,
+                vfxAngleSyncMode);
         }
 
         /// <summary>
-        /// 레이저 프리뷰용 방향 벡터를 계산합니다.
+        /// 레이저 프리뷰용 Raycast 방향 벡터를 계산합니다.
+        /// 실제 LaserBeam과 동일하게 RaycastDirectionMode, RaycastAngleDeg, 타겟/좌표 오버라이드 우선순위를 따릅니다.
         /// </summary>
+        /// <param name="casterChar">캐스터 캐릭터입니다.</param>
+        /// <param name="targetChar">고정 타겟 캐릭터입니다.</param>
+        /// <param name="usePosOverride">좌표 오버라이드 사용 여부입니다.</param>
+        /// <param name="posOverride">좌표 오버라이드 값입니다.</param>
+        /// <param name="forward">캐스터 전방 방향입니다.</param>
+        /// <param name="laserInfo">레이저 테이블 정보입니다.</param>
+        /// <param name="meta">실제 런타임 발사에 사용할 레이저 메타데이터입니다.</param>
+        /// <param name="start">프리뷰 시작점입니다.</param>
+        /// <returns>정책이 반영된 정규화 Raycast 방향입니다.</returns>
         private static Vector2 ResolveLaserPreviewDirection(
             CharacterBase casterChar,
             CharacterBase targetChar,
             bool usePosOverride,
             Vector2 posOverride,
             Vector3 forward,
+            StruckTableLaser laserInfo,
+            MetadataLaser meta,
             Vector3 start)
         {
-            Vector2 direction;
-            if (targetChar != null)
+            Vector2 fallbackTargetPoint = default;
+            bool hasFallbackTargetPoint = false;
+
+            if (targetChar == null && usePosOverride)
             {
-                direction = ((Vector2)targetChar.transform.position - (Vector2)start);
+                fallbackTargetPoint = posOverride;
+                hasFallbackTargetPoint = true;
             }
-            else if (usePosOverride)
+            else if (targetChar == null && forward.sqrMagnitude > 1e-6f)
             {
-                direction = posOverride - (Vector2)start;
-            }
-            else
-            {
-                direction = new Vector2(forward.x, forward.y);
+                Vector2 normalizedForward = new Vector2(forward.x, forward.y).normalized;
+                fallbackTargetPoint = (Vector2)start + normalizedForward;
+                hasFallbackTargetPoint = true;
             }
 
-            if (direction.sqrMagnitude <= 1e-6f)
-            {
-                direction = casterChar != null && casterChar.IsFlipped() ? Vector2.left : Vector2.right;
-            }
+            return LaserAimPolicyUtility.ResolveRaycastDirection(
+                laserInfo,
+                meta,
+                casterChar,
+                targetChar,
+                hasFallbackTargetPoint,
+                fallbackTargetPoint,
+                start,
+                true);
+        }
 
-            return direction.normalized;
+        /// <summary>
+        /// 레이저 프리뷰용 시각 회전 가이드 방향을 계산합니다.
+        /// FollowRaycast/LockAtLaunch는 현재 Raycast 방향을 사용하고,
+        /// None은 회전을 강제하지 않는 의미를 표현하기 위해 월드 +X 축을 가이드로 사용합니다.
+        /// </summary>
+        /// <param name="laserInfo">레이저 테이블 정보입니다.</param>
+        /// <param name="meta">실제 런타임 발사에 사용할 레이저 메타데이터입니다.</param>
+        /// <param name="raycastDirection">프리뷰 시점의 Raycast 방향입니다.</param>
+        /// <returns>프리뷰용 시각 회전 가이드 방향입니다.</returns>
+        private static Vector2 ResolveLaserPreviewVisualDirection(
+            StruckTableLaser laserInfo,
+            MetadataLaser meta,
+            Vector2 raycastDirection)
+        {
+            return LaserAimPolicyUtility.ResolvePreviewVisualDirection(laserInfo, meta, raycastDirection);
         }
 
         /// <summary>

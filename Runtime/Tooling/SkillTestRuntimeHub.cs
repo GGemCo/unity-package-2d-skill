@@ -1,4 +1,4 @@
-﻿#if UNITY_EDITOR
+#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using GGemCo2DCore;
@@ -177,7 +177,7 @@ namespace GGemCo2DSkill
             for (int i = _activeLasers.Count - 1; i >= 0; i--)
             {
                 var laser = _activeLasers[i];
-                if (laser == null || now >= laser.ExpireTime)
+                if (laser == null || now >= laser.expireTime)
                     _activeLasers.RemoveAt(i);
             }
         }
@@ -270,13 +270,19 @@ namespace GGemCo2DSkill
         /// <param name="caster">레이저를 생성한 캐스터 오브젝트입니다.</param>
         /// <param name="hasBlockHit">차단 지점 존재 여부입니다.</param>
         /// <param name="blockPoint">차단 지점입니다.</param>
+        /// <param name="raycastDirection">레이캐스트 기준 방향입니다.</param>
+        /// <param name="visualDirection">시각 회전 가이드 방향입니다.</param>
+        /// <param name="vfxAngleSyncMode">적용된 VFX 각도 동기화 모드입니다.</param>
         public void RegisterLaser(
             Vector3 start,
             Vector3 end,
             float durationSeconds,
             GameObject caster,
             bool hasBlockHit,
-            Vector3 blockPoint)
+            Vector3 blockPoint,
+            Vector3 raycastDirection,
+            Vector3 visualDirection,
+            LaserConstants.VfxAngleSyncMode vfxAngleSyncMode)
         {
             if (!IsLaserGizmoEnabled)
                 return;
@@ -286,7 +292,16 @@ namespace GGemCo2DSkill
                 ? durationSeconds
                 : settings != null ? settings.defaultLaserGizmoDuration : 0.2f;
 
-            _activeLasers.Add(SkillDebugLaserRecord.Create(start, end, resolvedDuration, caster, hasBlockHit, blockPoint));
+            _activeLasers.Add(SkillDebugLaserRecord.Create(
+                start,
+                end,
+                resolvedDuration,
+                caster,
+                hasBlockHit,
+                blockPoint,
+                raycastDirection,
+                visualDirection,
+                vfxAngleSyncMode));
         }
 
         /// <summary>
@@ -308,7 +323,7 @@ namespace GGemCo2DSkill
                     continue;
                 }
 
-                if (caster == null || laser.CasterInstanceId == casterId)
+                if (caster == null || laser.casterInstanceId == casterId)
                     _activeLasers.RemoveAt(i);
             }
         }
