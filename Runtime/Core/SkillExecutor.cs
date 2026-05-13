@@ -1,3 +1,5 @@
+using System;
+using System.Collections;
 using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
@@ -33,6 +35,11 @@ namespace GGemCo2DSkill
         /// 취소 시 즉시 정리하여 중단 이후의 잔여 연출을 최소화합니다.
         /// </summary>
         private readonly List<VfxBehaviourBase> _spawnedVfxs = new();
+
+        /// <summary>
+        /// 현재 스킬 실행에서 생성한 더미 캐릭터를 actorKey 기준으로 관리하는 컬렉션입니다.
+        /// </summary>
+        private readonly Dictionary<string, DummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
 
         /// <summary>
         /// 현재 스킬 실행 중인지 여부를 반환합니다.
@@ -120,6 +127,52 @@ namespace GGemCo2DSkill
         private ArcLungeAnimationState _arcLungeAnimationState;
 
         /// <summary>
+        /// 스킬 이벤트로 생성한 더미 캐릭터의 런타임 상태를 관리합니다.
+        /// </summary>
+        private sealed class DummyActorHandle
+        {
+            /// <summary>
+            /// 더미 식별 키입니다.
+            /// </summary>
+            public string ActorKey;
+
+            /// <summary>
+            /// 생성된 더미 캐릭터 인스턴스입니다.
+            /// </summary>
+            public CharacterBase Character;
+
+            /// <summary>
+            /// 스킬 정상 종료 시 자동 제거 여부입니다.
+            /// </summary>
+            public bool DespawnOnSkillEnd;
+
+            /// <summary>
+            /// 스킬 취소 시 자동 제거 여부입니다.
+            /// </summary>
+            public bool DespawnOnCancel;
+
+            /// <summary>
+            /// 진행 중인 페이드 코루틴입니다.
+            /// </summary>
+            public Coroutine ActiveFadeCoroutine;
+
+            /// <summary>
+            /// 진행 중인 이동 보정 코루틴입니다.
+            /// </summary>
+            public Coroutine ActiveMoveCoroutine;
+
+            /// <summary>
+            /// 더미 캐릭터 제어 잠금 토큰입니다.
+            /// </summary>
+            public object ControlLockToken;
+
+            /// <summary>
+            /// 더미 캐릭터 브레인 잠금 토큰입니다.
+            /// </summary>
+            public object BrainLockToken;
+        }
+
+        /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
         /// </summary>
         private void Awake()
@@ -130,6 +183,8 @@ namespace GGemCo2DSkill
 
         private void OnDisable()
         {
+            CleanupDummyActors(forceAll: true, forCancel: false);
+
             if (_current == null)
                 return;
 
@@ -208,6 +263,7 @@ namespace GGemCo2DSkill
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
 
             CleanupSpawnedVfxs();
+            CleanupDummyActors(forceAll: true, forCancel: false);
             _chainUnlockByAttackId.Clear();
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
@@ -299,6 +355,15 @@ namespace GGemCo2DSkill
                     break;
                 case ConfigCommonSkill.SkillEventType.ApplyTempHp:
                     HandleApplyTempHp(skill, ctx, payload);
+                    break;
+                case ConfigCommonSkill.SkillEventType.SpawnDummyCharacter:
+                    HandleSpawnDummyCharacter(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
+                    break;
+                case ConfigCommonSkill.SkillEventType.MoveDummyCharacter:
+                    HandleMoveDummyCharacter(run, ctx, payload, snapshotTargetPos, snapshotGroundPoint);
+                    break;
+                case ConfigCommonSkill.SkillEventType.DespawnDummyCharacter:
+                    HandleDespawnDummyCharacter(payload);
                     break;
                 default:
                     break;
@@ -2767,6 +2832,853 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 스킬 이벤트로 더미 캐릭터를 생성합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotCasterPos">스킬 시작 시점 캐스터 위치 스냅샷입니다.</param>
+        /// <param name="snapshotTargetPos">스킬 시작 시점 타겟 위치 스냅샷입니다.</param>
+        /// <param name="snapshotGroundPoint">스킬 시작 시점 지면 기준점 스냅샷입니다.</param>
+        private void HandleSpawnDummyCharacter(
+            SkillRun run,
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            if (payloadObj is not SpawnDummyCharacterEventDefinition def)
+                return;
+
+            var sceneGame = SceneGame.Instance;
+            if (sceneGame == null || sceneGame.CharacterManager == null)
+                return;
+
+            if (def.characterUid <= 0)
+            {
+                Debug.LogWarning("[SkillExecutor] SpawnDummyCharacter characterUid must be greater than 0.");
+                return;
+            }
+
+            string actorKey = NormalizeDummyActorKey(def.actorKey);
+            if (string.IsNullOrEmpty(actorKey))
+            {
+                Debug.LogWarning("[SkillExecutor] SpawnDummyCharacter actorKey is empty.");
+                return;
+            }
+
+            PruneDummyActors();
+
+            if (_dummyActors.TryGetValue(actorKey, out var existing) && existing != null)
+            {
+                if (!def.replaceIfExists)
+                    return;
+
+                DestroyDummyActor(existing, destroyGameObject: true, removeFromRegistry: true);
+            }
+
+            Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.useSnapshotCenter)
+            {
+                casterPos = snapshotCasterPos;
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+            if (!TryResolveDummySpawnPosition(run, def, casterPos, targetPos, groundPoint, out Vector3 spawnPos))
+                return;
+
+            spawnPos += def.localOffset;
+
+            int mapUid = sceneGame.mapManager != null ? sceneGame.mapManager.GetCurrentMapUid() : 0;
+            var regenData = new CharacterRegenData(def.characterUid, spawnPos, flip: false, mapUid, defaultVisible: true);
+
+            GameObject dummyObject = def.sourceType == DummyCharacterSourceType.Npc
+                ? sceneGame.CharacterManager.CreateNpc(def.characterUid, regenData)
+                : sceneGame.CharacterManager.CreateMonster(def.characterUid, regenData);
+
+            if (dummyObject == null)
+            {
+                Debug.LogWarning($"[SkillExecutor] Failed to spawn dummy character. source={def.sourceType}, uid={def.characterUid}, key={actorKey}");
+                return;
+            }
+
+            dummyObject.transform.position = new Vector3(spawnPos.x, spawnPos.y, dummyObject.transform.position.z);
+
+            var character = dummyObject.GetComponent<CharacterBase>() ?? dummyObject.GetComponentInParent<CharacterBase>();
+            if (character == null)
+            {
+                sceneGame.CharacterManager.RemoveCharacter(dummyObject);
+                Debug.LogWarning($"[SkillExecutor] Spawned dummy has no CharacterBase. key={actorKey}, uid={def.characterUid}");
+                return;
+            }
+
+            ConfigureDummyCharacterRuntime(character);
+
+            if (def.faceLockedTarget)
+                ApplyDummyFacingToTarget(character, targetPos);
+
+            if (!string.IsNullOrWhiteSpace(def.initialAnimationName))
+                PlayDummyAnimation(character, def.initialAnimationName, def.initialAnimationLoop, def.initialAnimationTimeScale);
+
+            var marker = character.GetComponent<SkillDummyCharacterMarker>();
+            if (marker == null)
+                marker = character.gameObject.AddComponent<SkillDummyCharacterMarker>();
+
+            marker.Bind(actorKey, run != null ? run.SkillUid : (skill != null ? skill.Uid : 0));
+
+            var handle = new DummyActorHandle
+            {
+                ActorKey = actorKey,
+                Character = character,
+                DespawnOnSkillEnd = def.despawnOnSkillEnd,
+                DespawnOnCancel = def.despawnOnCancel,
+            };
+
+            ApplyDummyRuntimeLocks(handle);
+            _dummyActors[actorKey] = handle;
+
+            if (def.fadeInEnabled && def.fadeInDurationSeconds > 0f)
+            {
+                SetDummyVisualAlpha(character, 0f);
+                handle.ActiveFadeCoroutine = StartCoroutine(FadeDummyCharacterCoroutine(
+                    handle,
+                    fadeIn: true,
+                    durationSeconds: def.fadeInDurationSeconds,
+                    destroyAfterFade: false,
+                    removeFromRegistry: false));
+            }
+            else
+            {
+                SetDummyVisualAlpha(character, 1f);
+            }
+        }
+
+        /// <summary>
+        /// 스킬 이벤트로 생성된 더미 캐릭터를 이동시킵니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotTargetPos">스킬 시작 시점 타겟 위치 스냅샷입니다.</param>
+        /// <param name="snapshotGroundPoint">스킬 시작 시점 지면 기준점 스냅샷입니다.</param>
+        private void HandleMoveDummyCharacter(
+            SkillRun run,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            if (payloadObj is not MoveDummyCharacterEventDefinition def)
+                return;
+
+            if (!TryGetDummyActorHandle(def.actorKey, def.missingActorPolicy, out var handle))
+                return;
+
+            if (handle.Character == null)
+                return;
+
+            if (def.moveTargetMode == DummyMoveTargetMode.LockedTarget && !def.useSnapshotCenter && ctx.lockedTarget == null)
+            {
+                if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
+                {
+                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter requires locked target. key={handle.ActorKey}");
+                }
+                return;
+            }
+
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.useSnapshotCenter)
+            {
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+            if (!TryResolveDummyMoveTargetPosition(run, def, targetPos, groundPoint, out Vector3 moveTarget))
+                return;
+
+            moveTarget += def.localOffset;
+
+            if (def.playMoveAnimation && !string.IsNullOrWhiteSpace(def.moveAnimationName))
+            {
+                PlayDummyAnimation(handle.Character, def.moveAnimationName, def.moveAnimationLoop, def.moveAnimationTimeScale);
+            }
+
+            StartDummyMove(handle, moveTarget, def);
+        }
+
+        /// <summary>
+        /// 스킬 이벤트로 생성된 더미 캐릭터를 파괴(또는 비활성화)합니다.
+        /// </summary>
+        /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
+        private void HandleDespawnDummyCharacter(UnityEngine.Object payloadObj)
+        {
+            if (payloadObj is not DespawnDummyCharacterEventDefinition def)
+                return;
+
+            if (!TryGetDummyActorHandle(def.actorKey, def.missingActorPolicy, out var handle))
+                return;
+
+            BeginDummyDespawn(
+                handle,
+                fadeOutEnabled: def.fadeOutEnabled,
+                fadeOutDurationSeconds: def.fadeOutDurationSeconds,
+                destroyAfterFade: def.destroyAfterFade,
+                removeFromRegistry: true);
+        }
+
+        /// <summary>
+        /// 더미 생성 기준점을 해석하여 최종 생성 위치를 계산합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="def">더미 생성 이벤트 정의입니다.</param>
+        /// <param name="casterPos">해석된 캐스터 위치입니다.</param>
+        /// <param name="targetPos">해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">해석된 지면 기준점입니다.</param>
+        /// <param name="spawnPos">계산된 생성 위치입니다.</param>
+        /// <returns>생성 위치 계산에 성공하면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveDummySpawnPosition(
+            SkillRun run,
+            SpawnDummyCharacterEventDefinition def,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector3 groundPoint,
+            out Vector3 spawnPos)
+        {
+            spawnPos = casterPos;
+            if (def == null)
+                return false;
+
+            switch (def.spawnAnchor)
+            {
+                case DummySpawnAnchor.Target:
+                    spawnPos = targetPos;
+                    return true;
+                case DummySpawnAnchor.Ground:
+                    spawnPos = groundPoint;
+                    return true;
+                case DummySpawnAnchor.NamedPositionAnchor:
+                    if (TryResolveNamedAnchorPosition(run, def.namedAnchorKey, out spawnPos))
+                        return true;
+
+                    Debug.LogWarning($"[SkillExecutor] SpawnDummyCharacter named anchor not found. key={def.namedAnchorKey}");
+                    return false;
+                case DummySpawnAnchor.Caster:
+                default:
+                    spawnPos = casterPos;
+                    return true;
+            }
+        }
+
+        /// <summary>
+        /// 더미 이동 목표 위치를 해석합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="def">더미 이동 이벤트 정의입니다.</param>
+        /// <param name="targetPos">해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">해석된 지면 기준점입니다.</param>
+        /// <param name="moveTarget">해석된 이동 목표 위치입니다.</param>
+        /// <returns>이동 목표 해석에 성공하면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveDummyMoveTargetPosition(
+            SkillRun run,
+            MoveDummyCharacterEventDefinition def,
+            Vector3 targetPos,
+            Vector3 groundPoint,
+            out Vector3 moveTarget)
+        {
+            moveTarget = targetPos;
+            if (def == null)
+                return false;
+
+            switch (def.moveTargetMode)
+            {
+                case DummyMoveTargetMode.GroundPoint:
+                    moveTarget = groundPoint;
+                    return true;
+                case DummyMoveTargetMode.LockedTarget:
+                    moveTarget = targetPos;
+                    return true;
+                case DummyMoveTargetMode.AbsoluteWorld:
+                    moveTarget = def.absoluteWorldPosition;
+                    return true;
+                case DummyMoveTargetMode.NamedPositionAnchor:
+                    if (TryResolveNamedAnchorPosition(run, def.namedAnchorKey, out moveTarget))
+                        return true;
+
+                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter named anchor not found. key={def.namedAnchorKey}");
+                    return false;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// 같은 스킬 런에 저장된 이름 있는 위치 앵커를 조회합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="anchorKey">조회할 앵커 키입니다.</param>
+        /// <param name="position">조회된 위치입니다.</param>
+        /// <returns>앵커 조회에 성공하면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveNamedAnchorPosition(SkillRun run, string anchorKey, out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (run == null || string.IsNullOrWhiteSpace(anchorKey))
+                return false;
+
+            if (!run.TryGetPositionAnchor(anchorKey, out var snapshot))
+                return false;
+
+            position = snapshot.Position;
+            return true;
+        }
+
+        /// <summary>
+        /// 더미 액터 키를 정규화합니다.
+        /// </summary>
+        /// <param name="actorKey">원본 액터 키입니다.</param>
+        /// <returns>앞뒤 공백을 제거한 키이며, 비어 있으면 빈 문자열입니다.</returns>
+        private static string NormalizeDummyActorKey(string actorKey)
+        {
+            return string.IsNullOrWhiteSpace(actorKey) ? string.Empty : actorKey.Trim();
+        }
+
+        /// <summary>
+        /// actorKey에 해당하는 더미 핸들을 조회합니다.
+        /// </summary>
+        /// <param name="actorKey">조회할 더미 액터 키입니다.</param>
+        /// <param name="missingPolicy">미존재 시 로깅 정책입니다.</param>
+        /// <param name="handle">조회된 더미 핸들입니다.</param>
+        /// <returns>조회에 성공하면 <see langword="true"/>입니다.</returns>
+        private bool TryGetDummyActorHandle(string actorKey, DummyMissingActorPolicy missingPolicy, out DummyActorHandle handle)
+        {
+            handle = null;
+
+            string normalizedKey = NormalizeDummyActorKey(actorKey);
+            if (string.IsNullOrEmpty(normalizedKey))
+            {
+                if (missingPolicy == DummyMissingActorPolicy.Warn)
+                    Debug.LogWarning("[SkillExecutor] Dummy actorKey is empty.");
+                return false;
+            }
+
+            PruneDummyActors();
+
+            if (_dummyActors.TryGetValue(normalizedKey, out handle) && handle != null && handle.Character != null)
+                return true;
+
+            _dummyActors.Remove(normalizedKey);
+            handle = null;
+
+            if (missingPolicy == DummyMissingActorPolicy.Warn)
+                Debug.LogWarning($"[SkillExecutor] Dummy actor not found. key={normalizedKey}");
+
+            return false;
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 이동을 시작합니다.
+        /// </summary>
+        /// <param name="handle">이동 대상 더미 핸들입니다.</param>
+        /// <param name="targetPosition">이동 목표 위치입니다.</param>
+        /// <param name="def">이동 이벤트 정의입니다.</param>
+        private void StartDummyMove(DummyActorHandle handle, Vector3 targetPosition, MoveDummyCharacterEventDefinition def)
+        {
+            if (handle == null || handle.Character == null || def == null)
+                return;
+
+            var character = handle.Character;
+            targetPosition.z = character.transform.position.z;
+            var motion = ResolveMotionController(character.gameObject);
+
+            if (handle.ActiveMoveCoroutine != null)
+            {
+                if (!def.allowReplace)
+                    return;
+
+                StopCoroutine(handle.ActiveMoveCoroutine);
+                handle.ActiveMoveCoroutine = null;
+            }
+
+            Vector3 current = character.transform.position;
+            Vector2 delta = new Vector2(targetPosition.x - current.x, targetPosition.y - current.y);
+            float distance = delta.magnitude;
+            float duration = Mathf.Max(0f, def.durationSeconds);
+
+            bool isSkillMotionPlaying = motion != null && motion.IsPlaying(MotionChannel.Skill);
+            if (isSkillMotionPlaying)
+            {
+                if (!def.allowReplace)
+                    return;
+
+                motion.CancelMotion(MotionChannel.Skill, reason: 9202);
+            }
+
+            if (distance <= 1e-4f || duration <= 0f)
+            {
+                character.transform.position = targetPosition;
+                return;
+            }
+
+            if (motion != null)
+            {
+                var request = new MotionRequest(
+                    channel: MotionChannel.Skill,
+                    kind: MotionKind.Linear,
+                    direction: delta / distance,
+                    durationSeconds: duration,
+                    distance: distance,
+                    easeType: def.easing,
+                    stopAtEnd: def.stopAtEnd,
+                    useMovePosition: def.useMovePosition,
+                    allowReplace: def.allowReplace);
+
+                if (motion.TryStartMotion(in request))
+                    return;
+
+                // 모션 시작에 실패했지만 동일 채널 모션이 유지 중이면 Transform 보간 폴백을 수행하지 않습니다.
+                if (motion.IsPlaying(MotionChannel.Skill))
+                    return;
+            }
+
+            handle.ActiveMoveCoroutine = StartCoroutine(CoMoveDummyByTransform(handle, current, targetPosition, duration, def.easing));
+        }
+
+        /// <summary>
+        /// 모션 컨트롤러를 사용할 수 없을 때 Transform 보간으로 더미 캐릭터를 이동시킵니다.
+        /// </summary>
+        /// <param name="handle">이동 대상 더미 핸들입니다.</param>
+        /// <param name="from">시작 위치입니다.</param>
+        /// <param name="to">도착 위치입니다.</param>
+        /// <param name="durationSeconds">이동 시간(초)입니다.</param>
+        /// <param name="easeType">보간 easing입니다.</param>
+        /// <returns>코루틴 이터레이터입니다.</returns>
+        private IEnumerator CoMoveDummyByTransform(
+            DummyActorHandle handle,
+            Vector3 from,
+            Vector3 to,
+            float durationSeconds,
+            Easing.EaseType easeType)
+        {
+            if (handle == null || handle.Character == null)
+                yield break;
+
+            float duration = Mathf.Max(0.0001f, durationSeconds);
+            float elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                if (handle.Character == null)
+                    yield break;
+
+                elapsed += Time.deltaTime;
+                float t = Mathf.Clamp01(elapsed / duration);
+                float eased = Easing.Apply(t, easeType);
+                handle.Character.transform.position = Vector3.LerpUnclamped(from, to, eased);
+                yield return null;
+            }
+
+            if (handle.Character != null)
+                handle.Character.transform.position = to;
+
+            handle.ActiveMoveCoroutine = null;
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 제거를 시작합니다.
+        /// </summary>
+        /// <param name="handle">제거할 더미 핸들입니다.</param>
+        /// <param name="fadeOutEnabled">페이드 아웃 사용 여부입니다.</param>
+        /// <param name="fadeOutDurationSeconds">페이드 아웃 시간(초)입니다.</param>
+        /// <param name="destroyAfterFade">페이드 이후 Destroy 여부입니다.</param>
+        /// <param name="removeFromRegistry">완료 후 레지스트리 제거 여부입니다.</param>
+        private void BeginDummyDespawn(
+            DummyActorHandle handle,
+            bool fadeOutEnabled,
+            float fadeOutDurationSeconds,
+            bool destroyAfterFade,
+            bool removeFromRegistry)
+        {
+            if (handle == null)
+                return;
+
+            if (handle.ActiveMoveCoroutine != null)
+            {
+                StopCoroutine(handle.ActiveMoveCoroutine);
+                handle.ActiveMoveCoroutine = null;
+            }
+
+            if (handle.Character == null)
+            {
+                if (removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
+                    _dummyActors.Remove(handle.ActorKey);
+                return;
+            }
+
+            var motion = ResolveMotionController(handle.Character.gameObject);
+            motion?.CancelMotion(MotionChannel.Skill, reason: 9203);
+
+            float duration = Mathf.Max(0f, fadeOutDurationSeconds);
+            if (fadeOutEnabled && duration > 0f)
+            {
+                if (handle.ActiveFadeCoroutine != null)
+                {
+                    StopCoroutine(handle.ActiveFadeCoroutine);
+                    handle.ActiveFadeCoroutine = null;
+                }
+
+                handle.ActiveFadeCoroutine = StartCoroutine(FadeDummyCharacterCoroutine(
+                    handle,
+                    fadeIn: false,
+                    durationSeconds: duration,
+                    destroyAfterFade: destroyAfterFade,
+                    removeFromRegistry: removeFromRegistry));
+                return;
+            }
+
+            DestroyDummyActor(handle, destroyGameObject: destroyAfterFade, removeFromRegistry: removeFromRegistry);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 페이드 인/아웃을 처리합니다.
+        /// </summary>
+        /// <param name="handle">페이드를 적용할 더미 핸들입니다.</param>
+        /// <param name="fadeIn">페이드 인이면 <see langword="true"/>입니다.</param>
+        /// <param name="durationSeconds">페이드 시간(초)입니다.</param>
+        /// <param name="destroyAfterFade">페이드 아웃 완료 후 Destroy 여부입니다.</param>
+        /// <param name="removeFromRegistry">완료 후 레지스트리 제거 여부입니다.</param>
+        /// <returns>코루틴 이터레이터입니다.</returns>
+        private IEnumerator FadeDummyCharacterCoroutine(
+            DummyActorHandle handle,
+            bool fadeIn,
+            float durationSeconds,
+            bool destroyAfterFade,
+            bool removeFromRegistry)
+        {
+            if (handle == null || handle.Character == null)
+            {
+                if (handle != null && removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
+                    _dummyActors.Remove(handle.ActorKey);
+                yield break;
+            }
+
+            var character = handle.Character;
+            var anim = ResolveAnimController(character.gameObject);
+            float duration = Mathf.Max(0f, durationSeconds);
+
+            if (duration <= 0f)
+            {
+                SetDummyVisualAlpha(character, fadeIn ? 1f : 0f);
+            }
+            else if (anim != null)
+            {
+                if (fadeIn)
+                    SetDummyVisualAlpha(character, 0f);
+
+                yield return anim.FadeEffect(duration, fadeIn);
+                SetDummyVisualAlpha(character, fadeIn ? 1f : 0f);
+            }
+            else
+            {
+                float startAlpha = fadeIn ? 0f : 1f;
+                float endAlpha = fadeIn ? 1f : 0f;
+                float elapsed = 0f;
+                SetDummyVisualAlpha(character, startAlpha);
+
+                while (elapsed < duration)
+                {
+                    if (handle.Character == null)
+                        yield break;
+
+                    elapsed += Time.deltaTime;
+                    float t = Mathf.Clamp01(elapsed / duration);
+                    SetDummyVisualAlpha(handle.Character, Mathf.Lerp(startAlpha, endAlpha, t));
+                    yield return null;
+                }
+
+                if (handle.Character != null)
+                    SetDummyVisualAlpha(handle.Character, endAlpha);
+            }
+
+            handle.ActiveFadeCoroutine = null;
+
+            if (fadeIn)
+                yield break;
+
+            DestroyDummyActor(handle, destroyGameObject: destroyAfterFade, removeFromRegistry: removeFromRegistry);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 비주얼 알파값을 설정합니다.
+        /// </summary>
+        /// <param name="character">알파를 적용할 캐릭터입니다.</param>
+        /// <param name="alpha">적용할 알파값(0~1)입니다.</param>
+        private static void SetDummyVisualAlpha(CharacterBase character, float alpha)
+        {
+            if (character == null)
+                return;
+
+            float clamped = Mathf.Clamp01(alpha);
+            var anim = ResolveAnimController(character.gameObject);
+            anim?.SetCharacterColor(new Color(1f, 1f, 1f, clamped));
+
+            var spriteRenderers = character.GetComponentsInChildren<SpriteRenderer>(includeInactive: true);
+            for (int i = 0; i < spriteRenderers.Length; i++)
+            {
+                var sr = spriteRenderers[i];
+                if (sr == null)
+                    continue;
+
+                Color color = sr.color;
+                color.a = clamped;
+                sr.color = color;
+            }
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 애니메이션을 재생합니다.
+        /// </summary>
+        /// <param name="character">애니메이션 대상 캐릭터입니다.</param>
+        /// <param name="animationName">재생할 애니메이션 이름입니다.</param>
+        /// <param name="loop">루프 재생 여부입니다.</param>
+        /// <param name="timeScale">재생 속도 배율입니다.</param>
+        private static void PlayDummyAnimation(CharacterBase character, string animationName, bool loop, float timeScale)
+        {
+            if (character == null || string.IsNullOrWhiteSpace(animationName))
+                return;
+
+            var anim = ResolveAnimController(character.gameObject);
+            if (anim == null)
+                return;
+
+            anim.PlaySkillAnimation(new SkillAnimationRequest(
+                skillUid: 0,
+                phase: SkillAnimationPhase.Action,
+                loop: loop,
+                timeScale: Mathf.Max(0f, timeScale),
+                overrideAnimationName: animationName));
+        }
+
+        /// <summary>
+        /// 더미 캐릭터의 런타임 제어 상태를 정리합니다.
+        /// </summary>
+        /// <param name="character">정리할 더미 캐릭터입니다.</param>
+        private static void ConfigureDummyCharacterRuntime(CharacterBase character)
+        {
+            if (character == null)
+                return;
+
+            var brainTicker = character.GetComponent<MonsterBrainTicker>();
+            if (brainTicker != null)
+                brainTicker.enabled = false;
+
+            var controllers = character.GetComponents<CharacterBaseController>();
+            for (int i = 0; i < controllers.Length; i++)
+            {
+                if (controllers[i] != null)
+                    controllers[i].enabled = false;
+            }
+
+            var behaviours = character.GetComponents<MonoBehaviour>();
+            for (int i = 0; i < behaviours.Length; i++)
+            {
+                var mb = behaviours[i];
+                if (mb == null)
+                    continue;
+
+                if (mb is IMonsterBrain || mb.GetType().Name == "MonsterBtRunner")
+                    mb.enabled = false;
+            }
+
+            var rb = character.characterRigidbody2D != null
+                ? character.characterRigidbody2D
+                : character.GetComponentInParent<Rigidbody2D>();
+            if (rb != null)
+            {
+                rb.SetLinearVelocity(Vector2.zero);
+                rb.angularVelocity = 0f;
+            }
+
+            character.SetAggro(false);
+            character.SetAttackerTarget(null);
+            character.SetStatusIdle();
+
+            var anim = ResolveAnimController(character.gameObject);
+            anim?.PlayWaitAnimation();
+        }
+
+        /// <summary>
+        /// 더미 캐릭터가 목표 위치를 바라보도록 방향을 보정합니다.
+        /// </summary>
+        /// <param name="character">방향을 보정할 캐릭터입니다.</param>
+        /// <param name="targetPosition">바라볼 목표 위치입니다.</param>
+        private static void ApplyDummyFacingToTarget(CharacterBase character, Vector3 targetPosition)
+        {
+            if (character == null)
+                return;
+
+            Vector2 direction = new Vector2(
+                targetPosition.x - character.transform.position.x,
+                targetPosition.y - character.transform.position.y);
+            if (direction.sqrMagnitude <= 1e-6f)
+                return;
+
+            character.SetFacing(direction);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 제어/브레인 잠금을 적용합니다.
+        /// </summary>
+        /// <param name="handle">잠금을 적용할 더미 핸들입니다.</param>
+        private static void ApplyDummyRuntimeLocks(DummyActorHandle handle)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            if (handle.ControlLockToken == null)
+                handle.ControlLockToken = handle.Character.AcquireControlLock(handle);
+
+            if (handle.BrainLockToken == null)
+                handle.BrainLockToken = handle.Character.AcquireBrainLock(handle);
+        }
+
+        /// <summary>
+        /// 더미 캐릭터 제어/브레인 잠금을 해제합니다.
+        /// </summary>
+        /// <param name="handle">잠금을 해제할 더미 핸들입니다.</param>
+        private static void ReleaseDummyRuntimeLocks(DummyActorHandle handle)
+        {
+            if (handle == null)
+                return;
+
+            var character = handle.Character;
+            if (character != null)
+            {
+                if (handle.ControlLockToken != null)
+                    character.ReleaseControlLock(handle.ControlLockToken);
+
+                if (handle.BrainLockToken != null)
+                    character.ReleaseBrainLock(handle.BrainLockToken);
+            }
+
+            handle.ControlLockToken = null;
+            handle.BrainLockToken = null;
+        }
+
+        /// <summary>
+        /// 더미 캐릭터를 즉시 정리합니다.
+        /// </summary>
+        /// <param name="handle">정리할 더미 핸들입니다.</param>
+        /// <param name="destroyGameObject">Destroy 수행 여부입니다.</param>
+        /// <param name="removeFromRegistry">레지스트리 제거 여부입니다.</param>
+        private void DestroyDummyActor(DummyActorHandle handle, bool destroyGameObject, bool removeFromRegistry)
+        {
+            if (handle == null)
+                return;
+
+            if (handle.ActiveMoveCoroutine != null)
+            {
+                StopCoroutine(handle.ActiveMoveCoroutine);
+                handle.ActiveMoveCoroutine = null;
+            }
+
+            if (handle.ActiveFadeCoroutine != null)
+            {
+                StopCoroutine(handle.ActiveFadeCoroutine);
+                handle.ActiveFadeCoroutine = null;
+            }
+
+            var character = handle.Character;
+            if (character != null)
+            {
+                var motion = ResolveMotionController(character.gameObject);
+                motion?.CancelMotion(MotionChannel.Skill, reason: 9201);
+
+                ReleaseDummyRuntimeLocks(handle);
+
+                if (destroyGameObject)
+                {
+                    var sceneGame = SceneGame.Instance;
+                    if (sceneGame != null && sceneGame.CharacterManager != null)
+                        sceneGame.CharacterManager.RemoveCharacter(character.gameObject);
+                    else
+                        Destroy(character.gameObject);
+                }
+                else
+                {
+                    character.gameObject.SetActive(false);
+                }
+            }
+            else
+            {
+                ReleaseDummyRuntimeLocks(handle);
+            }
+
+            if (removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
+                _dummyActors.Remove(handle.ActorKey);
+
+            handle.Character = null;
+        }
+
+        /// <summary>
+        /// 레지스트리에서 파괴된 더미 핸들을 정리합니다.
+        /// </summary>
+        private void PruneDummyActors()
+        {
+            if (_dummyActors.Count == 0)
+                return;
+
+            var keysToRemove = new List<string>();
+            foreach (var pair in _dummyActors)
+            {
+                if (pair.Value == null || pair.Value.Character == null)
+                    keysToRemove.Add(pair.Key);
+            }
+
+            for (int i = 0; i < keysToRemove.Count; i++)
+            {
+                _dummyActors.Remove(keysToRemove[i]);
+            }
+        }
+
+        /// <summary>
+        /// 현재 등록된 더미 캐릭터를 종료 정책에 맞게 정리합니다.
+        /// </summary>
+        /// <param name="forceAll">모든 더미를 강제 정리할지 여부입니다.</param>
+        /// <param name="forCancel">취소 종료 기준(<see langword="true"/>) 또는 정상 종료 기준(<see langword="false"/>)을 선택합니다.</param>
+        private void CleanupDummyActors(bool forceAll, bool forCancel)
+        {
+            if (_dummyActors.Count == 0)
+                return;
+
+            var keys = new List<string>(_dummyActors.Keys);
+            for (int i = 0; i < keys.Count; i++)
+            {
+                string key = keys[i];
+                if (!_dummyActors.TryGetValue(key, out var handle) || handle == null)
+                {
+                    _dummyActors.Remove(key);
+                    continue;
+                }
+
+                bool shouldCleanup = forceAll || (forCancel ? handle.DespawnOnCancel : handle.DespawnOnSkillEnd);
+                if (!shouldCleanup)
+                    continue;
+
+                DestroyDummyActor(handle, destroyGameObject: true, removeFromRegistry: true);
+            }
+
+            PruneDummyActors();
+        }
+
+        /// <summary>
         /// 캐스터에서 사용할 애니메이션 컨트롤러를 현재 오브젝트, 자식, 부모 순으로 탐색합니다.
         /// </summary>
         /// <param name="caster">애니메이션 컨트롤러를 찾을 기준 오브젝트입니다.</param>
@@ -2843,6 +3755,7 @@ namespace GGemCo2DSkill
             _hasPendingFinishReport = false;
             _current = null;
             _chainUnlockByAttackId.Clear();
+            CleanupDummyActors(forceAll: false, forCancel: false);
             ExecutionFinished?.Invoke(report);
         }
 
@@ -2892,6 +3805,7 @@ namespace GGemCo2DSkill
             var run = _current;
             ClearDamageAreaGizmo(run.Caster);
             CleanupSpawnedVfxs();
+            CleanupDummyActors(forceAll: false, forCancel: true);
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();

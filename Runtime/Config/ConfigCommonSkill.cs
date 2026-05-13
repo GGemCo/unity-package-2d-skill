@@ -72,6 +72,21 @@ namespace Config
             /// 분리된 Laser 시스템을 사용해 레이저를 생성하거나 발사합니다.
             /// </summary>
             Laser = 11,
+
+            /// <summary>
+            /// 스킬 실행 중 더미 캐릭터를 생성합니다.
+            /// </summary>
+            SpawnDummyCharacter = 12,
+
+            /// <summary>
+            /// 스킬 실행 중 생성된 더미 캐릭터를 이동시킵니다.
+            /// </summary>
+            MoveDummyCharacter = 13,
+
+            /// <summary>
+            /// 스킬 실행 중 생성된 더미 캐릭터를 제거합니다.
+            /// </summary>
+            DespawnDummyCharacter = 14,
         }
 
         /// <summary>

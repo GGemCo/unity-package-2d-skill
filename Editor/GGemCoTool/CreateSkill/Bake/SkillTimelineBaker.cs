@@ -522,6 +522,64 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillSpawnDummyCharacterClip spawnDummy:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<SpawnDummyCharacterEventDefinition>();
+                        def.actorKey = spawnDummy.ActorKey;
+                        def.sourceType = spawnDummy.SourceType;
+                        def.characterUid = spawnDummy.CharacterUid;
+                        def.spawnAnchor = spawnDummy.SpawnAnchor;
+                        def.namedAnchorKey = spawnDummy.NamedAnchorKey;
+                        def.localOffset = spawnDummy.LocalOffset;
+                        def.useSnapshotCenter = spawnDummy.UseSnapshotCenter;
+                        def.faceLockedTarget = spawnDummy.FaceLockedTarget;
+                        def.fadeInEnabled = spawnDummy.FadeInEnabled;
+                        def.fadeInDurationSeconds = Mathf.Max(0f, spawnDummy.FadeInDurationSeconds);
+                        def.initialAnimationName = spawnDummy.InitialAnimationName;
+                        def.initialAnimationLoop = spawnDummy.InitialAnimationLoop;
+                        def.initialAnimationTimeScale = Mathf.Max(0f, spawnDummy.InitialAnimationTimeScale);
+                        def.despawnOnSkillEnd = spawnDummy.DespawnOnSkillEnd;
+                        def.despawnOnCancel = spawnDummy.DespawnOnCancel;
+                        def.replaceIfExists = spawnDummy.ReplaceIfExists;
+                        return def;
+                    };
+
+                case SkillMoveDummyCharacterClip moveDummy:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<MoveDummyCharacterEventDefinition>();
+                        def.actorKey = moveDummy.ActorKey;
+                        def.moveTargetMode = moveDummy.MoveTargetMode;
+                        def.namedAnchorKey = moveDummy.NamedAnchorKey;
+                        def.absoluteWorldPosition = moveDummy.AbsoluteWorldPosition;
+                        def.localOffset = moveDummy.LocalOffset;
+                        def.useSnapshotCenter = moveDummy.UseSnapshotCenter;
+                        def.durationSeconds = Mathf.Max(0f, moveDummy.DurationSeconds);
+                        def.easing = moveDummy.Easing;
+                        def.useMovePosition = moveDummy.UseMovePosition;
+                        def.stopAtEnd = moveDummy.StopAtEnd;
+                        def.allowReplace = moveDummy.AllowReplace;
+                        def.playMoveAnimation = moveDummy.PlayMoveAnimation;
+                        def.moveAnimationName = moveDummy.MoveAnimationName;
+                        def.moveAnimationLoop = moveDummy.MoveAnimationLoop;
+                        def.moveAnimationTimeScale = Mathf.Max(0f, moveDummy.MoveAnimationTimeScale);
+                        def.missingActorPolicy = moveDummy.MissingActorPolicy;
+                        return def;
+                    };
+
+                case SkillDespawnDummyCharacterClip despawnDummy:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<DespawnDummyCharacterEventDefinition>();
+                        def.actorKey = despawnDummy.ActorKey;
+                        def.fadeOutEnabled = despawnDummy.FadeOutEnabled;
+                        def.fadeOutDurationSeconds = Mathf.Max(0f, despawnDummy.FadeOutDurationSeconds);
+                        def.destroyAfterFade = despawnDummy.DestroyAfterFade;
+                        def.missingActorPolicy = despawnDummy.MissingActorPolicy;
+                        return def;
+                    };
+
                 default:
                     return null;
             }
