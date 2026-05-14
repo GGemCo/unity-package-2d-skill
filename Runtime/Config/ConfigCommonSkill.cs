@@ -97,6 +97,11 @@ namespace Config
             /// 스킬 실행 중 생성된 더미 캐릭터에 특정 애니메이션을 재생합니다.
             /// </summary>
             PlayDummyCharacterAnimation = 16,
+
+            /// <summary>
+            /// 스킬 실행 중 화면 전체 페이드 연출을 수행합니다.
+            /// </summary>
+            ScreenFade = 17,
         }
 
         /// <summary>

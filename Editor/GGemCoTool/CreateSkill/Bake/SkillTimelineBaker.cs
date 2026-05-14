@@ -365,6 +365,28 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillScreenFadeClip screenFade:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<SkillScreenFadeEventDefinition>();
+                        def.color = screenFade.Color;
+                        def.fromAlpha = Mathf.Clamp01(screenFade.FromAlpha);
+                        def.toAlpha = Mathf.Clamp01(screenFade.ToAlpha);
+                        def.holdFinalState = screenFade.HoldFinalState;
+                        def.useClipDuration = screenFade.UseClipDuration;
+                        def.durationOverrideSeconds = Mathf.Max(0f, screenFade.DurationOverrideSeconds);
+                        def.easing = screenFade.Easing;
+                        def.useUnscaledTime = screenFade.UseUnscaledTime;
+                        def.clearOnSkillEnd = screenFade.ClearOnSkillEnd;
+                        def.clearOnCancel = screenFade.ClearOnCancel;
+                        def.renderMode = screenFade.RenderMode;
+                        def.sortingLayerName = screenFade.SortingLayerName;
+                        def.orderInLayer = screenFade.OrderInLayer;
+                        def.planeDistance = Mathf.Max(0.01f, screenFade.PlaneDistance);
+                        def.replaceMode = screenFade.ReplaceMode;
+                        return def;
+                    };
+
                 case SkillLungeClip lunge:
                     return () =>
                     {

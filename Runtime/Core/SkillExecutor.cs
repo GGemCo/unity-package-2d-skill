@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using Config;
@@ -40,6 +40,16 @@ namespace GGemCo2DSkill
         /// 현재 스킬 실행에서 생성한 더미 캐릭터를 actorKey 기준으로 관리하는 컬렉션입니다.
         /// </summary>
         private readonly Dictionary<string, DummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
+
+        /// <summary>
+        /// 현재 실행 중인 스킬이 정상 종료될 때 화면 페이드를 초기화해야 하는지 여부입니다.
+        /// </summary>
+        private bool _clearSkillScreenFadeOnSkillEnd;
+
+        /// <summary>
+        /// 현재 실행 중인 스킬이 취소될 때 화면 페이드를 초기화해야 하는지 여부입니다.
+        /// </summary>
+        private bool _clearSkillScreenFadeOnCancel;
 
         /// <summary>
         /// 캐스터를 더미 액터 참조처럼 다루기 위한 내부 식별 키입니다.
@@ -323,6 +333,7 @@ namespace GGemCo2DSkill
             CleanupDummyActors(forceAll: true, forCancel: false);
             ResetCasterActorHandleTransientState(clearCharacter: true);
             _chainUnlockByAttackId.Clear();
+            ResetSkillScreenFadeCleanupFlags();
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();
@@ -414,6 +425,10 @@ namespace GGemCo2DSkill
                 case ConfigCommonSkill.SkillEventType.ApplyTempHp:
                     HandleApplyTempHp(skill, ctx, payload);
                     break;
+                case ConfigCommonSkill.SkillEventType.ScreenFade:
+                    float screenFadeDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
+                    HandleScreenFade(payload, screenFadeDuration);
+                    break;
                 case ConfigCommonSkill.SkillEventType.SpawnDummyCharacter:
                     HandleSpawnDummyCharacter(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
                     break;
@@ -435,6 +450,74 @@ namespace GGemCo2DSkill
             }
         }
         
+
+        /// <summary>
+        /// 화면 페이드 이벤트 정의를 Core 공용 화면 페이드 서비스로 전달합니다.
+        /// 스킬 종료 또는 취소 시 초기화 정책도 함께 기록합니다.
+        /// </summary>
+        /// <param name="payloadObj">Bake된 화면 페이드 이벤트 정의입니다.</param>
+        /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
+        private void HandleScreenFade(UnityEngine.Object payloadObj, float eventDurationSeconds)
+        {
+            if (payloadObj is not SkillScreenFadeEventDefinition def)
+                return;
+
+            var service = ScreenFadeRuntimeService.GetOrCreate(SceneGame.Instance);
+            if (service == null)
+                return;
+
+            float duration = def.ResolveDuration(eventDurationSeconds);
+            var request = new ScreenFadeRequest
+            {
+                owner = ScreenFadeOwner.Skill,
+                source = this,
+                color = def.color,
+                fromAlpha = def.fromAlpha,
+                toAlpha = def.toAlpha,
+                durationSeconds = duration,
+                holdFinalState = def.holdFinalState,
+                useUnscaledTime = def.useUnscaledTime,
+                easing = def.easing,
+                renderMode = def.renderMode,
+                sortingLayerName = def.sortingLayerName,
+                orderInLayer = def.orderInLayer,
+                planeDistance = def.planeDistance,
+                replaceMode = def.replaceMode,
+            };
+
+            if (!service.Play(request))
+                return;
+
+            _clearSkillScreenFadeOnSkillEnd |= def.clearOnSkillEnd;
+            _clearSkillScreenFadeOnCancel |= def.clearOnCancel;
+        }
+
+        /// <summary>
+        /// 현재 SkillExecutor가 시작한 화면 페이드를 스킬 종료 사유에 맞게 정리합니다.
+        /// </summary>
+        /// <param name="forCancel">취소 종료이면 true, 정상 종료이면 false입니다.</param>
+        private void CleanupSkillScreenFade(bool forCancel)
+        {
+            bool shouldClear = forCancel ? _clearSkillScreenFadeOnCancel : _clearSkillScreenFadeOnSkillEnd;
+            if (!shouldClear)
+            {
+                ResetSkillScreenFadeCleanupFlags();
+                return;
+            }
+
+            var service = ScreenFadeRuntimeService.GetOrCreate(SceneGame.Instance);
+            service?.StopIfOwnedBy(ScreenFadeOwner.Skill, this, forceClear: true);
+            ResetSkillScreenFadeCleanupFlags();
+        }
+
+        /// <summary>
+        /// 스킬 화면 페이드 정리 예약 상태를 초기화합니다.
+        /// </summary>
+        private void ResetSkillScreenFadeCleanupFlags()
+        {
+            _clearSkillScreenFadeOnSkillEnd = false;
+            _clearSkillScreenFadeOnCancel = false;
+        }
 
         private void HandlePositionHold(
             SkillRun run,
@@ -4732,6 +4815,7 @@ namespace GGemCo2DSkill
             _current = null;
             _chainUnlockByAttackId.Clear();
             CleanupDummyActors(forceAll: false, forCancel: false);
+            CleanupSkillScreenFade(forCancel: false);
             ExecutionFinished?.Invoke(report);
         }
 
@@ -4797,6 +4881,7 @@ namespace GGemCo2DSkill
             ClearDamageAreaGizmo(run.Caster);
             CleanupSpawnedVfxs();
             CleanupDummyActors(forceAll: false, forCancel: true);
+            CleanupSkillScreenFade(forCancel: true);
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();

@@ -26,7 +26,29 @@ namespace GGemCo2DSkillEditor
                 {
                     UseSkillInPlayMode();
                 }
+
+                if (GUILayout.Button("화면 페이드 초기화", EditorConstants.GUILayoutButtonHeight22))
+                {
+                    ResetScreenFadeInPlayMode();
+                }
             }
+        }
+
+        /// <summary>
+        /// 플레이 모드 테스트 중 남아 있는 화면 페이드 표시 상태를 강제로 초기화합니다.
+        /// holdFinalState가 켜진 ScreenFade 클립을 테스트한 뒤 화면이 계속 가려지는 상황을 복구하기 위해 사용합니다.
+        /// </summary>
+        private void ResetScreenFadeInPlayMode()
+        {
+            if (!Application.isPlaying || SceneGame.Instance == null)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            var service = ScreenFadeRuntimeService.GetOrCreate(SceneGame.Instance);
+            service?.ResetPresentation();
+            ShowNotification(new GUIContent("화면 페이드 초기화"));
         }
 
         /// <summary>
