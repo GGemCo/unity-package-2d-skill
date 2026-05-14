@@ -35,6 +35,8 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private bool useMovePosition = true;
         [SerializeField] private bool stopAtEnd = true;
         [SerializeField] private bool allowReplace = true;
+        [Tooltip("true이면 이동 중 매 프레임 타겟의 좌우 방향을 바라보도록 갱신합니다.")]
+        [SerializeField] private bool lookAtTargetDuringMove;
 
         [Header("Animation")]
         [SerializeField] private bool playMoveAnimation;
@@ -114,6 +116,11 @@ namespace GGemCo2DSkillEditor
         /// 기존 모션 덮어쓰기 허용 여부를 반환합니다.
         /// </summary>
         public bool AllowReplace => allowReplace;
+
+        /// <summary>
+        /// 이동 중 타겟을 계속 바라볼지 여부를 반환합니다.
+        /// </summary>
+        public bool LookAtTargetDuringMove => lookAtTargetDuringMove;
 
         /// <summary>
         /// 이동 애니메이션 재생 여부를 반환합니다.

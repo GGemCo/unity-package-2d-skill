@@ -50,6 +50,9 @@ namespace GGemCo2DSkill
         [Tooltip("같은 채널 모션을 덮어쓸지 여부입니다.")]
         public bool allowReplace = true;
 
+        [Tooltip("true이면 이동 중 매 프레임 타겟의 좌우 방향을 바라보도록 갱신합니다.")]
+        public bool lookAtTargetDuringMove;
+
         [Header("Animation")]
         [Tooltip("이동 시작 시 지정한 애니메이션을 재생할지 여부입니다.")]
         public bool playMoveAnimation;

@@ -567,6 +567,7 @@ namespace GGemCo2DSkillEditor
                         def.useMovePosition = moveDummy.UseMovePosition;
                         def.stopAtEnd = moveDummy.StopAtEnd;
                         def.allowReplace = moveDummy.AllowReplace;
+                        def.lookAtTargetDuringMove = moveDummy.LookAtTargetDuringMove;
                         def.playMoveAnimation = moveDummy.PlayMoveAnimation;
                         def.moveAnimationName = moveDummy.MoveAnimationName;
                         def.moveAnimationLoop = moveDummy.MoveAnimationLoop;

@@ -3278,7 +3278,14 @@ namespace GGemCo2DSkill
                 PlayDummyAnimation(handle, def.moveAnimationName, def.moveAnimationLoop, def.moveAnimationTimeScale);
             }
 
-            StartDummyMove(handle, moveTarget, def);
+            Transform lookTargetTransform = null;
+            Vector3 fallbackLookTargetPosition = targetPos;
+            if (def.lookAtTargetDuringMove && !def.useSnapshotCenter && ctx.lockedTarget != null)
+            {
+                lookTargetTransform = ctx.lockedTarget.transform;
+            }
+
+            StartDummyMove(handle, moveTarget, def, lookTargetTransform, fallbackLookTargetPosition);
         }
 
         /// <summary>
@@ -3656,13 +3663,20 @@ namespace GGemCo2DSkill
             return false;
         }
 
-        /// <summary>
-        /// 더미 캐릭터 이동을 시작합니다.
+            /// <summary>
+        /// 더미 캐릭터의 이동을 시작합니다.
         /// </summary>
         /// <param name="handle">이동 대상 더미 핸들입니다.</param>
         /// <param name="targetPosition">이동 목표 위치입니다.</param>
         /// <param name="def">이동 이벤트 정의입니다.</param>
-        private void StartDummyMove(DummyActorHandle handle, Vector3 targetPosition, MoveDummyCharacterEventDefinition def)
+        /// <param name="lookTargetTransform">이동 중 실시간으로 추적할 타겟 Transform입니다.</param>
+        /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 바라보기 좌표입니다.</param>
+        private void StartDummyMove(
+            DummyActorHandle handle,
+            Vector3 targetPosition,
+            MoveDummyCharacterEventDefinition def,
+            Transform lookTargetTransform,
+            Vector3 fallbackLookTargetPosition)
         {
             if (handle == null || handle.Character == null || def == null)
                 return;
@@ -3700,33 +3714,44 @@ namespace GGemCo2DSkill
             {
                 handle.GroundPosition = targetGroundPosition;
                 ApplyDummyWorldPosition(handle);
+                if (def.lookAtTargetDuringMove)
+                    UpdateDummyFacingDuringMove(handle, lookTargetTransform, fallbackLookTargetPosition);
                 return;
             }
 
-            // 더미는 지면 좌표와 공중 높이를 분리 관리하므로 Transform 보간으로 지면 좌표만 갱신합니다.
+            // 더미는 지면 좌표와 공중 높이를 분리 관리하므로, 이동 보간은 지면 좌표만 갱신합니다.
             handle.ActiveMoveCoroutine = StartCoroutine(CoMoveDummyByTransform(
                 handle,
                 currentGroundPosition,
                 targetGroundPosition,
                 duration,
-                def.easing));
+                def.easing,
+                def.lookAtTargetDuringMove,
+                lookTargetTransform,
+                fallbackLookTargetPosition));
         }
 
         /// <summary>
-        /// 더미 캐릭터의 지면 좌표를 보간하여 이동시키고, 공중 높이를 합성해 최종 위치를 갱신합니다.
+        /// 더미 캐릭터의 지면 좌표를 보간하여 이동시키고, 설정된 경우 타겟 바라보기를 함께 갱신합니다.
         /// </summary>
         /// <param name="handle">이동 대상 더미 핸들입니다.</param>
         /// <param name="from">시작 위치입니다.</param>
         /// <param name="to">도착 위치입니다.</param>
         /// <param name="durationSeconds">이동 시간(초)입니다.</param>
         /// <param name="easeType">보간 easing입니다.</param>
+        /// <param name="lookAtTargetDuringMove">이동 중 타겟 바라보기 갱신 여부입니다.</param>
+        /// <param name="lookTargetTransform">실시간으로 추적할 타겟 Transform입니다.</param>
+        /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 바라보기 좌표입니다.</param>
         /// <returns>코루틴 이터레이터입니다.</returns>
         private IEnumerator CoMoveDummyByTransform(
             DummyActorHandle handle,
             Vector3 from,
             Vector3 to,
             float durationSeconds,
-            Easing.EaseType easeType)
+            Easing.EaseType easeType,
+            bool lookAtTargetDuringMove,
+            Transform lookTargetTransform,
+            Vector3 fallbackLookTargetPosition)
         {
             if (handle == null || handle.Character == null)
                 yield break;
@@ -3744,6 +3769,8 @@ namespace GGemCo2DSkill
                 float eased = Easing.Apply(t, easeType);
                 handle.GroundPosition = Vector3.LerpUnclamped(from, to, eased);
                 ApplyDummyWorldPosition(handle);
+                if (lookAtTargetDuringMove)
+                    UpdateDummyFacingDuringMove(handle, lookTargetTransform, fallbackLookTargetPosition);
                 yield return null;
             }
 
@@ -3751,15 +3778,78 @@ namespace GGemCo2DSkill
             {
                 handle.GroundPosition = to;
                 ApplyDummyWorldPosition(handle);
+                if (lookAtTargetDuringMove)
+                    UpdateDummyFacingDuringMove(handle, lookTargetTransform, fallbackLookTargetPosition);
             }
 
             handle.ActiveMoveCoroutine = null;
         }
 
         /// <summary>
-        /// 더미 캐릭터의 지면 기준 좌표를 현재 Transform 값으로 동기화합니다.
+        /// 이동 중 더미의 바라보는 방향을 타겟 기준으로 갱신합니다.
         /// </summary>
-        /// <param name="handle">동기화할 더미 핸들입니다.</param>
+        /// <param name="handle">방향을 갱신할 더미 핸들입니다.</param>
+        /// <param name="lookTargetTransform">실시간으로 추적할 타겟 Transform입니다.</param>
+        /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 타겟 좌표입니다.</param>
+        private static void UpdateDummyFacingDuringMove(
+            DummyActorHandle handle,
+            Transform lookTargetTransform,
+            Vector3 fallbackLookTargetPosition)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            if (!TryResolveDummyLookTargetPosition(lookTargetTransform, fallbackLookTargetPosition, out Vector3 lookTargetPosition))
+                return;
+
+            ApplyDummyFacingByPosition(handle.Character, lookTargetPosition);
+        }
+
+        /// <summary>
+        /// 이동 중 바라보기 계산에 사용할 타겟 좌표를 결정합니다.
+        /// </summary>
+        /// <param name="lookTargetTransform">실시간 타겟 Transform입니다.</param>
+        /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 타겟 좌표입니다.</param>
+        /// <param name="lookTargetPosition">결정된 타겟 좌표입니다.</param>
+        /// <returns>타겟 좌표를 결정했으면 <see langword="true"/>를 반환합니다.</returns>
+        private static bool TryResolveDummyLookTargetPosition(
+            Transform lookTargetTransform,
+            Vector3 fallbackLookTargetPosition,
+            out Vector3 lookTargetPosition)
+        {
+            if (lookTargetTransform != null)
+            {
+                lookTargetPosition = lookTargetTransform.position;
+                return true;
+            }
+
+            lookTargetPosition = fallbackLookTargetPosition;
+            return true;
+        }
+
+        /// <summary>
+        /// 타겟의 X축 상대 위치를 기준으로 더미의 좌우 바라보기 방향을 적용합니다.
+        /// </summary>
+        /// <param name="character">방향을 적용할 캐릭터입니다.</param>
+        /// <param name="lookTargetPosition">바라볼 타겟 월드 좌표입니다.</param>
+        private static void ApplyDummyFacingByPosition(CharacterBase character, Vector3 lookTargetPosition)
+        {
+            if (character == null)
+                return;
+
+            float deltaX = lookTargetPosition.x - character.transform.position.x;
+            if (Mathf.Abs(deltaX) <= 1e-4f)
+                return;
+
+            var facing = deltaX >= 0f
+                ? CharacterConstants.FacingDirection8.Right
+                : CharacterConstants.FacingDirection8.Left;
+            character.SetFacing(facing);
+        }
+        /// <summary>
+        /// ?붾? 罹먮┃?곗쓽 吏硫?湲곗? 醫뚰몴瑜??꾩옱 Transform 媛믪쑝濡??숆린?뷀빀?덈떎.
+        /// </summary>
+        /// <param name="handle">?숆린?뷀븷 ?붾? ?몃뱾?낅땲??</param>
         private static void SyncDummyGroundFromTransform(DummyActorHandle handle)
         {
             if (handle == null || handle.Character == null)
@@ -4360,21 +4450,6 @@ namespace GGemCo2DSkill
             anim?.PlayWaitAnimation();
         }
 
-        /// <summary>
-        /// 더미 캐릭터 런타임에 불필요한 스크립트를 정리합니다.
-        /// 애니메이션/이동에 필요한 컴포넌트와 필수 의존성만 유지합니다.
-        /// </summary>
-        /// <param name="character">정리 대상 더미 캐릭터입니다.</param>
-        /// <summary>
-        /// 더미 캐릭터 런타임에서 반드시 유지해야 하는 스크립트인지 판별합니다.
-        /// </summary>
-        /// <param name="behaviour">판별 대상 스크립트입니다.</param>
-        /// <returns>유지 대상이면 <see langword="true"/>를 반환합니다.</returns>
-        /// <summary>
-        /// 더미 캐릭터 런타임에서 제거 대상 스크립트인지 판별합니다.
-        /// </summary>
-        /// <param name="behaviour">판별 대상 스크립트입니다.</param>
-        /// <returns>제거 대상이면 <see langword="true"/>를 반환합니다.</returns>
         /// <summary>
         /// 더미 캐릭터 제어/브레인 잠금을 적용합니다.
         /// </summary>
