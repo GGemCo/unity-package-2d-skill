@@ -32,6 +32,9 @@ namespace GGemCo2DSkill
         public string UseClip;
         public ConfigCommonSkill.SkillFacingMode FacingMode;
 
+        /// <summary>스킬 사용 전 차징 설정입니다.</summary>
+        public RuntimeSkillChargeDefinition Charge;
+
         public static RuntimeSkillDefinition From(StruckTableSkill row)
         {
             if (row == null) return null;
@@ -54,6 +57,7 @@ namespace GGemCo2DSkill
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
                 FacingMode = row.FacingMode,
+                Charge = RuntimeSkillChargeDefinition.From(row, TableLoaderManagerSkill.Instance != null ? TableLoaderManagerSkill.Instance.TableSkillChargeStage : null),
             };
         }
 
@@ -79,6 +83,7 @@ namespace GGemCo2DSkill
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
                 FacingMode = row.FacingMode,
+                Charge = RuntimeSkillChargeDefinition.From(row, TableLoaderManagerSkill.Instance != null ? TableLoaderManagerSkill.Instance.TableSkillChargeStage : null),
             };
         }
     }

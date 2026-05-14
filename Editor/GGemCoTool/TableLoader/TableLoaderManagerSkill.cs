@@ -30,6 +30,16 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
+        /// 스킬 차징 단계 테이블을 로드합니다.
+        /// </summary>
+        /// <param name="forceReload">기존 캐시를 무시하고 다시 로드할지 여부입니다.</param>
+        /// <returns>로드된 차징 단계 테이블입니다.</returns>
+        public static TableSkillChargeStage LoadTableSkillChargeStage(bool forceReload = true)
+        {
+            return TableLoaderManagerBase.LoadTable<TableSkillChargeStage>(ConfigAddressableTableSkill.TableSkillChargeStage.Path, forceReload);
+        }
+
+        /// <summary>
         /// Core 패키지 테이블을 논리 이름으로 로드합니다. (예: "stat", "state", "damage_type")
         /// </summary>
         public static TTable LoadCoreTable<TTable>(string tableName, bool forceReload = false)

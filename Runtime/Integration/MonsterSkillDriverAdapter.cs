@@ -400,6 +400,11 @@ namespace GGemCo2DSkill
                 _ => SkillCancelReason.ForcedBySystem
             };
 
+            if (_executor.TryApplyIncomingHitToChargeGauge(cancelReason))
+            {
+                return;
+            }
+
             _executor.TryCancel(cancelReason);
         }
     }

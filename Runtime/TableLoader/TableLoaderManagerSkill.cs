@@ -35,6 +35,11 @@ namespace GGemCo2DSkill
         public TableSkillMonster TableSkillMonster { get; private set; } = new TableSkillMonster();
 
         /// <summary>
+        /// 스킬 사용 전 차징 단계 테이블입니다.
+        /// </summary>
+        public TableSkillChargeStage TableSkillChargeStage { get; private set; } = new TableSkillChargeStage();
+
+        /// <summary>
         /// Unity Awake 생명주기 메서드.
         /// </summary>
         /// <remarks>
@@ -57,6 +62,7 @@ namespace GGemCo2DSkill
                 registry.Register(TableSkillPassive);
                 registry.Register(TableSkillPassiveOption);
                 registry.Register(TableSkillMonster);
+                registry.Register(TableSkillChargeStage);
 }
             else
             {

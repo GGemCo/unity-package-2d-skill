@@ -45,6 +45,25 @@ namespace GGemCo2DSkill
         /// <summary>애니메이션 클립 이름 규칙: 사용</summary>
         public string UseClip;
 
+
+        /// <summary>스킬 사용 전 차징 단계를 사용할지 여부입니다.</summary>
+        public bool UseCharge;
+
+        /// <summary>차징 중 피격으로 감소하는 차징 게이지 최대값입니다.</summary>
+        public float ChargeGaugeMax;
+
+        /// <summary>피격 1회당 감소시킬 차징 게이지 값입니다.</summary>
+        public float ChargeGaugeDamagePerHit;
+
+        /// <summary>차징 완료 후 실제 사용 단계로 넘어가기 전에 재생할 애니메이션 클립입니다.</summary>
+        public string ChargeCompleteClip;
+
+        /// <summary>차징 실패 시 재생할 애니메이션 클립입니다.</summary>
+        public string ChargeFailClip;
+
+        /// <summary>차징 실패 애니메이션을 유지할 시간(초)입니다. 0이면 애니메이션 길이 또는 기본값을 사용합니다.</summary>
+        public float ChargeFailDurationSeconds;
+
         /// <summary>스킬 실행 직전에 자동으로 맞출 방향 정책입니다.</summary>
         public ConfigCommonSkill.SkillFacingMode FacingMode;
     }
@@ -75,6 +94,12 @@ namespace GGemCo2DSkill
                 CastStartClip = data["CastStartClip"],
                 CastLoopClip = data["CastLoopClip"],
                 CastEndClip = data["CastEndClip"],
+                UseCharge = ConvertBoolean(data.GetValueOrDefault("UseCharge", "N")),
+                ChargeGaugeMax = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeGaugeMax", "0"))),
+                ChargeGaugeDamagePerHit = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeGaugeDamagePerHit", "1"))),
+                ChargeCompleteClip = data.GetValueOrDefault("ChargeCompleteClip", string.Empty),
+                ChargeFailClip = data.GetValueOrDefault("ChargeFailClip", string.Empty),
+                ChargeFailDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeFailDurationSeconds", "0"))),
                 UseClip = data["UseClip"],
                 FacingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillFacingMode>(data["FacingMode"])
             };

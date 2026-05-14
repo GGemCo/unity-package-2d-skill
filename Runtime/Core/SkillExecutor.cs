@@ -70,6 +70,11 @@ namespace GGemCo2DSkill
         /// </summary>
         public event System.Action<SkillExecutionReport> ExecutionFinished;
 
+        /// <summary>
+        /// 현재 스킬의 차징 상태가 변경될 때 UI/디버그 도구에 알립니다.
+        /// </summary>
+        public event System.Action<SkillChargeSnapshot> ChargeStateChanged;
+
         private bool _hasPendingFinishReport;
         private SkillExecutionReport _pendingFinishReport;
         private int _executionSequence;
@@ -4437,6 +4442,29 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 스킬 런 종료 시 실행기에 남아 있는 참조를 정리합니다.
         /// </summary>
+        /// <summary>
+        /// 차징 상태 변경 스냅샷을 외부 UI/디버그 도구로 전달합니다.
+        /// </summary>
+        /// <param name="snapshot">현재 차징 상태 스냅샷입니다.</param>
+        internal void NotifyChargeStateChanged(SkillChargeSnapshot snapshot)
+        {
+            ChargeStateChanged?.Invoke(snapshot);
+        }
+
+        /// <summary>
+        /// 차징 실패가 발생했을 때 현재 실행 결과를 Failed로 예약합니다.
+        /// 실패 애니메이션이 끝난 뒤 <see cref="NotifyRunEnded"/>에서 실제 리포트가 발행됩니다.
+        /// </summary>
+        /// <param name="run">실패한 스킬 런타임입니다.</param>
+        internal void NotifyChargeFailed(SkillRun run)
+        {
+            if (run == null || !ReferenceEquals(_current, run))
+                return;
+
+            _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Failed, ++_executionSequence, Time.time);
+            _hasPendingFinishReport = true;
+        }
+
         internal void NotifyRunEnded(SkillRun run)
         {
             if (run == null || !ReferenceEquals(_current, run))
@@ -4485,6 +4513,21 @@ namespace GGemCo2DSkill
             SkillTestRuntimeHub.Instance?.ClearDamageAreas(caster);
             SkillTestRuntimeHub.Instance?.ClearLasers(caster);
 #endif
+        }
+
+        /// <summary>
+        /// 현재 실행 중인 스킬이 차징 중이면 피격을 차징 게이지 감소로 처리합니다.
+        /// 게이지가 0이 되면 내부적으로 실패 애니메이션과 Failed 리포트를 예약합니다.
+        /// </summary>
+        /// <param name="reason">피격/인터럽트 사유입니다.</param>
+        /// <param name="gaugeDamage">감소시킬 차징 게이지 값입니다. 0 이하이면 스킬 설정값을 사용합니다.</param>
+        /// <returns>차징 게이지가 해당 피격을 처리했으면 <see langword="true"/>입니다.</returns>
+        public bool TryApplyIncomingHitToChargeGauge(SkillCancelReason reason, float gaugeDamage = 0f)
+        {
+            if (_current == null)
+                return false;
+
+            return _current.TryApplyChargeGaugeDamage(reason, gaugeDamage);
         }
 
         /// <summary>

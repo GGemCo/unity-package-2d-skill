@@ -254,6 +254,11 @@ namespace GGemCo2DSkill
                 _ => SkillCancelReason.ForcedBySystem
             };
 
+            if (_executor.TryApplyIncomingHitToChargeGauge(cancelReason))
+            {
+                return;
+            }
+
             if (_executor.TryCancel(cancelReason))
             {
                 // 체인 상태/UI가 있다면 여기서 즉시 정리하거나,

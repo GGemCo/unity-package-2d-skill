@@ -46,6 +46,11 @@ namespace GGemCo2DSkillEditor
         private TableSkillMonster _tableSkillMonster;
 
         /// <summary>
+        /// 스킬 차징 단계 테이블입니다.
+        /// </summary>
+        private TableSkillChargeStage _tableSkillChargeStage;
+
+        /// <summary>
         /// 플레이어 스킬 데이터를 UID 기준으로 조회하기 위한 사전입니다.
         /// </summary>
         private Dictionary<int, StruckTableSkill> _playerDictionary;
@@ -121,6 +126,9 @@ namespace GGemCo2DSkillEditor
             OnGUIRowEditor();
             EditorGUILayout.Space(6);
 
+            OnGUICharge();
+            EditorGUILayout.Space(6);
+
             OnGUITimelineBake();
             EditorGUILayout.Space(6);
 
@@ -149,6 +157,7 @@ namespace GGemCo2DSkillEditor
                 // Edit Mode 드롭다운 구성을 위해 에디터 전용 동기 로더를 사용
                 _tableSkill = TableLoaderManagerSkill.LoadTableSkill();
                 _tableSkillMonster = TableLoaderManagerSkill.LoadTableSkillMonster();
+                _tableSkillChargeStage = TableLoaderManagerSkill.LoadTableSkillChargeStage();
 
                 _playerDictionary = BuildPlayerDictionary(_tableSkill);
                 _monsterDictionary = BuildMonsterDictionary(_tableSkillMonster);

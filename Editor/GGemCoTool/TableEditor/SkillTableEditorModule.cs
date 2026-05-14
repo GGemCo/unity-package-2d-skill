@@ -33,6 +33,18 @@ namespace GGemCo2DSkillEditor
                 TableEditorDefinitionFactory.CreateDefaultReloadAction(ConfigAddressableTableSkill.TableSkillMonster.Path),
                 ResolveReference);
 
+
+            yield return TableEditorDefinitionFactory.Create(
+                ModuleName,
+                PackageName,
+                ConfigAddressableTableSkill.SkillChargeStage,
+                ConfigAddressableTableSkill.TableSkillChargeStage.Path,
+                ConfigAddressableTableSkill.SkillChargeStage,
+                typeof(TableSkillChargeStage),
+                typeof(StruckTableSkillChargeStage),
+                TableEditorDefinitionFactory.CreateDefaultReloadAction(ConfigAddressableTableSkill.TableSkillChargeStage.Path),
+                ResolveReference);
+
             yield return TableEditorDefinitionFactory.Create(
                 ModuleName,
                 PackageName,
@@ -60,6 +72,8 @@ namespace GGemCo2DSkillEditor
         {
             switch (headerName)
             {
+                case "SkillUid":
+                    return TableEditorRegistry.FindByKey(ConfigAddressableTableSkill.Skill);
                 case "SkillPassiveUid":
                     return TableEditorRegistry.FindByKey(ConfigAddressableTableSkill.SkillPassive);
                 case "ApplyAffectUid":

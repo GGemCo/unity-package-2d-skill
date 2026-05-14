@@ -7,6 +7,9 @@ using UnityEngine;
 
 namespace GGemCo2DSkill
 {
+    /// <summary>
+    /// 스킬 1회 실행의 런타임 상태를 관리합니다.
+    /// </summary>
     public sealed class SkillRun
     {
         private readonly SkillExecutor _owner;
@@ -28,6 +31,20 @@ namespace GGemCo2DSkill
         private bool _didCastEnd;
         private bool _didUse;
 
+        // Charge
+        private bool _didCharge;
+        private bool _chargeCompleted;
+        private bool _isChargeFailed;
+        private bool _didChargeComplete;
+        private int _chargeStageArrayIndex;
+        private float _chargeStageElapsed;
+        private float _chargeTotalElapsed;
+        private float _chargeGaugeCurrent;
+        private float _chargeGaugeMax;
+        private float _chargeFailElapsed;
+        private float _chargeFailDuration;
+        private VfxBehaviourBase _activeChargeVfx;
+
         private float _castElapsed;
         private Vector3 _snapshotCasterPos;
         private Vector3 _snapshotTargetPos;
@@ -42,6 +59,11 @@ namespace GGemCo2DSkill
         public bool IsDone { get; private set; }
         public int SkillUid => _skill != null ? _skill.Uid : 0;
         public GameObject Caster => _ctx.caster;
+
+        /// <summary>
+        /// 현재 스킬이 차징 단계에 머무르고 있는지 여부입니다.
+        /// </summary>
+        public bool IsCharging => HasCharge && _didCharge && !_chargeCompleted && !_isChargeFailed && !IsDone;
 
         /// <summary>
         /// Use 애니메이션 기준으로 현재 스킬 이벤트 시퀀스가 진행된 시간입니다.
@@ -60,6 +82,8 @@ namespace GGemCo2DSkill
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
         }
+
+        private bool HasCharge => _skill?.Charge != null && _skill.Charge.IsEnabled;
 
         /// <summary>
         /// 같은 스킬 실행 안에서 이후 이벤트가 참조할 수 있도록 위치 앵커를 저장합니다.
@@ -89,6 +113,9 @@ namespace GGemCo2DSkill
             return _positionAnchors.TryGetValue(key.Trim(), out snapshot);
         }
 
+        /// <summary>
+        /// 스킬 실행을 시작하고 런타임 시퀀스를 비동기로 로드합니다.
+        /// </summary>
         public void Start()
         {
             SnapshotContext();
@@ -143,7 +170,7 @@ namespace GGemCo2DSkill
             {
                 Debug.LogException(e);
                 IsDone = true;
-                    EndRun();
+                EndRun();
             }
             finally
             {
@@ -151,11 +178,351 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// 스킬 실행 시간을 진행합니다.
+        /// 차징이 있는 스킬은 차징이 완료된 뒤 기존 캐스팅/사용 단계로 진입합니다.
+        /// </summary>
+        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
         public void Tick(float dt)
         {
             if (IsDone) return;
             if (_isLoading) return;
 
+            if (_isChargeFailed)
+            {
+                TickChargeFailed(dt);
+                return;
+            }
+
+            if (HasCharge && !_chargeCompleted)
+            {
+                TickCharge(dt);
+                return;
+            }
+
+            TickCastAndUse(dt);
+            TickRuntimeSequence(dt);
+        }
+
+        /// <summary>
+        /// 피격으로 차징 게이지를 감소시킵니다.
+        /// 게이지가 0이 되면 차징 실패 상태로 전환합니다.
+        /// </summary>
+        /// <param name="reason">피격 또는 취소 사유입니다.</param>
+        /// <param name="damageAmount">감소시킬 게이지 값입니다. 0 이하이면 스킬 설정의 기본 감소량을 사용합니다.</param>
+        /// <returns>현재 차징 게이지가 피격을 처리했으면 <see langword="true"/>입니다.</returns>
+        public bool TryApplyChargeGaugeDamage(SkillCancelReason reason, float damageAmount = 0f)
+        {
+            if (!IsCharging)
+                return false;
+
+            if (reason == SkillCancelReason.Death)
+                return false;
+
+            float resolvedDamage = damageAmount > 0f
+                ? damageAmount
+                : Mathf.Max(0f, _skill.Charge.GaugeDamagePerHit);
+
+            if (resolvedDamage <= 0f)
+                resolvedDamage = 1f;
+
+            _chargeGaugeCurrent = Mathf.Max(0f, _chargeGaugeCurrent - resolvedDamage);
+            NotifyChargeSnapshot();
+
+            if (_chargeGaugeCurrent <= 0f)
+            {
+                BreakCharge();
+            }
+
+            return true;
+        }
+
+        private void TickCharge(float dt)
+        {
+            if (!_didCharge)
+                BeginCharge();
+
+            if (_chargeCompleted || _isChargeFailed)
+                return;
+
+            var stages = _skill.Charge.Stages;
+            if (stages == null || stages.Length == 0)
+            {
+                CompleteCharge();
+                return;
+            }
+
+            float remaining = Mathf.Max(0f, dt);
+            while (remaining > 0f && !_chargeCompleted && !_isChargeFailed)
+            {
+                var stage = GetCurrentChargeStage();
+                if (stage == null || stage.DurationSeconds <= 0f)
+                {
+                    AdvanceChargeStage();
+                    continue;
+                }
+
+                float stageRemaining = Mathf.Max(0f, stage.DurationSeconds - _chargeStageElapsed);
+                float consume = Mathf.Min(remaining, stageRemaining);
+                _chargeStageElapsed += consume;
+                _chargeTotalElapsed += consume;
+                remaining -= consume;
+
+                if (_chargeStageElapsed + 1e-6f >= stage.DurationSeconds)
+                {
+                    AdvanceChargeStage();
+                }
+            }
+
+            NotifyChargeSnapshot();
+        }
+
+        private void BeginCharge()
+        {
+            _didCharge = true;
+            _chargeCompleted = false;
+            _isChargeFailed = false;
+            _chargeStageArrayIndex = 0;
+            _chargeStageElapsed = 0f;
+            _chargeTotalElapsed = 0f;
+            _chargeGaugeMax = Mathf.Max(0f, _skill.Charge.GaugeMax);
+            if (_chargeGaugeMax <= 0f)
+                _chargeGaugeMax = 1f;
+            _chargeGaugeCurrent = _chargeGaugeMax;
+
+            EnterChargeStage(_chargeStageArrayIndex);
+            NotifyChargeSnapshot();
+        }
+
+        private void EnterChargeStage(int stageArrayIndex)
+        {
+            CleanupActiveChargeVfx();
+
+            var stage = GetChargeStage(stageArrayIndex);
+            if (stage == null)
+                return;
+
+            PlayChargeLoop(stage);
+            SpawnChargeVfx(stage);
+        }
+
+        private void AdvanceChargeStage()
+        {
+            _chargeStageArrayIndex++;
+            _chargeStageElapsed = 0f;
+
+            if (_skill.Charge.Stages == null || _chargeStageArrayIndex >= _skill.Charge.Stages.Length)
+            {
+                CompleteCharge();
+                return;
+            }
+
+            EnterChargeStage(_chargeStageArrayIndex);
+        }
+
+        private void CompleteCharge()
+        {
+            if (_chargeCompleted)
+                return;
+
+            _chargeCompleted = true;
+            CleanupActiveChargeVfx();
+            PlayChargeComplete();
+            NotifyChargeSnapshot();
+        }
+
+        private void BreakCharge()
+        {
+            if (_isChargeFailed || _chargeCompleted)
+                return;
+
+            _isChargeFailed = true;
+            _chargeCompleted = false;
+            _chargeFailElapsed = 0f;
+            _chargeFailDuration = ResolveChargeFailDuration();
+
+            CleanupActiveChargeVfx();
+            PlayChargeFail();
+            _owner?.NotifyChargeFailed(this);
+            NotifyChargeSnapshot();
+
+            if (_chargeFailDuration <= 0f)
+            {
+                IsDone = true;
+                EndRun();
+            }
+        }
+
+        private void TickChargeFailed(float dt)
+        {
+            _chargeFailElapsed += Mathf.Max(0f, dt);
+            if (_chargeFailElapsed < _chargeFailDuration)
+                return;
+
+            IsDone = true;
+            EndRun();
+        }
+
+        private RuntimeSkillChargeStageDefinition GetCurrentChargeStage()
+        {
+            return GetChargeStage(_chargeStageArrayIndex);
+        }
+
+        private RuntimeSkillChargeStageDefinition GetChargeStage(int stageArrayIndex)
+        {
+            var stages = _skill.Charge.Stages;
+            if (stages == null || stageArrayIndex < 0 || stageArrayIndex >= stages.Length)
+                return null;
+
+            return stages[stageArrayIndex];
+        }
+
+        private void PlayChargeLoop(RuntimeSkillChargeStageDefinition stage)
+        {
+            if (stage == null)
+                return;
+            if (GcLogger.IsNull(_animController, nameof(_animController)))
+                return;
+
+            _animController.PlaySkillAnimation(new SkillAnimationRequest(
+                _skill.Uid,
+                SkillAnimationPhase.ChargeLoop,
+                loop: true,
+                timeScale: 1f,
+                overrideAnimationName: string.IsNullOrEmpty(stage.LoopClip) ? null : stage.LoopClip));
+        }
+
+        private void PlayChargeComplete()
+        {
+            if (_didChargeComplete)
+                return;
+
+            _didChargeComplete = true;
+            if (string.IsNullOrWhiteSpace(_skill.Charge.CompleteClip))
+                return;
+            if (GcLogger.IsNull(_animController, nameof(_animController)))
+                return;
+
+            _animController.PlaySkillAnimation(new SkillAnimationRequest(
+                _skill.Uid,
+                SkillAnimationPhase.ChargeComplete,
+                loop: false,
+                timeScale: 1f,
+                overrideAnimationName: _skill.Charge.CompleteClip));
+        }
+
+        private void PlayChargeFail()
+        {
+            if (GcLogger.IsNull(_animController, nameof(_animController)))
+                return;
+
+            string failClip = _skill.Charge.FailClip;
+            if (string.IsNullOrWhiteSpace(failClip))
+            {
+                _animController.StopSkillAnimation();
+                return;
+            }
+
+            _animController.PlaySkillAnimation(new SkillAnimationRequest(
+                _skill.Uid,
+                SkillAnimationPhase.ChargeFail,
+                loop: false,
+                timeScale: 1f,
+                overrideAnimationName: failClip));
+        }
+
+        private float ResolveChargeFailDuration()
+        {
+            if (_skill?.Charge == null)
+                return 0f;
+
+            if (_skill.Charge.FailDurationSeconds > 0f)
+                return _skill.Charge.FailDurationSeconds;
+
+            if (_animController == null || string.IsNullOrWhiteSpace(_skill.Charge.FailClip))
+                return 0.3f;
+
+            float duration = _animController.GetCharacterAnimationDuration(_skill.Charge.FailClip, isMilliseconds: false);
+            return duration > 0f ? duration : 0.3f;
+        }
+
+        private void SpawnChargeVfx(RuntimeSkillChargeStageDefinition stage)
+        {
+            if (stage == null || stage.VfxUid <= 0)
+                return;
+
+            var sceneGame = SceneGame.Instance;
+            if (sceneGame == null || sceneGame.VfxManager == null)
+                return;
+
+            CharacterBase casterCharacter = _ctx.caster != null ? _ctx.caster.GetComponentInParent<CharacterBase>() : null;
+            Vector3 spawnPosition = casterCharacter != null
+                ? casterCharacter.transform.position
+                : (_ctx.caster != null ? _ctx.caster.transform.position : _snapshotCasterPos);
+
+            var request = new VfxSpawnRequest
+            {
+                VfxUid = stage.VfxUid,
+                Owner = casterCharacter,
+                OwnerGameObject = _ctx.caster,
+                FollowTarget = stage.VfxFollowMode != VfxConstants.FollowMode.None ? casterCharacter : null,
+                WorldPosition = spawnPosition,
+                DurationOverride = 0f,
+                ScaleOverride = stage.VfxScale,
+                PositionY = stage.VfxPositionY,
+                PositionYType = stage.VfxPositionYType,
+                FollowModeOverride = stage.VfxFollowMode,
+            };
+
+            _activeChargeVfx = sceneGame.VfxManager.CreateVfx(request);
+        }
+
+        private void CleanupActiveChargeVfx()
+        {
+            if (_activeChargeVfx == null)
+                return;
+
+            _activeChargeVfx.DestroyForce();
+            _activeChargeVfx = null;
+        }
+
+        private void NotifyChargeSnapshot()
+        {
+            if (!HasCharge)
+                return;
+
+            _owner?.NotifyChargeStateChanged(BuildChargeSnapshot());
+        }
+
+        private SkillChargeSnapshot BuildChargeSnapshot()
+        {
+            if (!HasCharge)
+                return SkillChargeSnapshot.Inactive(SkillUid);
+
+            var stage = GetCurrentChargeStage();
+            float totalDuration = Mathf.Max(0f, _skill.Charge.TotalDurationSeconds);
+            float progress01 = totalDuration > 0f ? Mathf.Clamp01(_chargeTotalElapsed / totalDuration) : 1f;
+            float gauge01 = _chargeGaugeMax > 0f ? Mathf.Clamp01(_chargeGaugeCurrent / _chargeGaugeMax) : 0f;
+
+            return new SkillChargeSnapshot(
+                SkillUid,
+                isActive: IsCharging || _isChargeFailed,
+                isCharging: IsCharging,
+                isFailed: _isChargeFailed,
+                stageIndex: stage != null ? stage.StageIndex : 0,
+                stageCount: _skill.Charge.Stages?.Length ?? 0,
+                stageElapsedSeconds: _chargeStageElapsed,
+                stageDurationSeconds: stage != null ? stage.DurationSeconds : 0f,
+                totalElapsedSeconds: _chargeTotalElapsed,
+                totalDurationSeconds: totalDuration,
+                progress01: progress01,
+                gaugeCurrent: _chargeGaugeCurrent,
+                gaugeMax: _chargeGaugeMax,
+                gauge01: gauge01);
+        }
+
+        private void TickCastAndUse(float dt)
+        {
             // 1) 캐스팅 처리
             float castTime = Mathf.Max(0f, _skill.CastTime);
 
@@ -181,7 +548,10 @@ namespace GGemCo2DSkill
                     PlayUse();
                 }
             }
+        }
 
+        private void TickRuntimeSequence(float dt)
+        {
             // 2) 이벤트 시퀀스 재생(Use 시작부터 재생)
             if (_didUse && _sequence != null && _sequence.Events != null)
             {
@@ -285,20 +655,20 @@ namespace GGemCo2DSkill
                 timeScale: 1f,
                 overrideAnimationName: string.IsNullOrEmpty(_skill.UseClip) ? null : _skill.UseClip));
         }
+
         /// <summary>
         /// 스킬 런 시작 시점에 적용할 초기 액션 상태를 설정합니다.
-        /// (캐스팅 유무에 따라 CastingSkill 또는 UseSkill)
+        /// 차징 또는 캐스팅이 있으면 준비 상태(CastingSkill)로 진입하고, 즉시 발동 스킬은 UseSkill로 진입합니다.
         /// </summary>
         private void ApplyInitialActionState()
         {
             if (_actionController == null || _ctx.caster == null)
                 return;
 
-            // 캐스팅 시간이 존재하면 캐스팅 상태로 진입
-            bool hasCasting = _skill.CastTime > 0f; // 프로젝트에서 사용하는 캐스팅 판정 기준에 맞추세요.
+            bool hasPreparePhase = HasCharge || _skill.CastTime > 0f;
 
             var request = new CharacterActionRequest(
-                status: hasCasting ? CharacterConstants.CharacterStatus.CastingSkill : CharacterConstants.CharacterStatus.UseSkill,
+                status: hasPreparePhase ? CharacterConstants.CharacterStatus.CastingSkill : CharacterConstants.CharacterStatus.UseSkill,
                 skillUid: _skill.Uid,
                 lockMove: true,
                 lockFacing: false);
@@ -308,14 +678,14 @@ namespace GGemCo2DSkill
         
         /// <summary>
         /// 실제 스킬 발동(Use) 시점에 UseSkill 상태를 적용합니다.
-        /// 캐스팅 → 사용 단계 전환에 해당합니다.
+        /// 캐스팅/차징 → 사용 단계 전환에 해당합니다.
         /// </summary>
         private void ApplyUseActionState()
         {
             if (_actionController == null || _ctx.caster == null)
                 return;
 
-            // 캐스팅 상태를 사용 상태로 전환(정책상 필요하면 Clear 후 Request)
+            // 준비 상태를 사용 상태로 전환(정책상 필요하면 Clear 후 Request)
             _actionController.ClearAction(CharacterConstants.CharacterStatus.CastingSkill);
 
             var request = new CharacterActionRequest(
@@ -326,6 +696,7 @@ namespace GGemCo2DSkill
 
             _actionController.RequestAction(in request);
         }
+
         public bool TryStartPositionHold(float durationSeconds, bool keepUntilSkillEnd, bool stopAtEnd, bool useMovePosition, bool allowReplace)
         {
             if (_motionController == null || _ctx.caster == null)
@@ -397,6 +768,13 @@ namespace GGemCo2DSkill
 
             _isEnded = true;
 
+            CleanupActiveChargeVfx();
+
+            if (HasCharge)
+            {
+                _owner?.NotifyChargeStateChanged(SkillChargeSnapshot.Inactive(SkillUid));
+            }
+
             if (_keepPositionHoldUntilSkillEnd || _isPositionHoldActive)
             {
                 ReleasePositionHold();
@@ -408,8 +786,6 @@ namespace GGemCo2DSkill
                 _actionController.ClearAction(CharacterConstants.CharacterStatus.CastingSkill);
             }
 
-            // 이 아래는 프로젝트 구조에 맞춰 정리 호출을 넣으세요.
-            // 예) 이펙트/타임라인 정리, 콜백 호출, SkillExecutor에게 완료 알림 등
             _owner?.NotifyRunEnded(this);
         }
         
@@ -417,8 +793,14 @@ namespace GGemCo2DSkill
         {
             if (IsDone) return;
 
-            // 이후 이벤트/캐스팅 진행 차단
+            // 이후 이벤트/캐스팅/차징 진행 차단
             IsDone = true;
+            CleanupActiveChargeVfx();
+
+            if (HasCharge)
+            {
+                _owner?.NotifyChargeStateChanged(SkillChargeSnapshot.Inactive(SkillUid));
+            }
 
             // 체인 캔슬은 다음 스킬 애니메이션이 같은 프레임에 이어서 재생되므로
             // 대기 애니메이션으로 한 번 복귀시키지 않고 현재 스킬 재생만 끊습니다.
@@ -430,6 +812,5 @@ namespace GGemCo2DSkill
             // 상태 해제(UseSkill/CastingSkill 등)
             EndRun();
         }
-
     }
 }
