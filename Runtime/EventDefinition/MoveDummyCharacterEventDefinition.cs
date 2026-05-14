@@ -9,6 +9,9 @@ namespace GGemCo2DSkill
     public sealed class MoveDummyCharacterEventDefinition : ScriptableObject
     {
         [Header("Identity")]
+        [Tooltip("이동 대상을 결정하는 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        public DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Actor;
+
         [Tooltip("이동시킬 더미 캐릭터를 식별하는 키입니다.")]
         public string actorKey = "dummy_1";
 

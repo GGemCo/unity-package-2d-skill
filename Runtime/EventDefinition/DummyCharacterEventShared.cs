@@ -71,6 +71,22 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// 더미 관련 이벤트가 어떤 주체를 대상으로 실행될지 정의합니다.
+    /// </summary>
+    public enum DummyActorReferenceType
+    {
+        /// <summary>
+        /// actorKey로 등록된 더미 액터를 대상으로 사용합니다.
+        /// </summary>
+        Actor = 0,
+
+        /// <summary>
+        /// 현재 스킬 실행 컨텍스트의 캐스터를 대상으로 사용합니다.
+        /// </summary>
+        Caster = 1,
+    }
+
+    /// <summary>
     /// 더미 캐릭터를 찾지 못했을 때의 처리 정책입니다.
     /// </summary>
     public enum DummyMissingActorPolicy

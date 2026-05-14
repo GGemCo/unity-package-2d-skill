@@ -14,6 +14,8 @@ namespace GGemCo2DSkillEditor
     public sealed class SkillMoveDummyCharacterClip : SkillEventClipBase
     {
         [Header("Identity")]
+        [Tooltip("이동 대상을 결정하는 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        [SerializeField] private DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Actor;
         [SerializeField] private string actorKey = "dummy_1";
 
         [Header("Move Target")]
@@ -45,6 +47,11 @@ namespace GGemCo2DSkillEditor
         /// 이 클립이 표현하는 스킬 이벤트 타입입니다.
         /// </summary>
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.MoveDummyCharacter;
+
+        /// <summary>
+        /// 이동 대상을 결정하는 참조 방식을 반환합니다.
+        /// </summary>
+        public DummyActorReferenceType ActorReferenceType => actorReferenceType;
 
         /// <summary>
         /// 이동 대상 더미 캐릭터 키를 반환합니다.

@@ -551,6 +551,7 @@ namespace GGemCo2DSkillEditor
                     return () =>
                     {
                         var def = ScriptableObject.CreateInstance<MoveDummyCharacterEventDefinition>();
+                        def.actorReferenceType = moveDummy.ActorReferenceType;
                         def.actorKey = moveDummy.ActorKey;
                         def.moveTargetMode = moveDummy.MoveTargetMode;
                         def.namedAnchorKey = moveDummy.NamedAnchorKey;
@@ -600,6 +601,7 @@ namespace GGemCo2DSkillEditor
                     return () =>
                     {
                         var def = ScriptableObject.CreateInstance<PlayDummyCharacterAnimationEventDefinition>();
+                        def.actorReferenceType = playDummyAnimation.ActorReferenceType;
                         def.actorKey = playDummyAnimation.ActorKey;
                         def.animationName = playDummyAnimation.AnimationName;
                         def.loop = playDummyAnimation.Loop;

@@ -4,12 +4,15 @@ using UnityEngine;
 namespace GGemCo2DSkill
 {
     /// <summary>
-    /// 스킬 이벤트로 생성된 더미 캐릭터에 특정 애니메이션을 재생할 때 사용하는 정의 데이터입니다.
+    /// 스킬 이벤트로 선택한 대상(더미 또는 캐스터)에 애니메이션을 재생할 때 사용하는 정의 데이터입니다.
     /// </summary>
     public sealed class PlayDummyCharacterAnimationEventDefinition : ScriptableObject
     {
         [Header("Identity")]
-        [Tooltip("애니메이션을 재생할 더미 캐릭터 식별 키입니다.")]
+        [Tooltip("애니메이션 재생 대상을 결정하는 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        public DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Actor;
+
+        [Tooltip("Actor 참조일 때 애니메이션을 재생할 더미 캐릭터 식별 키입니다.")]
         public string actorKey = "dummy_1";
 
         [Header("Animation")]
@@ -40,7 +43,7 @@ namespace GGemCo2DSkill
         public float endAnimationTimeScale = 1f;
 
         [Header("Policy")]
-        [Tooltip("actorKey에 해당하는 더미를 찾지 못했을 때 처리 정책입니다.")]
+        [Tooltip("대상을 찾지 못했을 때 처리 정책입니다.")]
         public DummyMissingActorPolicy missingActorPolicy = DummyMissingActorPolicy.Warn;
     }
 }

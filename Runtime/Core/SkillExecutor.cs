@@ -42,6 +42,20 @@ namespace GGemCo2DSkill
         private readonly Dictionary<string, DummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
 
         /// <summary>
+        /// 캐스터를 더미 액터 참조처럼 다루기 위한 내부 식별 키입니다.
+        /// </summary>
+        private const string CasterActorKey = "__caster__";
+
+        /// <summary>
+        /// Move/Animation 이벤트에서 Caster를 대상으로 선택했을 때 재사용하는 임시 핸들입니다.
+        /// 실제 더미 레지스트리에는 등록하지 않습니다.
+        /// </summary>
+        private readonly DummyActorHandle _casterActorHandle = new()
+        {
+            ActorKey = CasterActorKey,
+        };
+
+        /// <summary>
         /// 현재 스킬 실행 중인지 여부를 반환합니다.
         /// </summary>
         public bool IsBusy => _current != null;
@@ -220,6 +234,7 @@ namespace GGemCo2DSkill
         private void OnDisable()
         {
             CleanupDummyActors(forceAll: true, forCancel: false);
+            ResetCasterActorHandleTransientState(clearCharacter: true);
 
             if (_current == null)
                 return;
@@ -300,6 +315,7 @@ namespace GGemCo2DSkill
 
             CleanupSpawnedVfxs();
             CleanupDummyActors(forceAll: true, forCancel: false);
+            ResetCasterActorHandleTransientState(clearCharacter: true);
             _chainUnlockByAttackId.Clear();
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
@@ -406,7 +422,7 @@ namespace GGemCo2DSkill
                     break;
                 case ConfigCommonSkill.SkillEventType.PlayDummyCharacterAnimation:
                     float dummyAnimationDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
-                    HandlePlayDummyCharacterAnimation(payload, dummyAnimationDuration);
+                    HandlePlayDummyCharacterAnimation(ctx, payload, dummyAnimationDuration);
                     break;
                 default:
                     break;
@@ -3134,7 +3150,7 @@ namespace GGemCo2DSkill
             if (payloadObj is not MoveDummyCharacterEventDefinition def)
                 return;
 
-            if (!TryGetDummyActorHandle(def.actorKey, def.missingActorPolicy, out var handle))
+            if (!TryResolveDummyActorHandle(ctx, def.actorReferenceType, def.actorKey, def.missingActorPolicy, out var handle))
                 return;
 
             if (handle.Character == null)
@@ -3144,7 +3160,7 @@ namespace GGemCo2DSkill
             {
                 if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
                 {
-                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter requires locked target. key={handle.ActorKey}");
+                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter requires locked target. actor={GetDummyActorDisplayName(def.actorReferenceType, def.actorKey)}");
                 }
                 return;
             }
@@ -3219,14 +3235,15 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 더미 캐릭터에 지정한 애니메이션을 재생하고 필요 시 후속 애니메이션 전환을 예약합니다.
         /// </summary>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">애니메이션 이벤트 정의 페이로드입니다.</param>
         /// <param name="eventDurationSeconds">타임라인 클립 구간에서 계산한 이벤트 지속 시간(초)입니다.</param>
-        private void HandlePlayDummyCharacterAnimation(UnityEngine.Object payloadObj, float eventDurationSeconds)
+        private void HandlePlayDummyCharacterAnimation(SkillTargetContext ctx, UnityEngine.Object payloadObj, float eventDurationSeconds)
         {
             if (payloadObj is not PlayDummyCharacterAnimationEventDefinition def)
                 return;
 
-            if (!TryGetDummyActorHandle(def.actorKey, def.missingActorPolicy, out var handle))
+            if (!TryResolveDummyActorHandle(ctx, def.actorReferenceType, def.actorKey, def.missingActorPolicy, out var handle))
                 return;
 
             PlayDummyAnimation(handle, def.animationName, def.loop, def.timeScale);
@@ -3367,6 +3384,127 @@ namespace GGemCo2DSkill
         private static string NormalizeDummyActorKey(string actorKey)
         {
             return string.IsNullOrWhiteSpace(actorKey) ? string.Empty : actorKey.Trim();
+        }
+
+        /// <summary>
+        /// 더미 이벤트가 지정한 대상(Actor/Caster)을 실제 런타임 핸들로 해석합니다.
+        /// </summary>
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <param name="actorReferenceType">대상 참조 방식입니다.</param>
+        /// <param name="actorKey">Actor 참조일 때 사용할 식별 키입니다.</param>
+        /// <param name="missingPolicy">대상 미존재 시 처리 정책입니다.</param>
+        /// <param name="handle">해석된 런타임 핸들입니다.</param>
+        /// <returns>해석에 성공하면 <see langword="true"/>를 반환합니다.</returns>
+        private bool TryResolveDummyActorHandle(
+            SkillTargetContext ctx,
+            DummyActorReferenceType actorReferenceType,
+            string actorKey,
+            DummyMissingActorPolicy missingPolicy,
+            out DummyActorHandle handle)
+        {
+            switch (actorReferenceType)
+            {
+                case DummyActorReferenceType.Caster:
+                    return TryGetCasterActorHandle(ctx, missingPolicy, out handle);
+                case DummyActorReferenceType.Actor:
+                default:
+                    return TryGetDummyActorHandle(actorKey, missingPolicy, out handle);
+            }
+        }
+
+        /// <summary>
+        /// 현재 컨텍스트의 캐스터를 더미 액터 핸들 형태로 변환해 반환합니다.
+        /// </summary>
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <param name="missingPolicy">캐스터 해석 실패 시 처리 정책입니다.</param>
+        /// <param name="handle">캐스터에 바인딩된 임시 핸들입니다.</param>
+        /// <returns>캐스터를 핸들로 해석하면 <see langword="true"/>를 반환합니다.</returns>
+        private bool TryGetCasterActorHandle(
+            SkillTargetContext ctx,
+            DummyMissingActorPolicy missingPolicy,
+            out DummyActorHandle handle)
+        {
+            handle = null;
+
+            if (ctx.caster == null)
+            {
+                if (missingPolicy == DummyMissingActorPolicy.Warn)
+                    Debug.LogWarning("[SkillExecutor] Dummy actor target is Caster, but caster is null.");
+                return false;
+            }
+
+            var character = ResolveCharacterBase(ctx.caster);
+            if (character == null)
+            {
+                if (missingPolicy == DummyMissingActorPolicy.Warn)
+                    Debug.LogWarning($"[SkillExecutor] Dummy actor target is Caster, but CharacterBase was not found. caster={ctx.caster.name}");
+                return false;
+            }
+
+            if (!ReferenceEquals(_casterActorHandle.Character, character))
+            {
+                // 캐스터가 바뀌면 이전 캐스터에 예약된 이동/애니메이션 후속 작업을 정리합니다.
+                ResetCasterActorHandleTransientState(clearCharacter: true);
+                _casterActorHandle.Character = character;
+            }
+
+            _casterActorHandle.ActorKey = CasterActorKey;
+            _casterActorHandle.AirHeight = 0f;
+            SyncDummyGroundFromTransform(_casterActorHandle);
+            handle = _casterActorHandle;
+            return true;
+        }
+
+        /// <summary>
+        /// Caster 참조 임시 핸들에 남아 있는 이동/애니메이션 후속 작업을 정리합니다.
+        /// </summary>
+        /// <param name="clearCharacter">
+        /// <see langword="true"/>이면 캐릭터 참조까지 제거합니다.
+        /// <see langword="false"/>이면 캐릭터 참조는 유지하고 코루틴/상태만 초기화합니다.
+        /// </param>
+        private void ResetCasterActorHandleTransientState(bool clearCharacter)
+        {
+            if (_casterActorHandle.ActiveMoveCoroutine != null)
+            {
+                StopCoroutine(_casterActorHandle.ActiveMoveCoroutine);
+                _casterActorHandle.ActiveMoveCoroutine = null;
+            }
+
+            if (_casterActorHandle.ActiveFadeCoroutine != null)
+            {
+                StopCoroutine(_casterActorHandle.ActiveFadeCoroutine);
+                _casterActorHandle.ActiveFadeCoroutine = null;
+            }
+
+            if (_casterActorHandle.ActiveAirHeightCoroutine != null)
+            {
+                StopCoroutine(_casterActorHandle.ActiveAirHeightCoroutine);
+                _casterActorHandle.ActiveAirHeightCoroutine = null;
+            }
+
+            CancelDummyAnimationFollowup(_casterActorHandle);
+            ReleaseDummyGravityOverride(_casterActorHandle);
+            ReleaseDummyRuntimeLocks(_casterActorHandle);
+
+            if (!clearCharacter)
+                return;
+
+            _casterActorHandle.Character = null;
+            _casterActorHandle.GroundPosition = Vector3.zero;
+            _casterActorHandle.AirHeight = 0f;
+        }
+
+        /// <summary>
+        /// 더미 이벤트 로그에 표시할 대상 식별 문자열을 반환합니다.
+        /// </summary>
+        /// <param name="actorReferenceType">대상 참조 방식입니다.</param>
+        /// <param name="actorKey">Actor 참조 시 원본 actorKey입니다.</param>
+        /// <returns>로그 출력용 대상 식별 문자열입니다.</returns>
+        private static string GetDummyActorDisplayName(DummyActorReferenceType actorReferenceType, string actorKey)
+        {
+            return actorReferenceType == DummyActorReferenceType.Caster
+                ? "Caster"
+                : NormalizeDummyActorKey(actorKey);
         }
 
         /// <summary>
@@ -4211,6 +4349,27 @@ namespace GGemCo2DSkill
             }
 
             PruneDummyActors();
+        }
+
+        /// <summary>
+        /// 지정한 오브젝트 계층에서 <see cref="CharacterBase"/>를 탐색합니다.
+        /// </summary>
+        /// <param name="target">탐색 기준 GameObject입니다.</param>
+        /// <returns>탐색된 캐릭터가 있으면 반환하고, 없으면 <see langword="null"/>을 반환합니다.</returns>
+        private static CharacterBase ResolveCharacterBase(GameObject target)
+        {
+            if (target == null)
+                return null;
+
+            var character = target.GetComponent<CharacterBase>();
+            if (character != null)
+                return character;
+
+            character = target.GetComponentInChildren<CharacterBase>(includeInactive: true);
+            if (character != null)
+                return character;
+
+            return target.GetComponentInParent<CharacterBase>();
         }
 
         /// <summary>
