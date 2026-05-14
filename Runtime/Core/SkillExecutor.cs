@@ -302,6 +302,7 @@ namespace GGemCo2DSkill
             UpdatePendingGroundSlam();
             UpdateGroundSlamAnimation();
             UpdateArcLungeAnimation();
+            MaintainDummyAirborneState();
         }
 
         /// <summary>
@@ -3714,6 +3715,58 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 공중 상태로 유지 중인 더미의 중력/속도/좌표를 프레임마다 보정합니다.
+        /// 스킬 런이 끝난 뒤에도 더미가 유지되는 구성에서 물리 오차로 서서히 내려오는 현상을 방지합니다.
+        /// </summary>
+        private void MaintainDummyAirborneState()
+        {
+            if (_dummyActors.Count == 0)
+                return;
+
+            foreach (var pair in _dummyActors)
+            {
+                MaintainDummyAirborneState(pair.Value);
+            }
+        }
+
+        /// <summary>
+        /// 단일 더미의 공중 유지 상태를 점검하고, 필요 시 중력 오버라이드 및 월드 좌표를 재적용합니다.
+        /// </summary>
+        /// <param name="handle">점검할 더미 핸들입니다.</param>
+        private static void MaintainDummyAirborneState(DummyActorHandle handle)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            if (handle.AirHeight <= 1e-4f)
+                return;
+
+            EnsureDummyGravityOverride(handle);
+            ZeroDummyRigidbodyVelocity(handle);
+            ApplyDummyWorldPosition(handle);
+        }
+
+        /// <summary>
+        /// 더미를 수동 좌표 제어할 때 물리 속도로 인해 위치가 미세하게 누적되는 현상을 방지하기 위해 속도를 0으로 고정합니다.
+        /// </summary>
+        /// <param name="handle">속도를 보정할 더미 핸들입니다.</param>
+        private static void ZeroDummyRigidbodyVelocity(DummyActorHandle handle)
+        {
+            if (handle == null || handle.Character == null)
+                return;
+
+            var rb = handle.Character.characterRigidbody2D != null
+                ? handle.Character.characterRigidbody2D
+                : handle.Character.GetComponent<Rigidbody2D>();
+
+            if (rb == null || rb.bodyType != RigidbodyType2D.Dynamic)
+                return;
+
+            rb.SetLinearVelocity(Vector2.zero);
+            rb.angularVelocity = 0f;
+        }
+
+        /// <summary>
         /// 더미 캐릭터의 공중 높이 전환을 시작합니다.
         /// </summary>
         /// <param name="handle">대상 더미 핸들입니다.</param>
@@ -3751,10 +3804,13 @@ namespace GGemCo2DSkill
             if (keepAirborneGravity || startHeight > 0f || endHeight > 0f)
                 EnsureDummyGravityOverride(handle);
 
+            ZeroDummyRigidbodyVelocity(handle);
+
             if (Mathf.Abs(endHeight - startHeight) <= 1e-4f || duration <= 0f)
             {
                 handle.AirHeight = endHeight;
                 ApplyDummyWorldPosition(handle);
+                ZeroDummyRigidbodyVelocity(handle);
 
                 if (!keepAirborneGravity && endHeight <= 0f)
                     ReleaseDummyGravityOverride(handle);
@@ -3808,6 +3864,7 @@ namespace GGemCo2DSkill
                 float eased = Easing.Apply(t, easing);
                 handle.AirHeight = Mathf.Lerp(startAirHeight, targetAirHeight, eased);
                 ApplyDummyWorldPosition(handle);
+                ZeroDummyRigidbodyVelocity(handle);
                 yield return null;
             }
 
@@ -3815,6 +3872,7 @@ namespace GGemCo2DSkill
             {
                 handle.AirHeight = targetAirHeight;
                 ApplyDummyWorldPosition(handle);
+                ZeroDummyRigidbodyVelocity(handle);
             }
 
             handle.ActiveAirHeightCoroutine = null;
@@ -3829,7 +3887,7 @@ namespace GGemCo2DSkill
         /// <param name="handle">중력 오버라이드를 적용할 더미 핸들입니다.</param>
         private static void EnsureDummyGravityOverride(DummyActorHandle handle)
         {
-            if (handle == null || handle.Character == null || handle.GravityOverrideHandle.IsValid)
+            if (handle == null || handle.Character == null)
                 return;
 
             var physicsOverride = handle.Character.GetComponent<CharacterPhysicsOverrideController>();
@@ -3838,6 +3896,17 @@ namespace GGemCo2DSkill
 
             if (physicsOverride == null)
                 return;
+
+            if (handle.GravityOverrideHandle.IsValid)
+            {
+                if (ReferenceEquals(handle.PhysicsOverrideController, physicsOverride))
+                    return;
+
+                if (handle.PhysicsOverrideController != null)
+                    handle.PhysicsOverrideController.ReleaseGravityOverride(ref handle.GravityOverrideHandle);
+                else
+                    handle.GravityOverrideHandle = default;
+            }
 
             handle.PhysicsOverrideController = physicsOverride;
             handle.GravityOverrideHandle = physicsOverride.AcquireGravityOverride(
