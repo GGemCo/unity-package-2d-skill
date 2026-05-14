@@ -502,6 +502,9 @@ namespace GGemCo2DSkillEditor
                         def.damageTickOnStart = laser.DamageTickOnStart;
                         def.maxDistance = Mathf.Max(0f, laser.MaxDistance);
                         def.updateAimContinuously = laser.UpdateAimContinuously;
+                        def.targetPointPolicy = laser.TargetPointPolicy;
+                        def.fixedTargetOffset = laser.FixedTargetOffset;
+                        def.fixedTargetHitAreaNormalized = laser.FixedTargetHitAreaNormalized;
                         def.useRaycastDirectionModeOverride = laser.UseRaycastDirectionModeOverride;
                         def.raycastDirectionModeOverride = laser.RaycastDirectionModeOverride;
                         def.useRaycastAngleOverride = laser.UseRaycastAngleOverride;

@@ -41,6 +41,16 @@ namespace GGemCo2DSkill
         [Tooltip("레이저 유지 시간 동안 타겟/조준 방향을 계속 갱신할지 여부입니다.")]
         public bool updateAimContinuously = false;
 
+        [Header("타겟 지점 정책")]
+        [Tooltip("레이저 조준에 사용할 고정 타겟 지점을 계산하는 방식입니다. UseDefaultTargeting은 기존 동작을 유지합니다.")]
+        public LaserTargetPointPolicy targetPointPolicy = LaserTargetPointPolicy.UseDefaultTargeting;
+
+        [Tooltip("targetPointPolicy가 FixedOffsetFromTargetCenter일 때, 타겟 중심을 기준으로 적용할 오프셋입니다.")]
+        public Vector2 fixedTargetOffset = Vector2.zero;
+
+        [Tooltip("targetPointPolicy가 FixedNormalizedPointInTargetHitArea일 때, 타겟 HitArea 내부에서 사용할 정규화된 지점입니다. (0,0)=좌측 하단, (1,1)=우측 상단")]
+        public Vector2 fixedTargetHitAreaNormalized = new(0.5f, 0.5f);
+
         [Header("Angle Overrides")]
         [Tooltip("레이캐스트 방향 모드 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 RaycastDirectionMode 대신 이 값을 사용합니다.")]
         public bool useRaycastDirectionModeOverride = false;

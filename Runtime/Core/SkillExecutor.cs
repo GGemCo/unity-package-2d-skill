@@ -1726,6 +1726,15 @@ namespace GGemCo2DSkill
                     break;
             }
 
+            if (TryResolveLaserTargetPointOverride(def, targetChar, targetPos, out var fixedTargetPoint))
+            {
+                usePosOverride = true;
+                posOverride = fixedTargetPoint;
+
+                // 좌표 고정 정책을 쓰는 경우 targetPoint를 우선 사용하도록 target 참조를 비웁니다.
+                targetChar = null;
+            }
+
             LaserConstants.StartPositionOverrideMode resolvedStartPositionOverrideMode = def.startPositionOverrideMode;
             Vector2 resolvedStartPositionOverride = def.startPositionOverride;
             LaserConstants.StartPointUpdateMode resolvedStartPointUpdateMode = def.startPointUpdateMode;
@@ -1792,6 +1801,80 @@ namespace GGemCo2DSkill
                 meta);
 
             casterChar.LaunchLaser(meta);
+        }
+
+        /// <summary>
+        /// 레이저 목표점 고정 정책을 해석하여 좌표 오버라이드 값을 계산합니다.
+        /// </summary>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="targetChar">현재 고정 타겟 캐릭터입니다.</param>
+        /// <param name="targetPos">현재 해석된 타겟 중심 좌표입니다.</param>
+        /// <param name="targetPointOverride">계산된 목표점 오버라이드입니다.</param>
+        /// <returns>고정 정책이 활성화되어 좌표를 계산했으면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveLaserTargetPointOverride(
+            LaserEventDefinition def,
+            CharacterBase targetChar,
+            Vector3 targetPos,
+            out Vector2 targetPointOverride)
+        {
+            targetPointOverride = default;
+            if (def == null || targetChar == null)
+                return false;
+
+            switch (def.targetPointPolicy)
+            {
+                case LaserTargetPointPolicy.FixedOffsetFromTargetCenter:
+                    targetPointOverride = (Vector2)targetPos + def.fixedTargetOffset;
+                    return true;
+
+                case LaserTargetPointPolicy.FixedNormalizedPointInTargetHitArea:
+                    if (TryResolveTargetHitAreaNormalizedPoint(targetChar, def.fixedTargetHitAreaNormalized, out targetPointOverride))
+                        return true;
+
+                    targetPointOverride = (Vector2)targetPos + def.fixedTargetOffset;
+                    return true;
+
+                case LaserTargetPointPolicy.UseDefaultTargeting:
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// 타겟 HitArea 정규화 좌표(0~1)를 월드 좌표로 변환합니다.
+        /// </summary>
+        /// <param name="targetChar">좌표를 계산할 타겟 캐릭터입니다.</param>
+        /// <param name="normalizedPoint">HitArea 정규화 좌표입니다. (0,0)=좌하단, (1,1)=우상단</param>
+        /// <param name="worldPoint">변환된 월드 좌표입니다.</param>
+        /// <returns>HitArea 좌표 계산에 성공했으면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveTargetHitAreaNormalizedPoint(
+            CharacterBase targetChar,
+            Vector2 normalizedPoint,
+            out Vector2 worldPoint)
+        {
+            worldPoint = default;
+            if (targetChar == null || targetChar.colliderHitArea == null)
+                return false;
+
+            CapsuleCollider2D hitArea = targetChar.colliderHitArea;
+            Vector2 clamped = new Vector2(
+                Mathf.Clamp01(normalizedPoint.x),
+                Mathf.Clamp01(normalizedPoint.y));
+
+            float halfWidth = hitArea.size.x * 0.5f;
+            float halfHeight = hitArea.size.y * 0.5f;
+            float minLocalX = hitArea.offset.x - halfWidth;
+            float maxLocalX = hitArea.offset.x + halfWidth;
+            float minLocalY = hitArea.offset.y - halfHeight;
+            float maxLocalY = hitArea.offset.y + halfHeight;
+
+            Vector3 localPoint = new Vector3(
+                Mathf.Lerp(minLocalX, maxLocalX, clamped.x),
+                Mathf.Lerp(minLocalY, maxLocalY, clamped.y),
+                0f);
+
+            worldPoint = hitArea.transform.TransformPoint(localPoint);
+            return true;
         }
 
         /// <summary>
