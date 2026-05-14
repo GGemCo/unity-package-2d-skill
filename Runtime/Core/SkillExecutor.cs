@@ -31,25 +31,24 @@ namespace GGemCo2DSkill
         private SkillRun _current;
 
         /// <summary>
-        /// 현재 스킬 실행 중 생성된 취소 가능 이펙트 목록입니다.
-        /// 취소 시 즉시 정리하여 중단 이후의 잔여 연출을 최소화합니다.
+        /// 현재 스킬 실행에서 생성한 취소 가능 VFX를 추적하고 정리합니다.
         /// </summary>
-        private readonly List<VfxBehaviourBase> _spawnedVfxs = new();
+        private readonly SkillOwnedVfxTracker _ownedVfxTracker = new();
+
+        /// <summary>
+        /// 런타임 이벤트 타입을 실제 실행 로직으로 전달하는 디스패처입니다.
+        /// </summary>
+        private readonly SkillEventDispatcher _eventDispatcher = new();
+
+        /// <summary>
+        /// 스킬 화면 페이드 재생과 종료 시 정리 정책을 관리합니다.
+        /// </summary>
+        private readonly SkillScreenFadeController _screenFadeController = new();
 
         /// <summary>
         /// 현재 스킬 실행에서 생성한 더미 캐릭터를 actorKey 기준으로 관리하는 컬렉션입니다.
         /// </summary>
         private readonly Dictionary<string, DummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
-
-        /// <summary>
-        /// 현재 실행 중인 스킬이 정상 종료될 때 화면 페이드를 초기화해야 하는지 여부입니다.
-        /// </summary>
-        private bool _clearSkillScreenFadeOnSkillEnd;
-
-        /// <summary>
-        /// 현재 실행 중인 스킬이 취소될 때 화면 페이드를 초기화해야 하는지 여부입니다.
-        /// </summary>
-        private bool _clearSkillScreenFadeOnCancel;
 
         /// <summary>
         /// 캐스터를 더미 액터 참조처럼 다루기 위한 내부 식별 키입니다.
@@ -88,9 +87,8 @@ namespace GGemCo2DSkill
         private bool _hasPendingFinishReport;
         private SkillExecutionReport _pendingFinishReport;
         private int _executionSequence;
-        private int _attackSequence;
         private readonly List<int> _resolvedOnHitCrowdControls = new(8);
-        private readonly Dictionary<int, bool> _chainUnlockByAttackId = new();
+        private readonly SkillAttackSequence _attackSequence = new();
         private CharacterHitStopController _hitStopController;
 
         private enum GroundSlamAnimationPhaseState
@@ -329,11 +327,11 @@ namespace GGemCo2DSkill
 
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
 
-            CleanupSpawnedVfxs();
+            _ownedVfxTracker.Cleanup();
             CleanupDummyActors(forceAll: true, forCancel: false);
             ResetCasterActorHandleTransientState(clearCharacter: true);
-            _chainUnlockByAttackId.Clear();
-            ResetSkillScreenFadeCleanupFlags();
+            _attackSequence.Clear();
+            _screenFadeController.ResetCleanupFlags();
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();
@@ -361,7 +359,7 @@ namespace GGemCo2DSkill
         /// </summary>
         public bool IsChainUnlockAttack(int attackId)
         {
-            return attackId > 0 && _chainUnlockByAttackId.TryGetValue(attackId, out bool enabled) && enabled;
+            return _attackSequence.IsChainUnlockAttack(attackId);
         }
 
         /// <summary>
@@ -388,66 +386,16 @@ namespace GGemCo2DSkill
             if (!CanProcessEvent(run))
                 return;
 
-            var payload = sequence != null ? sequence.GetPayload(e.PayloadIndex) : null;
-
-            switch (e.Type)
-            {
-                case ConfigCommonSkill.SkillEventType.Damage:
-                    // Damage 클립 구간 동안(Start~End) Gizmo 표시가 가능하도록 duration을 전달합니다.
-                    // EndTime이 비정상(=StartTime)인 경우에도 최소 1프레임은 보이도록 보정합니다.
-                    float damageGizmoDuration = Mathf.Max(0.05f, e.EndTime - e.StartTime);
-                    HandleDamage(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint, damageGizmoDuration);
-                    break;
-                case ConfigCommonSkill.SkillEventType.SpawnVfx:
-                    HandleVfx(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
-                    break;
-                case ConfigCommonSkill.SkillEventType.ApplyAffect:
-                    HandleApplyStatus(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
-                    break;
-                case ConfigCommonSkill.SkillEventType.Lunge:
-                    float lungeDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
-                    HandleLunge(skill, ctx, payload, lungeDuration);
-                    break;
-                case ConfigCommonSkill.SkillEventType.Projectile:
-                    HandleProjectile(skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
-                    break;
-                case ConfigCommonSkill.SkillEventType.Laser:
-                    HandleLaser(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
-                    break;
-                case ConfigCommonSkill.SkillEventType.PositionHold:
-                    float positionHoldDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
-                    HandlePositionHold(run, ctx, payload, positionHoldDuration);
-                    break;
-                case ConfigCommonSkill.SkillEventType.GroundSlam:
-                    float groundSlamDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
-                    HandleGroundSlam(ctx, payload, groundSlamDuration);
-                    break;
-                case ConfigCommonSkill.SkillEventType.ApplyTempHp:
-                    HandleApplyTempHp(skill, ctx, payload);
-                    break;
-                case ConfigCommonSkill.SkillEventType.ScreenFade:
-                    float screenFadeDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
-                    HandleScreenFade(payload, screenFadeDuration);
-                    break;
-                case ConfigCommonSkill.SkillEventType.SpawnDummyCharacter:
-                    HandleSpawnDummyCharacter(run, skill, ctx, payload, snapshotCasterPos, snapshotTargetPos, snapshotGroundPoint);
-                    break;
-                case ConfigCommonSkill.SkillEventType.MoveDummyCharacter:
-                    HandleMoveDummyCharacter(run, ctx, payload, snapshotTargetPos, snapshotGroundPoint);
-                    break;
-                case ConfigCommonSkill.SkillEventType.DespawnDummyCharacter:
-                    HandleDespawnDummyCharacter(payload);
-                    break;
-                case ConfigCommonSkill.SkillEventType.SetDummyAirborneState:
-                    HandleSetDummyAirborneState(payload);
-                    break;
-                case ConfigCommonSkill.SkillEventType.PlayDummyCharacterAnimation:
-                    float dummyAnimationDuration = Mathf.Max(0f, e.EndTime - e.StartTime);
-                    HandlePlayDummyCharacterAnimation(ctx, payload, dummyAnimationDuration);
-                    break;
-                default:
-                    break;
-            }
+            var eventContext = new SkillEventExecutionContext(
+                run,
+                skill,
+                ctx,
+                sequence,
+                in e,
+                snapshotCasterPos,
+                snapshotTargetPos,
+                snapshotGroundPoint);
+            _eventDispatcher.Execute(this, in eventContext);
         }
         
 
@@ -457,39 +405,9 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="payloadObj">Bake된 화면 페이드 이벤트 정의입니다.</param>
         /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
-        private void HandleScreenFade(UnityEngine.Object payloadObj, float eventDurationSeconds)
+        internal void HandleScreenFade(UnityEngine.Object payloadObj, float eventDurationSeconds)
         {
-            if (payloadObj is not SkillScreenFadeEventDefinition def)
-                return;
-
-            var service = ScreenFadeRuntimeService.GetOrCreate(SceneGame.Instance);
-            if (service == null)
-                return;
-
-            float duration = def.ResolveDuration(eventDurationSeconds);
-            var request = new ScreenFadeRequest
-            {
-                owner = ScreenFadeOwner.Skill,
-                source = this,
-                color = def.color,
-                fromAlpha = def.fromAlpha,
-                toAlpha = def.toAlpha,
-                durationSeconds = duration,
-                holdFinalState = def.holdFinalState,
-                useUnscaledTime = def.useUnscaledTime,
-                easing = def.easing,
-                renderMode = def.renderMode,
-                sortingLayerName = def.sortingLayerName,
-                orderInLayer = def.orderInLayer,
-                planeDistance = def.planeDistance,
-                replaceMode = def.replaceMode,
-            };
-
-            if (!service.Play(request))
-                return;
-
-            _clearSkillScreenFadeOnSkillEnd |= def.clearOnSkillEnd;
-            _clearSkillScreenFadeOnCancel |= def.clearOnCancel;
+            _screenFadeController.Play(this, payloadObj, eventDurationSeconds);
         }
 
         /// <summary>
@@ -498,16 +416,7 @@ namespace GGemCo2DSkill
         /// <param name="forCancel">취소 종료이면 true, 정상 종료이면 false입니다.</param>
         private void CleanupSkillScreenFade(bool forCancel)
         {
-            bool shouldClear = forCancel ? _clearSkillScreenFadeOnCancel : _clearSkillScreenFadeOnSkillEnd;
-            if (!shouldClear)
-            {
-                ResetSkillScreenFadeCleanupFlags();
-                return;
-            }
-
-            var service = ScreenFadeRuntimeService.GetOrCreate(SceneGame.Instance);
-            service?.StopIfOwnedBy(ScreenFadeOwner.Skill, this, forceClear: true);
-            ResetSkillScreenFadeCleanupFlags();
+            _screenFadeController.Cleanup(this, forCancel);
         }
 
         /// <summary>
@@ -515,31 +424,23 @@ namespace GGemCo2DSkill
         /// </summary>
         private void ResetSkillScreenFadeCleanupFlags()
         {
-            _clearSkillScreenFadeOnSkillEnd = false;
-            _clearSkillScreenFadeOnCancel = false;
+            _screenFadeController.ResetCleanupFlags();
         }
 
-        private void HandlePositionHold(
+        /// <summary>
+        /// 위치 고정 이벤트를 전용 핸들러로 위임합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">위치 고정 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="eventDurationSeconds">이벤트 구간에서 계산된 기본 지속 시간입니다.</param>
+        internal void HandlePositionHold(
             SkillRun run,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             float eventDurationSeconds)
         {
-            if (run == null)
-                return;
-
-            if (payloadObj is not PositionHoldEventDefinition def)
-                return;
-
-            if (ctx.caster == null)
-                return;
-
-            float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds;
-            bool keepUntilSkillEnd = def.durationPolicy == PositionHoldDurationPolicy.UntilSkillEnd;
-            if (!keepUntilSkillEnd && duration <= 0f)
-                return;
-
-            run.TryStartPositionHold(duration, keepUntilSkillEnd, def.stopAtEnd, def.useMovePosition, def.allowReplace);
+            SkillPositionHoldEventHandler.Handle(run, ctx, payloadObj, eventDurationSeconds);
         }
 
         private static bool TryResolveVfxDuration(VfxEventDefinition def, out float duration)
@@ -622,7 +523,7 @@ namespace GGemCo2DSkill
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">돌진 이벤트 페이로드 오브젝트입니다.</param>
         /// <param name="eventDurationSeconds">이벤트 구간에서 계산된 기본 지속 시간입니다.</param>
-        private void HandleLunge(
+        internal void HandleLunge(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -1247,7 +1148,7 @@ namespace GGemCo2DSkill
         /// <summary>
         /// Ground Slam 이벤트 정의에 따라 착지 지점을 계산하고 내려치기 이동을 시작합니다.
         /// </summary>
-        private void HandleGroundSlam(
+        internal void HandleGroundSlam(
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             float eventDurationSeconds)
@@ -1727,7 +1628,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
-        private void HandleLaser(
+        internal void HandleLaser(
             SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -1832,8 +1733,7 @@ namespace GGemCo2DSkill
                 resolvedStartPointUpdateMode = LaserConstants.StartPointUpdateMode.SnapshotAtLaunch;
             }
 
-            int attackId = ++_attackSequence;
-            _chainUnlockByAttackId[attackId] = def.allowSkillChainOnConfirmedDamage;
+            int attackId = _attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
 
             var meta = new MetadataLaser(
                 uid: def.laserUid,
@@ -2279,7 +2179,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
-        private void HandleProjectile(
+        internal void HandleProjectile(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -2362,8 +2262,7 @@ namespace GGemCo2DSkill
                     break;
             }
 
-            int attackId = ++_attackSequence;
-            _chainUnlockByAttackId[attackId] = def.allowSkillChainOnConfirmedDamage;
+            int attackId = _attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
 
             var meta = new MetadataProjectile(
                 uid: def.projectileUid,
@@ -2403,7 +2302,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
         /// <param name="gizmoDurationSeconds">에디터 디버그용 데미지 영역 표시 시간입니다.</param>
-        private void HandleDamage(
+        internal void HandleDamage(
             SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -2494,8 +2393,7 @@ namespace GGemCo2DSkill
             // TODO: 데미지 계산 공식을 프로젝트 규칙에 맞게 적용해야 합니다.
             long totalDamage = 10;
 
-            int attackId = ++_attackSequence;
-            _chainUnlockByAttackId[attackId] = def.allowSkillChainOnConfirmedDamage;
+            int attackId = _attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
 
             for (int i = 0; i < hits.Count; i++)
             {
@@ -2847,7 +2745,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
-        private void HandleVfx(
+        internal void HandleVfx(
             SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -2919,7 +2817,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
-        private void HandleApplyStatus(
+        internal void HandleApplyStatus(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -2927,38 +2825,7 @@ namespace GGemCo2DSkill
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint)
         {
-            if (payloadObj is not ApplyStatusEventDefinition def) return;
-            if (ctx.caster == null) return;
-
-            if (!TryParseAffectUid(def.statusId, out int affectUid))
-                return;
-
-            float chance = Mathf.Clamp01(def.chance01);
-            if (chance <= 0f) return;
-            if (chance < 0.9999f && UnityEngine.Random.value > chance)
-                return;
-
-            // Apply target resolve
-            GameObject applyTarget;
-            switch (def.applyTo)
-            {
-                case ApplyAffectTarget.LockedTarget:
-                    applyTarget = ctx.lockedTarget != null ? ctx.lockedTarget : ctx.caster;
-                    break;
-                case ApplyAffectTarget.Caster:
-                default:
-                    applyTarget = ctx.caster;
-                    break;
-            }
-
-            int stacks = Mathf.Max(1, def.stacks);
-            float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : 0f;
-
-            for (int s = 0; s < stacks; s++)
-            {
-                // source는 caster로 유지합니다(버프/힐 출처 트래킹 용도)
-                AffectApi.Apply(applyTarget, affectUid, ctx.caster, duration);
-            }
+            SkillStatusEventHandler.HandleApplyStatus(ctx, payloadObj);
         }
 
 
@@ -2967,46 +2834,12 @@ namespace GGemCo2DSkill
         /// - 같은 source key가 다시 들어오면 누적하지 않고 설정값까지 다시 채웁니다.
         /// - 현재치가 모두 소모되면 Core 쪽에서 해당 source가 제거됩니다.
         /// </summary>
-        private void HandleApplyTempHp(
+        internal void HandleApplyTempHp(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj)
         {
-            if (payloadObj is not ApplyTempHpEventDefinition def)
-                return;
-
-            if (ctx.caster == null)
-                return;
-
-            GameObject applyTarget;
-            switch (def.applyTo)
-            {
-                case ApplyAffectTarget.LockedTarget:
-                    applyTarget = ctx.lockedTarget != null ? ctx.lockedTarget : ctx.caster;
-                    break;
-                case ApplyAffectTarget.Caster:
-                default:
-                    applyTarget = ctx.caster;
-                    break;
-            }
-
-            if (applyTarget == null)
-                return;
-
-            var targetCharacter = applyTarget.GetComponent<CharacterBase>() ?? applyTarget.GetComponentInParent<CharacterBase>();
-            if (targetCharacter == null)
-                return;
-
-            long tempHpValue = def.tempHpValue > 0 ? def.tempHpValue : 0;
-            int sourceKey = def.sourceKeyOverride != 0 ? def.sourceKeyOverride : skill.Uid;
-
-            if (tempHpValue <= 0)
-            {
-                targetCharacter.ClearRuntimeBonusHpTemp(sourceKey);
-                return;
-            }
-
-            targetCharacter.SetRuntimeBonusHpTemp(sourceKey, tempHpValue, fillToMax: true);
+            SkillStatusEventHandler.HandleApplyTempHp(skill, ctx, payloadObj);
         }
 
         private static ElementGaugeApplication[] BuildElementGaugeApplications(OnHitElementGaugeEntry[] entries, GameObject caster, bool damageApplied)
@@ -3146,19 +2979,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 상태 식별자를 Affect UID 정수값으로 변환합니다.
-        /// </summary>
-        /// <param name="id">파싱할 상태 식별자입니다.</param>
-        /// <param name="affectUid">파싱에 성공한 Affect UID입니다.</param>
-        /// <returns>유효한 양의 정수 UID로 변환되면 <see langword="true"/>를 반환합니다.</returns>
-        private static bool TryParseAffectUid(StatusVfxId id, out int affectUid)
-        {
-            affectUid = 0;
-            if (string.IsNullOrWhiteSpace(id.id)) return false;
-            return int.TryParse(id.id, out affectUid) && affectUid > 0;
-        }
-
-        /// <summary>
         /// 스킬 이벤트로 더미 캐릭터를 생성합니다.
         /// </summary>
         /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
@@ -3168,7 +2988,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">스킬 시작 시점 캐스터 위치 스냅샷입니다.</param>
         /// <param name="snapshotTargetPos">스킬 시작 시점 타겟 위치 스냅샷입니다.</param>
         /// <param name="snapshotGroundPoint">스킬 시작 시점 지면 기준점 스냅샷입니다.</param>
-        private void HandleSpawnDummyCharacter(
+        internal void HandleSpawnDummyCharacter(
             SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -3312,7 +3132,7 @@ namespace GGemCo2DSkill
         /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
         /// <param name="snapshotTargetPos">스킬 시작 시점 타겟 위치 스냅샷입니다.</param>
         /// <param name="snapshotGroundPoint">스킬 시작 시점 지면 기준점 스냅샷입니다.</param>
-        private void HandleMoveDummyCharacter(
+        internal void HandleMoveDummyCharacter(
             SkillRun run,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
@@ -3375,7 +3195,7 @@ namespace GGemCo2DSkill
         /// 스킬 이벤트로 생성된 더미 캐릭터를 파괴(또는 비활성화)합니다.
         /// </summary>
         /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
-        private void HandleDespawnDummyCharacter(UnityEngine.Object payloadObj)
+        internal void HandleDespawnDummyCharacter(UnityEngine.Object payloadObj)
         {
             if (payloadObj is not DespawnDummyCharacterEventDefinition def)
                 return;
@@ -3395,7 +3215,7 @@ namespace GGemCo2DSkill
         /// 스킬 이벤트로 더미 캐릭터의 공중 상태(높이/중력)를 제어합니다.
         /// </summary>
         /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
-        private void HandleSetDummyAirborneState(UnityEngine.Object payloadObj)
+        internal void HandleSetDummyAirborneState(UnityEngine.Object payloadObj)
         {
             if (payloadObj is not SetDummyAirborneStateEventDefinition def)
                 return;
@@ -3422,7 +3242,7 @@ namespace GGemCo2DSkill
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">애니메이션 이벤트 정의 페이로드입니다.</param>
         /// <param name="eventDurationSeconds">타임라인 클립 구간에서 계산한 이벤트 지속 시간(초)입니다.</param>
-        private void HandlePlayDummyCharacterAnimation(SkillTargetContext ctx, UnityEngine.Object payloadObj, float eventDurationSeconds)
+        internal void HandlePlayDummyCharacterAnimation(SkillTargetContext ctx, UnityEngine.Object payloadObj, float eventDurationSeconds)
         {
             if (payloadObj is not PlayDummyCharacterAnimationEventDefinition def)
                 return;
@@ -4802,6 +4622,10 @@ namespace GGemCo2DSkill
             _hasPendingFinishReport = true;
         }
 
+        /// <summary>
+        /// 스킬 런 종료 시 현재 실행 참조와 실행 중 생성한 리소스를 정리하고 종료 리포트를 발행합니다.
+        /// </summary>
+        /// <param name="run">종료된 스킬 런타임입니다.</param>
         internal void NotifyRunEnded(SkillRun run)
         {
             if (run == null || !ReferenceEquals(_current, run))
@@ -4813,36 +4637,27 @@ namespace GGemCo2DSkill
 
             _hasPendingFinishReport = false;
             _current = null;
-            _chainUnlockByAttackId.Clear();
+            _attackSequence.Clear();
             CleanupDummyActors(forceAll: false, forCancel: false);
             CleanupSkillScreenFade(forCancel: false);
             ExecutionFinished?.Invoke(report);
         }
 
+        /// <summary>
+        /// 현재 스킬 실행이 소유해야 하는 VFX를 추적기로 전달합니다.
+        /// </summary>
+        /// <param name="vfx">추적할 VFX 인스턴스입니다.</param>
         private void RegisterSpawnedVfx(VfxBehaviourBase vfx)
         {
-            if (vfx == null)
-                return;
-
-            _spawnedVfxs.RemoveAll(x => x == null);
-            _spawnedVfxs.Add(vfx);
+            _ownedVfxTracker.Register(vfx);
         }
 
+        /// <summary>
+        /// 현재 스킬 실행이 생성한 VFX를 모두 정리합니다.
+        /// </summary>
         private void CleanupSpawnedVfxs()
         {
-            if (_spawnedVfxs.Count == 0)
-                return;
-
-            for (int i = _spawnedVfxs.Count - 1; i >= 0; i--)
-            {
-                var vfx = _spawnedVfxs[i];
-                if (vfx != null)
-                {
-                    Destroy(vfx.gameObject);
-                }
-            }
-
-            _spawnedVfxs.Clear();
+            _ownedVfxTracker.Cleanup();
         }
 
         private static void ClearDamageAreaGizmo(GameObject caster)
@@ -4893,7 +4708,7 @@ namespace GGemCo2DSkill
             if (ReferenceEquals(_current, run))
             {
                 _current = null; // 즉시 종료(추가 Tick/이벤트 전달 방지)
-                _chainUnlockByAttackId.Clear();
+                _attackSequence.Clear();
                 if (_hasPendingFinishReport)
                 {
                     var report = _pendingFinishReport;
