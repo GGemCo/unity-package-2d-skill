@@ -22,6 +22,9 @@ namespace GGemCo2DSkill
         /// <summary>차징 완료 후 실제 사용 단계로 넘어가기 전에 재생할 애니메이션 클립입니다.</summary>
         public string CompleteClip;
 
+        /// <summary>차징 완료 애니메이션을 유지할 시간(초)입니다.</summary>
+        public float CompleteDurationSeconds;
+
         /// <summary>차징 실패 시 재생할 애니메이션 클립입니다.</summary>
         public string FailClip;
 
@@ -65,6 +68,7 @@ namespace GGemCo2DSkill
                 row.ChargeGaugeMax,
                 row.ChargeGaugeDamagePerHit,
                 row.ChargeCompleteClip,
+                row.ChargeCompleteDurationSeconds,
                 row.ChargeFailClip,
                 row.ChargeFailDurationSeconds,
                 stageTable,
@@ -88,6 +92,7 @@ namespace GGemCo2DSkill
                 row.ChargeGaugeMax,
                 row.ChargeGaugeDamagePerHit,
                 row.ChargeCompleteClip,
+                row.ChargeCompleteDurationSeconds,
                 row.ChargeFailClip,
                 row.ChargeFailDurationSeconds,
                 stageTable,
@@ -103,6 +108,7 @@ namespace GGemCo2DSkill
                 GaugeMax = 0f,
                 GaugeDamagePerHit = 0f,
                 CompleteClip = string.Empty,
+                CompleteDurationSeconds = 0f,
                 FailClip = string.Empty,
                 FailDurationSeconds = 0f,
                 Stages = System.Array.Empty<RuntimeSkillChargeStageDefinition>()
@@ -114,6 +120,7 @@ namespace GGemCo2DSkill
             float gaugeMax,
             float gaugeDamagePerHit,
             string completeClip,
+            float completeDurationSeconds,
             string failClip,
             float failDurationSeconds,
             TableSkillChargeStage stageTable,
@@ -125,8 +132,9 @@ namespace GGemCo2DSkill
                 : System.Array.Empty<StruckTableSkillChargeStage>();
 
             var stages = rows
-                .Where(row => row != null && row.DurationSeconds > 0f)
+                .Where(row => row != null)
                 .Select(RuntimeSkillChargeStageDefinition.From)
+                .Where(stage => stage != null && stage.HasTimeline)
                 .ToArray();
 
             return new RuntimeSkillChargeDefinition
@@ -135,6 +143,7 @@ namespace GGemCo2DSkill
                 GaugeMax = System.Math.Max(0f, gaugeMax),
                 GaugeDamagePerHit = System.Math.Max(0f, gaugeDamagePerHit),
                 CompleteClip = completeClip ?? string.Empty,
+                CompleteDurationSeconds = System.Math.Max(0f, completeDurationSeconds),
                 FailClip = failClip ?? string.Empty,
                 FailDurationSeconds = System.Math.Max(0f, failDurationSeconds),
                 Stages = stages
@@ -153,11 +162,23 @@ namespace GGemCo2DSkill
         /// <summary>차징 단계 순서입니다.</summary>
         public int StageIndex;
 
+        /// <summary>이 단계에 진입할 때 1회 재생할 애니메이션 클립입니다.</summary>
+        public string StartClip;
+
+        /// <summary>시작 애니메이션을 유지할 시간(초)입니다.</summary>
+        public float StartDurationSeconds;
+
         /// <summary>이 단계에서 유지할 시간(초)입니다.</summary>
         public float DurationSeconds;
 
         /// <summary>이 단계에서 루프로 재생할 애니메이션 클립입니다.</summary>
         public string LoopClip;
+
+        /// <summary>이 단계가 끝날 때 1회 재생할 애니메이션 클립입니다.</summary>
+        public string EndClip;
+
+        /// <summary>종료 애니메이션을 유지할 시간(초)입니다.</summary>
+        public float EndDurationSeconds;
 
         /// <summary>이 단계에서 생성할 VFX UID입니다.</summary>
         public int VfxUid;
@@ -174,6 +195,15 @@ namespace GGemCo2DSkill
         /// <summary>VFX 스케일 오버라이드입니다.</summary>
         public float VfxScale;
 
+        /// <summary>차징 단계가 실행할 연출 또는 유지 시간을 가지고 있는지 여부입니다.</summary>
+        public bool HasTimeline => StartDurationSeconds > 0f
+                                   || DurationSeconds > 0f
+                                   || EndDurationSeconds > 0f
+                                   || !string.IsNullOrWhiteSpace(StartClip)
+                                   || !string.IsNullOrWhiteSpace(LoopClip)
+                                   || !string.IsNullOrWhiteSpace(EndClip)
+                                   || VfxUid > 0;
+
         /// <summary>
         /// 테이블 Row를 런타임 차징 단계 정의로 변환합니다.
         /// </summary>
@@ -185,8 +215,12 @@ namespace GGemCo2DSkill
             {
                 Uid = row.Uid,
                 StageIndex = row.StageIndex,
+                StartClip = row.StartClip ?? string.Empty,
+                StartDurationSeconds = System.Math.Max(0f, row.StartDurationSeconds),
                 DurationSeconds = System.Math.Max(0f, row.DurationSeconds),
                 LoopClip = row.LoopClip ?? string.Empty,
+                EndClip = row.EndClip ?? string.Empty,
+                EndDurationSeconds = System.Math.Max(0f, row.EndDurationSeconds),
                 VfxUid = System.Math.Max(0, row.VfxUid),
                 VfxFollowMode = row.VfxFollowMode,
                 VfxPositionYType = row.VfxPositionYType,

@@ -22,11 +22,23 @@ namespace GGemCo2DSkill
         /// <summary>차징 단계 순서입니다. 낮은 값부터 순서대로 진행됩니다.</summary>
         public int StageIndex;
 
+        /// <summary>이 단계에 진입할 때 1회 재생할 애니메이션 클립 이름입니다.</summary>
+        public string StartClip;
+
+        /// <summary>시작 애니메이션을 유지할 시간(초)입니다. 0이면 클립 길이를 사용합니다.</summary>
+        public float StartDurationSeconds;
+
         /// <summary>이 단계에서 유지할 차징 시간(초)입니다.</summary>
         public float DurationSeconds;
 
         /// <summary>이 단계에서 루프로 재생할 애니메이션 클립 이름입니다.</summary>
         public string LoopClip;
+
+        /// <summary>이 단계가 끝날 때 1회 재생할 애니메이션 클립 이름입니다.</summary>
+        public string EndClip;
+
+        /// <summary>종료 애니메이션을 유지할 시간(초)입니다. 0이면 클립 길이를 사용합니다.</summary>
+        public float EndDurationSeconds;
 
         /// <summary>이 단계에서 표시할 VFX UID입니다. 0이면 VFX를 생성하지 않습니다.</summary>
         public int VfxUid;
@@ -78,8 +90,12 @@ namespace GGemCo2DSkill
                 SkillUid = MathHelper.ParseInt(data.GetValueOrDefault("SkillUid")),
                 OwnerType = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillOwnerType>(data.GetValueOrDefault("OwnerType", nameof(ConfigCommonSkill.SkillOwnerType.Player))),
                 StageIndex = System.Math.Max(0, MathHelper.ParseInt(data.GetValueOrDefault("StageIndex"))),
+                StartClip = data.GetValueOrDefault("StartClip", string.Empty),
+                StartDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("StartDurationSeconds", "0"))),
                 DurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("DurationSeconds"))),
                 LoopClip = data.GetValueOrDefault("LoopClip", string.Empty),
+                EndClip = data.GetValueOrDefault("EndClip", string.Empty),
+                EndDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("EndDurationSeconds", "0"))),
                 VfxUid = System.Math.Max(0, MathHelper.ParseInt(data.GetValueOrDefault("VfxUid", "0"))),
                 VfxFollowMode = EnumHelper.ConvertEnum<VfxConstants.FollowMode>(data.GetValueOrDefault("VfxFollowMode", nameof(VfxConstants.FollowMode.Position))),
                 VfxPositionYType = EnumHelper.ConvertEnum<ConfigCommon.PositionYType>(data.GetValueOrDefault("VfxPositionYType", nameof(ConfigCommon.PositionYType.None))),

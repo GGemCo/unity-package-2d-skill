@@ -93,6 +93,10 @@ namespace GGemCo2DSkill
 
                 monsterSkillDriverAdapter.SetSkillExecutor(skillExecutor);
             }
+            
+            var skillChargeGaugePresenter = ch.gameObject.GetComponent<SkillChargeGaugePresenter>();
+            if (skillChargeGaugePresenter == null)
+                skillChargeGaugePresenter = ch.gameObject.AddComponent<SkillChargeGaugePresenter>();
         }
 
         /// <summary>

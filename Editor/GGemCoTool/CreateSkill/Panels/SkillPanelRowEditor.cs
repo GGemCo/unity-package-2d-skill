@@ -333,6 +333,7 @@ namespace GGemCo2DSkillEditor
                 case nameof(StruckTableSkill.PlacementRange):
                 case nameof(StruckTableSkill.ChargeGaugeMax):
                 case nameof(StruckTableSkill.ChargeGaugeDamagePerHit):
+                case nameof(StruckTableSkill.ChargeCompleteDurationSeconds):
                 case nameof(StruckTableSkill.ChargeFailDurationSeconds):
                     ClampFloatMember(target, memberName);
                     break;
@@ -356,6 +357,7 @@ namespace GGemCo2DSkillEditor
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.PlacementRange));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeGaugeMax));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeGaugeDamagePerHit));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeCompleteDurationSeconds));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeFailDurationSeconds));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.MaxTargets));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.NeedPlayerLevel));

@@ -63,6 +63,9 @@ namespace GGemCo2DSkill
         /// <summary>차징 완료 후 실제 사용 단계로 넘어가기 전에 재생할 애니메이션 클립입니다.</summary>
         public string ChargeCompleteClip;
 
+        /// <summary>차징 완료 애니메이션을 유지할 시간(초)입니다. 0이면 애니메이션 길이 또는 기본값을 사용합니다.</summary>
+        public float ChargeCompleteDurationSeconds;
+
         /// <summary>차징 실패 시 재생할 애니메이션 클립입니다.</summary>
         public string ChargeFailClip;
 
@@ -113,6 +116,7 @@ namespace GGemCo2DSkill
                 ChargeGaugeMax = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeGaugeMax", "0"))),
                 ChargeGaugeDamagePerHit = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeGaugeDamagePerHit", "1"))),
                 ChargeCompleteClip = data.GetValueOrDefault("ChargeCompleteClip", string.Empty),
+                ChargeCompleteDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeCompleteDurationSeconds", "0"))),
                 ChargeFailClip = data.GetValueOrDefault("ChargeFailClip", string.Empty),
                 ChargeFailDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeFailDurationSeconds", "0"))),
                 UseClip = data["UseClip"],
