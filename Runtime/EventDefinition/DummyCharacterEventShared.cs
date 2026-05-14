@@ -68,6 +68,11 @@ namespace GGemCo2DSkill
         /// 이벤트에 지정한 절대 월드 좌표로 이동합니다.
         /// </summary>
         AbsoluteWorld = 3,
+
+        /// <summary>
+        /// 고정 타겟 중심을 기준으로, 더미가 원래 있던 쪽(좌/우) 앞으로 이동합니다.
+        /// </summary>
+        LockedTargetFront = 4,
     }
 
     /// <summary>

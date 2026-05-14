@@ -3161,7 +3161,11 @@ namespace GGemCo2DSkill
             if (handle.Character == null)
                 return;
 
-            if (def.moveTargetMode == DummyMoveTargetMode.LockedTarget && !def.useSnapshotCenter && ctx.lockedTarget == null)
+            bool requiresLockedTarget =
+                def.moveTargetMode == DummyMoveTargetMode.LockedTarget ||
+                def.moveTargetMode == DummyMoveTargetMode.LockedTargetFront;
+
+            if (requiresLockedTarget && !def.useSnapshotCenter && ctx.lockedTarget == null)
             {
                 if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
                 {
@@ -3179,7 +3183,8 @@ namespace GGemCo2DSkill
                 groundPoint = snapshotGroundPoint;
             }
 
-            if (!TryResolveDummyMoveTargetPosition(run, def, targetPos, groundPoint, out Vector3 moveTarget))
+            Vector3 actorPos = handle.Character.transform.position;
+            if (!TryResolveDummyMoveTargetPosition(run, def, actorPos, targetPos, groundPoint, out Vector3 moveTarget))
                 return;
 
             moveTarget += def.localOffset;
@@ -3324,6 +3329,7 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
         /// <param name="def">더미 이동 이벤트 정의입니다.</param>
+        /// <param name="actorPos">이동 대상 더미의 현재 월드 위치입니다.</param>
         /// <param name="targetPos">해석된 타겟 위치입니다.</param>
         /// <param name="groundPoint">해석된 지면 기준점입니다.</param>
         /// <param name="moveTarget">해석된 이동 목표 위치입니다.</param>
@@ -3331,6 +3337,7 @@ namespace GGemCo2DSkill
         private static bool TryResolveDummyMoveTargetPosition(
             SkillRun run,
             MoveDummyCharacterEventDefinition def,
+            Vector3 actorPos,
             Vector3 targetPos,
             Vector3 groundPoint,
             out Vector3 moveTarget)
@@ -3347,6 +3354,11 @@ namespace GGemCo2DSkill
                 case DummyMoveTargetMode.LockedTarget:
                     moveTarget = targetPos;
                     return true;
+                case DummyMoveTargetMode.LockedTargetFront:
+                    float sideSign = ResolveTargetFrontSideSign(actorPos, targetPos);
+                    float frontDistance = Mathf.Max(0f, def.targetFrontDistance);
+                    moveTarget = targetPos + new Vector3(sideSign * frontDistance, 0f, 0f);
+                    return true;
                 case DummyMoveTargetMode.AbsoluteWorld:
                     moveTarget = def.absoluteWorldPosition;
                     return true;
@@ -3359,6 +3371,21 @@ namespace GGemCo2DSkill
                 default:
                     return false;
             }
+        }
+
+        /// <summary>
+        /// 타겟 중심 대비 더미가 서 있던 좌/우 방향 부호를 계산합니다.
+        /// </summary>
+        /// <param name="actorPos">더미의 현재 월드 위치입니다.</param>
+        /// <param name="targetPos">타겟 중심 월드 위치입니다.</param>
+        /// <returns>더미가 타겟의 오른쪽이면 1, 왼쪽이면 -1이며 겹치면 1을 반환합니다.</returns>
+        private static float ResolveTargetFrontSideSign(Vector3 actorPos, Vector3 targetPos)
+        {
+            float deltaX = actorPos.x - targetPos.x;
+            if (Mathf.Abs(deltaX) <= 1e-4f)
+                return 1f;
+
+            return Mathf.Sign(deltaX);
         }
 
         /// <summary>

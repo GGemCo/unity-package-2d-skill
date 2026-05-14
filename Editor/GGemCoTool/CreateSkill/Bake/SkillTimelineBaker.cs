@@ -556,6 +556,7 @@ namespace GGemCo2DSkillEditor
                         def.moveTargetMode = moveDummy.MoveTargetMode;
                         def.namedAnchorKey = moveDummy.NamedAnchorKey;
                         def.absoluteWorldPosition = moveDummy.AbsoluteWorldPosition;
+                        def.targetFrontDistance = Mathf.Max(0f, moveDummy.TargetFrontDistance);
                         def.localOffset = moveDummy.LocalOffset;
                         def.useSnapshotCenter = moveDummy.UseSnapshotCenter;
                         def.durationSeconds = Mathf.Max(0f, moveDummy.DurationSeconds);

@@ -23,6 +23,8 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private string namedAnchorKey;
         [Tooltip("AbsoluteWorld 모드에서 사용할 지면 기준 좌표입니다. 공중 높이는 별도 공중 이벤트로 제어합니다.")]
         [SerializeField] private Vector3 absoluteWorldPosition;
+        [Tooltip("LockedTargetFront 모드에서 타겟 중심으로부터 앞쪽(더미가 있던 좌/우 방향)으로 이동할 거리입니다.")]
+        [SerializeField] private float targetFrontDistance = 0.5f;
         [Tooltip("지면 기준 목표 위치에 더할 오프셋입니다.")]
         [SerializeField] private Vector3 localOffset;
         [SerializeField] private bool useSnapshotCenter;
@@ -72,6 +74,11 @@ namespace GGemCo2DSkillEditor
         /// 절대 월드 좌표 목표를 반환합니다.
         /// </summary>
         public Vector3 AbsoluteWorldPosition => absoluteWorldPosition;
+
+        /// <summary>
+        /// 타겟 앞쪽 이동 거리(지면 기준)를 반환합니다.
+        /// </summary>
+        public float TargetFrontDistance => targetFrontDistance;
 
         /// <summary>
         /// 목표 위치 오프셋을 반환합니다.
