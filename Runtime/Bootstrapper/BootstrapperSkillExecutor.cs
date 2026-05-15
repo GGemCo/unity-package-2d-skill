@@ -94,9 +94,11 @@ namespace GGemCo2DSkill
                 monsterSkillDriverAdapter.SetSkillExecutor(skillExecutor);
             }
             
+            // 차징 게이지 Presenter를 보장하고, SkillExecutor 이벤트와 캐릭터 위치 추적 기준을 연결합니다.
             var skillChargeGaugePresenter = ch.gameObject.GetComponent<SkillChargeGaugePresenter>();
             if (skillChargeGaugePresenter == null)
                 skillChargeGaugePresenter = ch.gameObject.AddComponent<SkillChargeGaugePresenter>();
+            skillChargeGaugePresenter.Initialize(ch, skillExecutor);
         }
 
         /// <summary>
@@ -185,13 +187,16 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 캐릭터가 제거될 때 후처리를 수행할 수 있는 지점입니다.
-        /// 현재는 별도의 정리 작업을 수행하지 않습니다.
+        /// 캐릭터가 제거될 때 Presenter가 생성한 차징 게이지 UI 인스턴스를 정리합니다.
         /// </summary>
         /// <param name="ch">제거된 캐릭터 인스턴스입니다.</param>
         private void OnCharacterDestroyed(CharacterBase ch)
         {
-            // 필요 시 언바인드, 풀 반환, 로그 기록 등을 처리합니다.
+            if (ch == null)
+                return;
+
+            var skillChargeGaugePresenter = ch.GetComponent<SkillChargeGaugePresenter>();
+            skillChargeGaugePresenter?.ReleaseGaugeView();
         }
     }
 }

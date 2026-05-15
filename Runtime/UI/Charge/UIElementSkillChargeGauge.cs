@@ -31,6 +31,21 @@ namespace GGemCo2DSkill
         [Tooltip("차징이 비활성화되면 루트 오브젝트를 자동으로 숨깁니다.")]
         [SerializeField] private bool hideWhenInactive = true;
 
+        private RectTransform _rectTransform;
+
+        /// <summary>
+        /// 차징 게이지 위치 계산에 사용할 RectTransform입니다.
+        /// </summary>
+        public RectTransform RectTransform
+        {
+            get
+            {
+                if (_rectTransform == null)
+                    _rectTransform = transform as RectTransform;
+                return _rectTransform;
+            }
+        }
+
         private void Reset()
         {
             root = gameObject;

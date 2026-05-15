@@ -13,6 +13,28 @@ namespace GGemCo2DSkill
         [Tooltip("플레이어 스킬이 타겟에게 실제 데미지를 확정했을 때, 현재 스킬 애니메이션 종료 전에도 다음 스킬로 연계할 수 있게 허용할지 여부입니다.")]
         public bool enableSkillChainOnConfirmedDamage = false;
 
+        [Header("Charge Gauge UI")]
+        [Tooltip("스킬 차징 중 캐릭터 하단에 차징 게이지 Prefab을 자동으로 생성할지 여부입니다.")]
+        public bool useSkillChargeGaugePrefab = true;
+
+        [Tooltip("스킬 차징 진행도와 차징 내구도를 표시할 UI Prefab입니다. SceneGame.canvasFromWorldCharacterBottom 하위에 생성됩니다.")]
+        public UIElementSkillChargeGauge skillChargeGaugePrefab;
+
+        [Tooltip("플레이어 캐릭터의 차징 게이지를 표시할지 여부입니다.")]
+        public bool showChargeGaugeForPlayer = true;
+
+        [Tooltip("몬스터 캐릭터의 차징 게이지를 표시할지 여부입니다.")]
+        public bool showChargeGaugeForMonster = true;
+
+        [Tooltip("캐릭터 월드 위치 기준으로 차징 게이지를 표시할 오프셋입니다. Stamina HUD처럼 캐릭터 하단 Canvas에 붙일 때 사용합니다.")]
+        public Vector3 skillChargeGaugeWorldOffset = new(0f, -0.35f, 0f);
+
+        [Tooltip("월드 좌표를 Canvas 좌표로 변환한 뒤 추가로 적용할 픽셀 오프셋입니다.")]
+        public Vector2 skillChargeGaugeScreenOffset = Vector2.zero;
+
+        [Tooltip("차징이 종료되었을 때 Prefab 인스턴스를 파괴하지 않고 숨긴 뒤 재사용할지 여부입니다.")]
+        public bool reuseSkillChargeGaugeInstance = true;
+
         [Header("Debug")]
         [SerializeField, DebugOption("스킬 패키지 디버그 기능 전체 사용 여부입니다.")]
         private bool enableSkillDebug;
