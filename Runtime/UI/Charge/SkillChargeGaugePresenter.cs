@@ -68,10 +68,12 @@ namespace GGemCo2DSkill
 
         private void LateUpdate()
         {
-            if (!_isGaugeActive || _worldFollower == null)
+            if (!_isGaugeActive)
                 return;
 
-            _worldFollower.RefreshPosition();
+            bool isFlipped = ResolveFlipState();
+            gaugeView?.ApplyFlipVisual(isFlipped);
+            _worldFollower?.RefreshPosition(isFlipped);
         }
 
         /// <summary>
@@ -193,9 +195,11 @@ namespace GGemCo2DSkill
             if (!EnsureGaugeView())
                 return;
 
+            bool isFlipped = ResolveFlipState();
+            gaugeView.ApplyFlipVisual(isFlipped);
             gaugeView.Render(in snapshot);
             _isGaugeActive = true;
-            _worldFollower?.RefreshPosition();
+            _worldFollower?.RefreshPosition(isFlipped);
         }
 
         /// <summary>
@@ -307,7 +311,8 @@ namespace GGemCo2DSkill
                 parentRect,
                 ResolveWorldCamera(),
                 ResolveWorldOffset(),
-                ResolveScreenOffset());
+                ResolveScreenOffset(),
+                gaugeView.UseFlipOffset);
         }
 
         /// <summary>
@@ -322,6 +327,16 @@ namespace GGemCo2DSkill
             bool reuseInstance = settings == null || settings.reuseSkillChargeGaugeInstance;
             if (!reuseInstance)
                 ReleaseGaugeView();
+        }
+
+
+        /// <summary>
+        /// 캐릭터의 현재 좌우 반전 상태를 반환합니다.
+        /// </summary>
+        /// <returns>캐릭터가 기본 방향 기준으로 좌우 반전되었으면 <see langword="true"/>를 반환합니다.</returns>
+        private bool ResolveFlipState()
+        {
+            return _character != null && _character.IsFlipped();
         }
 
         /// <summary>
