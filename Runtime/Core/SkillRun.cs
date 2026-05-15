@@ -20,6 +20,7 @@ namespace GGemCo2DSkill
         private readonly ICharacterActionController _actionController;
         private readonly ICharacterMotionController _motionController;
         private readonly Rigidbody2D _casterRigidbody2D;
+        private readonly SkillRunChargeController _chargeController;
 
         private SkillRuntimeSequence _sequence;
         private float _time;
@@ -30,45 +31,6 @@ namespace GGemCo2DSkill
         private bool _didCastLoop;
         private bool _didCastEnd;
         private bool _didUse;
-
-        /// <summary>
-        /// 차징 단계 내부 재생 구간입니다.
-        /// 시작/루프/종료 애니메이션이 서로 덮어쓰지 않도록 상태를 분리합니다.
-        /// </summary>
-        private enum ChargeStagePhase
-        {
-            /// <summary>아직 단계 구간을 결정하지 않은 상태입니다.</summary>
-            None,
-
-            /// <summary>단계 진입 시 시작 애니메이션을 재생하는 구간입니다.</summary>
-            Start,
-
-            /// <summary>단계 유지 시간 동안 루프 애니메이션을 재생하는 구간입니다.</summary>
-            Loop,
-
-            /// <summary>단계 종료 시 종료 애니메이션을 재생하는 구간입니다.</summary>
-            End
-        }
-
-        // Charge
-        private bool _didCharge;
-        private bool _chargeCompleted;
-        private bool _isChargeFailed;
-        private bool _didChargeComplete;
-        private bool _isChargeCompleteWaiting;
-        private int _chargeStageArrayIndex;
-        private ChargeStagePhase _chargeStagePhase;
-        private float _chargeStagePhaseElapsed;
-        private float _chargeStagePhaseDuration;
-        private float _chargeStageElapsed;
-        private float _chargeTotalElapsed;
-        private float _chargeGaugeCurrent;
-        private float _chargeGaugeMax;
-        private float _chargeCompleteElapsed;
-        private float _chargeCompleteDuration;
-        private float _chargeFailElapsed;
-        private float _chargeFailDuration;
-        private VfxBehaviourBase _activeChargeVfx;
 
         private float _castElapsed;
         private Vector3 _snapshotCasterPos;
@@ -88,13 +50,21 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 현재 스킬이 차징 단계에 머무르고 있는지 여부입니다.
         /// </summary>
-        public bool IsCharging => HasCharge && _didCharge && !_chargeCompleted && !_isChargeFailed && !IsDone;
+        public bool IsCharging => !IsDone && _chargeController.IsCharging;
 
         /// <summary>
         /// Use 애니메이션 기준으로 현재 스킬 이벤트 시퀀스가 진행된 시간입니다.
         /// </summary>
         public float CurrentTime => _time;
 
+        /// <summary>
+        /// 스킬 1회 실행 상태를 생성하고 실행에 필요한 캐릭터 컨트롤러와 차징 컨트롤러를 연결합니다.
+        /// </summary>
+        /// <param name="owner">스킬 실행을 소유하고 이벤트 실행과 종료 알림을 담당하는 실행기입니다.</param>
+        /// <param name="skill">실행할 런타임 스킬 정의입니다.</param>
+        /// <param name="ctx">캐스터, 타겟, 지면 좌표 등을 담은 실행 컨텍스트입니다.</param>
+        /// <param name="animController">스킬 단계별 애니메이션을 재생할 컨트롤러입니다.</param>
+        /// <param name="actionController">스킬 사용 중 캐릭터 액션 상태를 고정할 컨트롤러입니다.</param>
         public SkillRun(SkillExecutor owner, RuntimeSkillDefinition skill, SkillTargetContext ctx,
             ICharacterAnimationController animController,
             ICharacterActionController actionController)
@@ -106,9 +76,19 @@ namespace GGemCo2DSkill
             _actionController = actionController;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
+            _chargeController = new SkillRunChargeController(
+                _owner,
+                this,
+                _skill,
+                _ctx,
+                _animController,
+                () => _snapshotCasterPos);
         }
 
-        private bool HasCharge => _skill?.Charge != null && _skill.Charge.IsEnabled;
+        /// <summary>
+        /// 현재 스킬 정의가 차징 단계를 사용하는지 여부입니다.
+        /// </summary>
+        private bool HasCharge => _chargeController.HasCharge;
 
         /// <summary>
         /// 같은 스킬 실행 안에서 이후 이벤트가 참조할 수 있도록 위치 앵커를 저장합니다.
@@ -150,6 +130,9 @@ namespace GGemCo2DSkill
             _ = LoadSequenceAsync();
         }
 
+        /// <summary>
+        /// 스킬 소유자 타입에 맞는 RuntimeSequence Addressables 키를 계산하고 비동기로 로드합니다.
+        /// </summary>
         private async Task LoadSequenceAsync()
         {
             try
@@ -213,21 +196,10 @@ namespace GGemCo2DSkill
             if (IsDone) return;
             if (_isLoading) return;
 
-            if (_isChargeFailed)
+            if (_chargeController.ShouldBlockSkillFlow)
             {
-                TickChargeFailed(dt);
-                return;
-            }
-
-            if (_isChargeCompleteWaiting)
-            {
-                TickChargeComplete(dt);
-                return;
-            }
-
-            if (HasCharge && !_chargeCompleted)
-            {
-                TickCharge(dt);
+                _chargeController.Tick(dt);
+                FinishIfChargeRequestedRunEnd();
                 return;
             }
 
@@ -244,347 +216,17 @@ namespace GGemCo2DSkill
         /// <returns>현재 차징 게이지가 피격을 처리했으면 <see langword="true"/>입니다.</returns>
         public bool TryApplyChargeGaugeDamage(SkillCancelReason reason, float damageAmount = 0f)
         {
-            if (!IsCharging)
-                return false;
-
-            if (reason == SkillCancelReason.Death)
-                return false;
-
-            float resolvedDamage = damageAmount > 0f
-                ? damageAmount
-                : Mathf.Max(0f, _skill.Charge.GaugeDamagePerHit);
-
-            if (resolvedDamage <= 0f)
-                resolvedDamage = 1f;
-
-            _chargeGaugeCurrent = Mathf.Max(0f, _chargeGaugeCurrent - resolvedDamage);
-            NotifyChargeSnapshot();
-
-            if (_chargeGaugeCurrent <= 0f)
-            {
-                BreakCharge();
-            }
-
-            return true;
+            bool handled = _chargeController.TryApplyGaugeDamage(reason, damageAmount);
+            FinishIfChargeRequestedRunEnd();
+            return handled;
         }
 
         /// <summary>
-        /// 차징 단계 시간을 진행합니다.
-        /// 각 단계는 시작 애니메이션, 루프 유지 시간, 종료 애니메이션 순서로 처리됩니다.
+        /// 차징 컨트롤러가 스킬 종료를 요청한 경우 SkillRun 종료 절차로 연결합니다.
         /// </summary>
-        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
-        private void TickCharge(float dt)
+        private void FinishIfChargeRequestedRunEnd()
         {
-            if (!_didCharge)
-                BeginCharge();
-
-            if (_chargeCompleted || _isChargeFailed)
-                return;
-
-            var stages = _skill.Charge.Stages;
-            if (stages == null || stages.Length == 0)
-            {
-                CompleteCharge();
-                return;
-            }
-
-            float remaining = Mathf.Max(0f, dt);
-            int safetyCounter = 0;
-            while (remaining > 0f && !_chargeCompleted && !_isChargeFailed && safetyCounter++ < 128)
-            {
-                var stage = GetCurrentChargeStage();
-                if (stage == null)
-                {
-                    CompleteCharge();
-                    break;
-                }
-
-                switch (_chargeStagePhase)
-                {
-                    case ChargeStagePhase.Start:
-                        TickChargeStageStart(stage, ref remaining);
-                        break;
-                    case ChargeStagePhase.Loop:
-                        TickChargeStageLoop(stage, ref remaining);
-                        break;
-                    case ChargeStagePhase.End:
-                        TickChargeStageEnd(stage, ref remaining);
-                        break;
-                    default:
-                        EnterChargeStage(_chargeStageArrayIndex);
-                        break;
-                }
-            }
-
-            NotifyChargeSnapshot();
-        }
-
-        /// <summary>
-        /// 차징을 시작하고 첫 번째 차징 단계로 진입합니다.
-        /// </summary>
-        private void BeginCharge()
-        {
-            _didCharge = true;
-            _chargeCompleted = false;
-            _isChargeFailed = false;
-            _isChargeCompleteWaiting = false;
-            _chargeStageArrayIndex = 0;
-            _chargeStagePhase = ChargeStagePhase.None;
-            _chargeStagePhaseElapsed = 0f;
-            _chargeStagePhaseDuration = 0f;
-            _chargeStageElapsed = 0f;
-            _chargeTotalElapsed = 0f;
-            _chargeCompleteElapsed = 0f;
-            _chargeCompleteDuration = 0f;
-            _chargeGaugeMax = Mathf.Max(0f, _skill.Charge.GaugeMax);
-            if (_chargeGaugeMax <= 0f)
-                _chargeGaugeMax = 1f;
-            _chargeGaugeCurrent = _chargeGaugeMax;
-
-            EnterChargeStage(_chargeStageArrayIndex);
-            NotifyChargeSnapshot();
-        }
-
-        /// <summary>
-        /// 지정한 차징 단계로 진입하고, 시작 애니메이션 또는 루프 구간을 준비합니다.
-        /// </summary>
-        /// <param name="stageArrayIndex">진입할 차징 단계 배열 인덱스입니다.</param>
-        private void EnterChargeStage(int stageArrayIndex)
-        {
-            CleanupActiveChargeVfx();
-
-            var stage = GetChargeStage(stageArrayIndex);
-            if (stage == null)
-            {
-                CompleteCharge();
-                return;
-            }
-
-            _chargeStageElapsed = 0f;
-            _chargeStagePhaseElapsed = 0f;
-            _chargeStagePhaseDuration = 0f;
-            SpawnChargeVfx(stage);
-
-            float startDuration = ResolveChargeStageStartDuration(stage);
-            if (startDuration > 0f)
-            {
-                _chargeStagePhase = ChargeStagePhase.Start;
-                _chargeStagePhaseDuration = startDuration;
-                PlayChargeStart(stage);
-                return;
-            }
-
-            BeginChargeStageLoop(stage);
-        }
-
-        /// <summary>
-        /// 차징 단계의 시작 애니메이션 구간을 진행합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        /// <param name="remaining">이번 프레임에서 아직 소비하지 않은 시간입니다.</param>
-        private void TickChargeStageStart(RuntimeSkillChargeStageDefinition stage, ref float remaining)
-        {
-            if (!ConsumeChargePhaseTime(_chargeStagePhaseDuration, ref remaining))
-                return;
-
-            BeginChargeStageLoop(stage);
-        }
-
-        /// <summary>
-        /// 차징 단계의 루프 유지 구간을 시작합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        private void BeginChargeStageLoop(RuntimeSkillChargeStageDefinition stage)
-        {
-            _chargeStagePhase = ChargeStagePhase.Loop;
-            _chargeStagePhaseElapsed = 0f;
-            _chargeStagePhaseDuration = stage != null ? Mathf.Max(0f, stage.DurationSeconds) : 0f;
-            PlayChargeLoop(stage);
-        }
-
-        /// <summary>
-        /// 차징 단계의 실제 차징 유지 시간을 진행합니다.
-        /// 진행도 게이지는 이 루프 구간의 누적 시간만 사용합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        /// <param name="remaining">이번 프레임에서 아직 소비하지 않은 시간입니다.</param>
-        private void TickChargeStageLoop(RuntimeSkillChargeStageDefinition stage, ref float remaining)
-        {
-            if (stage == null || stage.DurationSeconds <= 0f)
-            {
-                BeginChargeStageEnd(stage);
-                return;
-            }
-
-            float stageRemaining = Mathf.Max(0f, stage.DurationSeconds - _chargeStageElapsed);
-            if (stageRemaining <= 0f)
-            {
-                BeginChargeStageEnd(stage);
-                return;
-            }
-
-            float consume = Mathf.Min(remaining, stageRemaining);
-            _chargeStageElapsed += consume;
-            _chargeTotalElapsed += consume;
-            remaining -= consume;
-
-            if (_chargeStageElapsed + 1e-6f >= stage.DurationSeconds)
-            {
-                BeginChargeStageEnd(stage);
-            }
-        }
-
-        /// <summary>
-        /// 차징 단계의 종료 애니메이션 구간을 시작하거나, 종료 연출이 없으면 다음 단계로 이동합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        private void BeginChargeStageEnd(RuntimeSkillChargeStageDefinition stage)
-        {
-            _chargeStagePhaseElapsed = 0f;
-            _chargeStagePhaseDuration = 0f;
-
-            float endDuration = ResolveChargeStageEndDuration(stage);
-            if (endDuration > 0f)
-            {
-                _chargeStagePhase = ChargeStagePhase.End;
-                _chargeStagePhaseDuration = endDuration;
-                PlayChargeEnd(stage);
-                return;
-            }
-
-            AdvanceChargeStage();
-        }
-
-        /// <summary>
-        /// 차징 단계의 종료 애니메이션 구간을 진행합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        /// <param name="remaining">이번 프레임에서 아직 소비하지 않은 시간입니다.</param>
-        private void TickChargeStageEnd(RuntimeSkillChargeStageDefinition stage, ref float remaining)
-        {
-            if (!ConsumeChargePhaseTime(_chargeStagePhaseDuration, ref remaining))
-                return;
-
-            AdvanceChargeStage();
-        }
-
-        /// <summary>
-        /// 시작/종료처럼 고정 길이를 가진 차징 하위 구간 시간을 소비합니다.
-        /// </summary>
-        /// <param name="durationSeconds">소비해야 할 구간 길이입니다.</param>
-        /// <param name="remaining">이번 프레임에서 아직 소비하지 않은 시간입니다.</param>
-        /// <returns>구간이 끝났으면 <see langword="true"/>입니다.</returns>
-        private bool ConsumeChargePhaseTime(float durationSeconds, ref float remaining)
-        {
-            if (durationSeconds <= 0f)
-                return true;
-
-            float phaseRemaining = Mathf.Max(0f, durationSeconds - _chargeStagePhaseElapsed);
-            if (phaseRemaining <= 0f)
-                return true;
-
-            if (remaining <= 0f)
-                return false;
-
-            float consume = Mathf.Min(remaining, phaseRemaining);
-            _chargeStagePhaseElapsed += consume;
-            remaining -= consume;
-
-            return _chargeStagePhaseElapsed + 1e-6f >= durationSeconds;
-        }
-
-        /// <summary>
-        /// 다음 차징 단계로 이동하거나 모든 단계가 끝났으면 차징 완료 상태로 전환합니다.
-        /// </summary>
-        private void AdvanceChargeStage()
-        {
-            _chargeStageArrayIndex++;
-            _chargeStagePhase = ChargeStagePhase.None;
-            _chargeStagePhaseElapsed = 0f;
-            _chargeStagePhaseDuration = 0f;
-            _chargeStageElapsed = 0f;
-
-            if (_skill.Charge.Stages == null || _chargeStageArrayIndex >= _skill.Charge.Stages.Length)
-            {
-                CompleteCharge();
-                return;
-            }
-
-            EnterChargeStage(_chargeStageArrayIndex);
-        }
-
-        /// <summary>
-        /// 전체 차징 완료를 처리하고, 완료 애니메이션 대기 시간이 있으면 사용 단계 진입을 지연합니다.
-        /// </summary>
-        private void CompleteCharge()
-        {
-            if (_chargeCompleted)
-                return;
-
-            _chargeCompleted = true;
-            _chargeStagePhase = ChargeStagePhase.None;
-            _chargeStagePhaseElapsed = 0f;
-            _chargeStagePhaseDuration = 0f;
-            CleanupActiveChargeVfx();
-            PlayChargeComplete();
-
-            _chargeCompleteElapsed = 0f;
-            _chargeCompleteDuration = ResolveChargeCompleteDuration();
-            _isChargeCompleteWaiting = _chargeCompleteDuration > 0f;
-
-            NotifyChargeSnapshot();
-        }
-
-        /// <summary>
-        /// 차징 완료 애니메이션 대기 시간을 진행합니다.
-        /// 대기가 끝나면 기존 캐스팅/사용 단계가 다음 Tick에서 진행됩니다.
-        /// </summary>
-        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
-        private void TickChargeComplete(float dt)
-        {
-            _chargeCompleteElapsed += Mathf.Max(0f, dt);
-            if (_chargeCompleteElapsed < _chargeCompleteDuration)
-                return;
-
-            _isChargeCompleteWaiting = false;
-            _chargeCompleteElapsed = 0f;
-            _chargeCompleteDuration = 0f;
-        }
-
-        /// <summary>
-        /// 피격 등으로 차징을 중단하고 실패 애니메이션 상태로 전환합니다.
-        /// </summary>
-        private void BreakCharge()
-        {
-            if (_isChargeFailed || _chargeCompleted)
-                return;
-
-            _isChargeFailed = true;
-            _chargeCompleted = false;
-            _isChargeCompleteWaiting = false;
-            _chargeFailElapsed = 0f;
-            _chargeFailDuration = ResolveChargeFailDuration();
-
-            CleanupActiveChargeVfx();
-            PlayChargeFail();
-            _owner?.NotifyChargeFailed(this);
-            NotifyChargeSnapshot();
-
-            if (_chargeFailDuration <= 0f)
-            {
-                IsDone = true;
-                EndRun();
-            }
-        }
-
-        /// <summary>
-        /// 차징 실패 애니메이션 대기 시간을 진행하고, 완료되면 스킬 실행을 종료합니다.
-        /// </summary>
-        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
-        private void TickChargeFailed(float dt)
-        {
-            _chargeFailElapsed += Mathf.Max(0f, dt);
-            if (_chargeFailElapsed < _chargeFailDuration)
+            if (!_chargeController.ShouldEndRun || IsDone)
                 return;
 
             IsDone = true;
@@ -592,299 +234,9 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 현재 차징 단계 정의를 반환합니다.
+        /// 차징 이후 캐스팅 시간을 누적하고, 사용 단계에 도달하면 Use 애니메이션과 액션 상태를 적용합니다.
         /// </summary>
-        /// <returns>현재 단계 정의입니다.</returns>
-        private RuntimeSkillChargeStageDefinition GetCurrentChargeStage()
-        {
-            return GetChargeStage(_chargeStageArrayIndex);
-        }
-
-        /// <summary>
-        /// 지정한 배열 인덱스의 차징 단계 정의를 반환합니다.
-        /// </summary>
-        /// <param name="stageArrayIndex">조회할 차징 단계 배열 인덱스입니다.</param>
-        /// <returns>조회된 단계 정의입니다. 범위를 벗어나면 <see langword="null"/>입니다.</returns>
-        private RuntimeSkillChargeStageDefinition GetChargeStage(int stageArrayIndex)
-        {
-            var stages = _skill.Charge.Stages;
-            if (stages == null || stageArrayIndex < 0 || stageArrayIndex >= stages.Length)
-                return null;
-
-            return stages[stageArrayIndex];
-        }
-
-        /// <summary>
-        /// 차징 단계 시작 애니메이션을 재생합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        private void PlayChargeStart(RuntimeSkillChargeStageDefinition stage)
-        {
-            if (stage == null)
-                return;
-            if (GcLogger.IsNull(_animController, nameof(_animController)))
-                return;
-
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.ChargeStart,
-                loop: false,
-                timeScale: 1f,
-                overrideAnimationName: string.IsNullOrEmpty(stage.StartClip) ? null : stage.StartClip));
-        }
-
-        /// <summary>
-        /// 차징 단계 루프 애니메이션을 재생합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        private void PlayChargeLoop(RuntimeSkillChargeStageDefinition stage)
-        {
-            if (stage == null)
-                return;
-            if (GcLogger.IsNull(_animController, nameof(_animController)))
-                return;
-
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.ChargeLoop,
-                loop: true,
-                timeScale: 1f,
-                overrideAnimationName: string.IsNullOrEmpty(stage.LoopClip) ? null : stage.LoopClip));
-        }
-
-        /// <summary>
-        /// 차징 단계 종료 애니메이션을 재생합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        private void PlayChargeEnd(RuntimeSkillChargeStageDefinition stage)
-        {
-            if (stage == null)
-                return;
-            if (GcLogger.IsNull(_animController, nameof(_animController)))
-                return;
-
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.ChargeEnd,
-                loop: false,
-                timeScale: 1f,
-                overrideAnimationName: string.IsNullOrEmpty(stage.EndClip) ? null : stage.EndClip));
-        }
-
-        /// <summary>
-        /// 전체 차징 완료 애니메이션을 재생합니다.
-        /// </summary>
-        private void PlayChargeComplete()
-        {
-            if (_didChargeComplete)
-                return;
-
-            _didChargeComplete = true;
-            if (string.IsNullOrWhiteSpace(_skill.Charge.CompleteClip))
-                return;
-            if (GcLogger.IsNull(_animController, nameof(_animController)))
-                return;
-
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.ChargeComplete,
-                loop: false,
-                timeScale: 1f,
-                overrideAnimationName: _skill.Charge.CompleteClip));
-        }
-
-        /// <summary>
-        /// 차징 실패 애니메이션을 재생합니다.
-        /// </summary>
-        private void PlayChargeFail()
-        {
-            if (GcLogger.IsNull(_animController, nameof(_animController)))
-                return;
-
-            string failClip = _skill.Charge.FailClip;
-            if (string.IsNullOrWhiteSpace(failClip))
-            {
-                _animController.StopSkillAnimation();
-                return;
-            }
-
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.ChargeFail,
-                loop: false,
-                timeScale: 1f,
-                overrideAnimationName: failClip));
-        }
-
-        /// <summary>
-        /// 차징 단계 시작 애니메이션 유지 시간을 계산합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        /// <returns>시작 애니메이션 유지 시간(초)입니다.</returns>
-        private float ResolveChargeStageStartDuration(RuntimeSkillChargeStageDefinition stage)
-        {
-            if (stage == null)
-                return 0f;
-
-            return ResolveChargeAnimationDuration(stage.StartClip, stage.StartDurationSeconds);
-        }
-
-        /// <summary>
-        /// 차징 단계 종료 애니메이션 유지 시간을 계산합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        /// <returns>종료 애니메이션 유지 시간(초)입니다.</returns>
-        private float ResolveChargeStageEndDuration(RuntimeSkillChargeStageDefinition stage)
-        {
-            if (stage == null)
-                return 0f;
-
-            return ResolveChargeAnimationDuration(stage.EndClip, stage.EndDurationSeconds);
-        }
-
-        /// <summary>
-        /// 차징 완료 애니메이션 유지 시간을 계산합니다.
-        /// </summary>
-        /// <returns>차징 완료 애니메이션 유지 시간(초)입니다.</returns>
-        private float ResolveChargeCompleteDuration()
-        {
-            if (_skill?.Charge == null)
-                return 0f;
-
-            return ResolveChargeAnimationDuration(_skill.Charge.CompleteClip, _skill.Charge.CompleteDurationSeconds);
-        }
-
-        /// <summary>
-        /// 차징 실패 애니메이션 유지 시간을 계산합니다.
-        /// </summary>
-        /// <returns>차징 실패 애니메이션 유지 시간(초)입니다.</returns>
-        private float ResolveChargeFailDuration()
-        {
-            if (_skill?.Charge == null)
-                return 0f;
-
-            if (_skill.Charge.FailDurationSeconds > 0f)
-                return _skill.Charge.FailDurationSeconds;
-
-            if (string.IsNullOrWhiteSpace(_skill.Charge.FailClip))
-                return 0.3f;
-
-            return ResolveChargeAnimationDuration(_skill.Charge.FailClip, 0f);
-        }
-
-        /// <summary>
-        /// 차징 계열 애니메이션의 유지 시간을 명시값 또는 클립 길이로 계산합니다.
-        /// 명시값이 있으면 우선 사용하고, 클립 길이를 확인할 수 없으면 짧은 기본값을 사용합니다.
-        /// </summary>
-        /// <param name="clipName">재생할 애니메이션 클립 이름입니다.</param>
-        /// <param name="explicitDurationSeconds">테이블에서 지정한 명시 유지 시간입니다.</param>
-        /// <returns>해당 애니메이션 유지 시간(초)입니다.</returns>
-        private float ResolveChargeAnimationDuration(string clipName, float explicitDurationSeconds)
-        {
-            if (explicitDurationSeconds > 0f)
-                return explicitDurationSeconds;
-
-            if (string.IsNullOrWhiteSpace(clipName))
-                return 0f;
-
-            if (_animController == null)
-                return 0.3f;
-
-            float duration = _animController.GetCharacterAnimationDuration(clipName, isMilliseconds: false);
-            return duration > 0f ? duration : 0.3f;
-        }
-
-        /// <summary>
-        /// 현재 차징 단계에 설정된 VFX를 생성합니다.
-        /// 단계가 바뀌거나 차징이 끝나면 생성된 VFX를 정리합니다.
-        /// </summary>
-        /// <param name="stage">현재 차징 단계 정의입니다.</param>
-        private void SpawnChargeVfx(RuntimeSkillChargeStageDefinition stage)
-        {
-            if (stage == null || stage.VfxUid <= 0)
-                return;
-
-            var sceneGame = SceneGame.Instance;
-            if (sceneGame == null || sceneGame.VfxManager == null)
-                return;
-
-            CharacterBase casterCharacter = _ctx.caster != null ? _ctx.caster.GetComponentInParent<CharacterBase>() : null;
-            Vector3 spawnPosition = casterCharacter != null
-                ? casterCharacter.transform.position
-                : (_ctx.caster != null ? _ctx.caster.transform.position : _snapshotCasterPos);
-
-            var request = new VfxSpawnRequest
-            {
-                VfxUid = stage.VfxUid,
-                Owner = casterCharacter,
-                OwnerGameObject = _ctx.caster,
-                FollowTarget = stage.VfxFollowMode != VfxConstants.FollowMode.None ? casterCharacter : null,
-                WorldPosition = spawnPosition,
-                DurationOverride = 0f,
-                ScaleOverride = stage.VfxScale,
-                PositionY = stage.VfxPositionY,
-                PositionYType = stage.VfxPositionYType,
-                FollowModeOverride = stage.VfxFollowMode,
-            };
-
-            _activeChargeVfx = sceneGame.VfxManager.CreateVfx(request);
-        }
-
-        /// <summary>
-        /// 현재 차징 단계에서 생성한 VFX를 즉시 제거합니다.
-        /// </summary>
-        private void CleanupActiveChargeVfx()
-        {
-            if (_activeChargeVfx == null)
-                return;
-
-            _activeChargeVfx.DestroyForce();
-            _activeChargeVfx = null;
-        }
-
-        /// <summary>
-        /// 현재 차징 상태 스냅샷을 SkillExecutor에 전달합니다.
-        /// UI 게이지와 테스트 툴은 이 스냅샷을 기준으로 갱신됩니다.
-        /// </summary>
-        private void NotifyChargeSnapshot()
-        {
-            if (!HasCharge)
-                return;
-
-            _owner?.NotifyChargeStateChanged(BuildChargeSnapshot());
-        }
-
-        /// <summary>
-        /// 현재 차징 상태를 UI와 외부 구독자가 사용할 수 있는 스냅샷으로 변환합니다.
-        /// </summary>
-        /// <returns>현재 차징 상태 스냅샷입니다.</returns>
-        private SkillChargeSnapshot BuildChargeSnapshot()
-        {
-            if (!HasCharge)
-                return SkillChargeSnapshot.Inactive(SkillUid);
-
-            var stage = GetCurrentChargeStage();
-            float totalDuration = Mathf.Max(0f, _skill.Charge.TotalDurationSeconds);
-            float progress01 = totalDuration > 0f ? Mathf.Clamp01(_chargeTotalElapsed / totalDuration) : 1f;
-            float gauge01 = _chargeGaugeMax > 0f ? Mathf.Clamp01(_chargeGaugeCurrent / _chargeGaugeMax) : 0f;
-
-            return new SkillChargeSnapshot(
-                SkillUid,
-                isActive: IsCharging || _isChargeFailed,
-                isCharging: IsCharging,
-                isFailed: _isChargeFailed,
-                stageIndex: stage != null ? stage.StageIndex : 0,
-                stageCount: _skill.Charge.Stages?.Length ?? 0,
-                stageElapsedSeconds: _chargeStageElapsed,
-                stageDurationSeconds: stage != null ? stage.DurationSeconds : 0f,
-                totalElapsedSeconds: _chargeTotalElapsed,
-                totalDurationSeconds: totalDuration,
-                progress01: progress01,
-                gaugeCurrent: _chargeGaugeCurrent,
-                gaugeMax: _chargeGaugeMax,
-                gauge01: gauge01);
-        }
-
+        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
         private void TickCastAndUse(float dt)
         {
             // 1) 캐스팅 처리
@@ -914,6 +266,10 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// Use 시작 시간을 기준으로 런타임 이벤트 시퀀스를 재생하고 완료 시 스킬 런을 종료합니다.
+        /// </summary>
+        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
         private void TickRuntimeSequence(float dt)
         {
             // 2) 이벤트 시퀀스 재생(Use 시작부터 재생)
@@ -945,6 +301,9 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// 스킬 시작 시점의 캐스터, 락온 타겟, 지면 좌표를 저장하여 이후 이벤트가 동일한 기준점을 사용할 수 있게 합니다.
+        /// </summary>
         private void SnapshotContext()
         {
             _snapshotCasterPos = _ctx.caster != null ? _ctx.caster.transform.position : Vector3.zero;
@@ -952,6 +311,9 @@ namespace GGemCo2DSkill
             _snapshotGroundPoint = _ctx.groundPoint;
         }
 
+        /// <summary>
+        /// 캐스팅 시작 애니메이션을 한 번만 재생합니다.
+        /// </summary>
         private void PlayCastStart()
         {
             if (_didCastStart) return;
@@ -968,6 +330,9 @@ namespace GGemCo2DSkill
                 overrideAnimationName: string.IsNullOrEmpty(_skill.CastStartClip) ? null : _skill.CastStartClip));
         }
 
+        /// <summary>
+        /// 캐스팅 유지 루프 애니메이션을 한 번만 재생합니다.
+        /// </summary>
         private void PlayCastLoop()
         {
             if (_didCastLoop) return;
@@ -982,6 +347,9 @@ namespace GGemCo2DSkill
                 overrideAnimationName: string.IsNullOrEmpty(_skill.CastLoopClip) ? null : _skill.CastLoopClip));
         }
 
+        /// <summary>
+        /// 캐스팅 종료 애니메이션을 한 번만 재생합니다.
+        /// </summary>
         private void PlayCastEnd()
         {
             if (_didCastEnd) return;
@@ -996,6 +364,9 @@ namespace GGemCo2DSkill
                 overrideAnimationName: string.IsNullOrEmpty(_skill.CastEndClip) ? null : _skill.CastEndClip));
         }
 
+        /// <summary>
+        /// 실제 스킬 사용 단계로 진입하고 이벤트 타임라인 기준 시간을 초기화합니다.
+        /// </summary>
         private void PlayUse()
         {
             if (_didUse) return;
@@ -1061,6 +432,15 @@ namespace GGemCo2DSkill
             _actionController.RequestAction(in request);
         }
 
+        /// <summary>
+        /// 스킬 이벤트가 요청한 위치 고정 모션을 Skill 채널에 시작합니다.
+        /// </summary>
+        /// <param name="durationSeconds">스킬 종료까지 유지하지 않을 때 적용할 고정 시간입니다.</param>
+        /// <param name="keepUntilSkillEnd">스킬 종료 시점까지 위치 고정을 유지할지 여부입니다.</param>
+        /// <param name="stopAtEnd">위치 고정 종료 시 속도를 정지할지 여부입니다.</param>
+        /// <param name="useMovePosition">Rigidbody2D.MovePosition 기반으로 위치를 유지할지 여부입니다.</param>
+        /// <param name="allowReplace">기존 Skill 채널 모션 교체 허용 여부입니다.</param>
+        /// <returns>위치 고정 모션을 시작했으면 <see langword="true"/>입니다.</returns>
         public bool TryStartPositionHold(float durationSeconds, bool keepUntilSkillEnd, bool stopAtEnd, bool useMovePosition, bool allowReplace)
         {
             if (_motionController == null || _ctx.caster == null)
@@ -1106,6 +486,9 @@ namespace GGemCo2DSkill
             return false;
         }
 
+        /// <summary>
+        /// 현재 스킬 런이 유지 중인 위치 고정 모션을 해제하고 잔여 속도를 제거합니다.
+        /// </summary>
         public void ReleasePositionHold()
         {
             if (!_isPositionHoldActive)
@@ -1132,12 +515,7 @@ namespace GGemCo2DSkill
 
             _isEnded = true;
 
-            CleanupActiveChargeVfx();
-
-            if (HasCharge)
-            {
-                _owner?.NotifyChargeStateChanged(SkillChargeSnapshot.Inactive(SkillUid));
-            }
+            _chargeController.CleanupForRunEnd();
 
             if (_keepPositionHoldUntilSkillEnd || _isPositionHoldActive)
             {
@@ -1153,18 +531,17 @@ namespace GGemCo2DSkill
             _owner?.NotifyRunEnded(this);
         }
         
+        /// <summary>
+        /// 외부 요청으로 스킬 런을 취소하고 애니메이션, 액션 상태, 차징 리소스를 정리합니다.
+        /// </summary>
+        /// <param name="reason">스킬 취소 사유입니다.</param>
         public void Cancel(SkillCancelReason reason)
         {
             if (IsDone) return;
 
             // 이후 이벤트/캐스팅/차징 진행 차단
             IsDone = true;
-            CleanupActiveChargeVfx();
-
-            if (HasCharge)
-            {
-                _owner?.NotifyChargeStateChanged(SkillChargeSnapshot.Inactive(SkillUid));
-            }
+            _chargeController.CleanupForRunEnd();
 
             // 체인 캔슬은 다음 스킬 애니메이션이 같은 프레임에 이어서 재생되므로
             // 대기 애니메이션으로 한 번 복귀시키지 않고 현재 스킬 재생만 끊습니다.
