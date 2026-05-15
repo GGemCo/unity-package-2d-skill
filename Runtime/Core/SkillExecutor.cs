@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
-using Config;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -305,7 +304,7 @@ namespace GGemCo2DSkill
                 snapshotGroundPoint);
             _eventDispatcher.Execute(this, in eventContext);
         }
-        
+
 
         /// <summary>
         /// 화면 페이드 이벤트 정의를 Core 공용 화면 페이드 서비스로 전달합니다.
@@ -389,7 +388,7 @@ namespace GGemCo2DSkill
         {
             return SkillDirectionResolver.ResolveCurrentFacing2D(caster);
         }
-        
+
         /// <summary>
         /// 돌진 이벤트 정의에 따라 캐릭터 이동을 시작합니다.
         /// 2D 방향을 보정하고 직선 또는 포물선 이동 요청을 모션 컨트롤러에 전달합니다.
@@ -744,7 +743,7 @@ namespace GGemCo2DSkill
             else
                 forward.Normalize();
 
-            if (!TryResolveGroundSlamTargetPosition(ctx, def, startPosition, forward, out Vector2 targetPosition))
+            if (!SkillGroundSlamMotionResolver.TryResolveTargetPosition(ctx, def, startPosition, forward, out Vector2 targetPosition))
                 return;
 
             Vector2 travel = targetPosition - startPosition;
@@ -756,7 +755,7 @@ namespace GGemCo2DSkill
 
             if (holdDuration > 0f)
             {
-                if (def.holdPositionDuringAirHold && !TryStartGroundSlamHoldMotion(motion, def, startPosition, holdDuration))
+                if (def.holdPositionDuringAirHold && !SkillGroundSlamMotionResolver.TryStartHoldMotion(motion, def, startPosition, holdDuration))
                     return;
 
                 ClearPendingGroundSlamState();
@@ -776,7 +775,7 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            if (!TryStartGroundSlamMotion(motion, def, startPosition, targetPosition, fallDuration))
+            if (!SkillGroundSlamMotionResolver.TryStartSlamMotion(motion, def, startPosition, targetPosition, fallDuration))
                 return;
 
             BeginGroundSlamAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: false);
@@ -801,7 +800,7 @@ namespace GGemCo2DSkill
             var pending = _pendingGroundSlamState;
             ClearPendingGroundSlamState();
 
-            if (!TryStartGroundSlamMotion(pending.MotionController, pending.Definition, pending.StartPosition, pending.TargetPosition, pending.FallDurationSeconds))
+            if (!SkillGroundSlamMotionResolver.TryStartSlamMotion(pending.MotionController, pending.Definition, pending.StartPosition, pending.TargetPosition, pending.FallDurationSeconds))
             {
                 ClearGroundSlamAnimationState();
                 return;
@@ -826,140 +825,6 @@ namespace GGemCo2DSkill
                 BeginGroundSlamAnimation(pending.Caster, pending.MotionController, pending.Definition, pending.UsePhaseBasedLoopTransition);
             }
         }
-
-
-        private static bool TryStartGroundSlamHoldMotion(
-            ICharacterMotionController motion,
-            GroundSlamEventDefinition def,
-            Vector2 holdPosition,
-            float holdDurationSeconds)
-        {
-            if (motion == null || def == null || holdDurationSeconds <= 0f)
-                return false;
-
-            var req = new MotionRequest(
-                MotionChannel.Skill,
-                MotionKind.PositionHold,
-                Vector2.zero,
-                holdDurationSeconds,
-                0f,
-                Easing.EaseType.Linear,
-                stopAtEnd: true,
-                useMovePosition: def.useMovePosition,
-                allowReplace: def.allowReplace,
-                startPosition: holdPosition,
-                targetPosition: holdPosition,
-                groundSnapDistance: 0f);
-
-            return motion.TryStartMotion(in req);
-        }
-
-        private static bool TryStartGroundSlamMotion(
-            ICharacterMotionController motion,
-            GroundSlamEventDefinition def,
-            Vector2 startPosition,
-            Vector2 targetPosition,
-            float fallDurationSeconds)
-        {
-            if (motion == null || def == null)
-                return false;
-
-            Vector2 travel = targetPosition - startPosition;
-            if (travel.sqrMagnitude <= 1e-8f)
-                return false;
-
-            var req = new MotionRequest(
-                MotionChannel.Skill,
-                MotionKind.GroundSlam,
-                travel.normalized,
-                fallDurationSeconds,
-                travel.magnitude,
-                def.easing,
-                stopAtEnd: def.stopAtEnd,
-                useMovePosition: def.useMovePosition,
-                allowReplace: true,
-                startPosition: startPosition,
-                targetPosition: targetPosition,
-                groundSnapDistance: def.groundSnapDistance);
-
-            return motion.TryStartMotion(in req);
-        }
-
-        private static bool TryResolveGroundSlamTargetPosition(
-            SkillTargetContext ctx,
-            GroundSlamEventDefinition def,
-            Vector2 startPosition,
-            Vector2 forward,
-            out Vector2 targetPosition)
-        {
-            float targetX = startPosition.x;
-            switch (def.horizontalPolicy)
-            {
-                case GroundSlamHorizontalPolicy.KeepCurrentX:
-                    targetX = startPosition.x;
-                    break;
-                case GroundSlamHorizontalPolicy.MoveToTargetX:
-                    if (ctx.lockedTarget != null)
-                        targetX = ctx.lockedTarget.transform.position.x;
-                    else if (ctx.groundPoint != default)
-                        targetX = ctx.groundPoint.x;
-                    break;
-                case GroundSlamHorizontalPolicy.MoveByForward:
-                    targetX = startPosition.x + forward.x * Mathf.Max(0f, def.forwardDistance);
-                    break;
-            }
-
-            switch (def.landingMode)
-            {
-                case GroundSlamLandingMode.FixedDistanceDown:
-                {
-                    float targetY = startPosition.y - Mathf.Max(0f, def.fixedDropDistance);
-                    targetPosition = new Vector2(targetX, targetY);
-                    return targetY < startPosition.y - 1e-4f;
-                }
-                case GroundSlamLandingMode.LockedTargetGround:
-                {
-                    Vector2 probeBase = ctx.lockedTarget != null
-                        ? (Vector2)ctx.lockedTarget.transform.position
-                        : new Vector2(targetX, startPosition.y);
-                    targetX = probeBase.x;
-                    return TryResolveGroundPoint(def, targetX, probeBase.y, startPosition.y, out targetPosition);
-                }
-                case GroundSlamLandingMode.GroundPoint:
-                {
-                    Vector2 probeBase = ctx.groundPoint != default
-                        ? (Vector2)ctx.groundPoint
-                        : new Vector2(targetX, startPosition.y);
-                    targetX = probeBase.x;
-                    return TryResolveGroundPoint(def, targetX, probeBase.y, startPosition.y, out targetPosition);
-                }
-                case GroundSlamLandingMode.CurrentGround:
-                default:
-                    return TryResolveGroundPoint(def, targetX, startPosition.y, startPosition.y, out targetPosition);
-            }
-        }
-
-        private static bool TryResolveGroundPoint(
-            GroundSlamEventDefinition def,
-            float targetX,
-            float referenceY,
-            float startY,
-            out Vector2 targetPosition)
-        {
-            Vector2 origin = new Vector2(targetX, Mathf.Max(referenceY, startY) + Mathf.Max(0f, def.groundProbeStartHeight));
-            float probeDistance = Mathf.Max(0.1f, def.groundProbeDistance);
-            var hit = Physics2D.Raycast(origin, Vector2.down, probeDistance, def.groundLayerMask);
-            if (hit.collider != null)
-            {
-                targetPosition = new Vector2(targetX, hit.point.y);
-                return true;
-            }
-
-            float fallbackY = startY - Mathf.Max(0f, def.fixedDropDistance);
-            targetPosition = new Vector2(targetX, fallbackY);
-            return true;
-        }
-
 
         private void BeginGroundSlamAnimation(
             GameObject caster,
