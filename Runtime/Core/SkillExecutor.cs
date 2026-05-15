@@ -55,6 +55,11 @@ namespace GGemCo2DSkill
         private readonly SkillGroundSlamAnimationController _groundSlamAnimationController = new();
 
         /// <summary>
+        /// 아크 런지의 단계별 애니메이션 상태를 관리합니다.
+        /// </summary>
+        private readonly SkillArcLungeAnimationController _arcLungeAnimationController = new();
+
+        /// <summary>
         /// 현재 스킬 실행에서 생성한 더미 캐릭터를 actorKey 기준으로 관리하는 컬렉션입니다.
         /// </summary>
         private readonly Dictionary<string, SkillDummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
@@ -98,31 +103,6 @@ namespace GGemCo2DSkill
         private int _executionSequence;
         private readonly SkillAttackSequence _attackSequence = new();
         private CharacterHitStopController _hitStopController;
-
-        private enum ArcLungeAnimationPhaseState
-        {
-            None = 0,
-            Rise = 1,
-            Apex = 2,
-            Fall = 3,
-            LandEnd = 4,
-        }
-
-        private struct ArcLungeAnimationState
-        {
-            public bool IsActive;
-            public GameObject Caster;
-            public ICharacterAnimationController AnimationController;
-            public ICharacterMotionController MotionController;
-            public ArcLungeEventDefinition Definition;
-            public ArcLungeAnimationPhaseState Phase;
-            public float ElapsedSeconds;
-            public float RiseDurationSeconds;
-            public float ApexHoldDurationSeconds;
-            public float LandEndRemainingSeconds;
-        }
-
-        private ArcLungeAnimationState _arcLungeAnimationState;
 
         /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
@@ -182,7 +162,7 @@ namespace GGemCo2DSkill
             }
 
             _groundSlamAnimationController.Tick();
-            UpdateArcLungeAnimation();
+            _arcLungeAnimationController.Tick();
             MaintainDummyAirborneState();
         }
 
@@ -207,7 +187,7 @@ namespace GGemCo2DSkill
             _screenFadeController.ResetCleanupFlags();
             _afterimageController.ResetCleanupFlags();
             _groundSlamAnimationController.Clear();
-            ClearArcLungeAnimationState();
+            _arcLungeAnimationController.Clear();
 
             var motion = SkillCharacterComponentResolver.ResolveMotionController(targetCtx.caster);
             motion?.CancelMotion(MotionChannel.Skill, 2001);
@@ -511,173 +491,7 @@ namespace GGemCo2DSkill
             if (!motion.TryStartMotion(in req))
                 return;
 
-            BeginArcLungeAnimation(ctx.caster, motion, def, riseDuration, apexHoldDuration);
-        }
-
-        private void BeginArcLungeAnimation(
-            GameObject caster,
-            ICharacterMotionController motion,
-            ArcLungeEventDefinition def,
-            float riseDurationSeconds,
-            float apexHoldDurationSeconds)
-        {
-            ClearArcLungeAnimationState();
-
-            if (caster == null || motion == null || def == null)
-                return;
-
-            var anim = SkillCharacterComponentResolver.ResolveAnimationController(caster);
-            if (anim == null)
-                return;
-
-            _arcLungeAnimationState = new ArcLungeAnimationState
-            {
-                IsActive = true,
-                Caster = caster,
-                AnimationController = anim,
-                MotionController = motion,
-                Definition = def,
-                Phase = ArcLungeAnimationPhaseState.None,
-                ElapsedSeconds = 0f,
-                RiseDurationSeconds = Mathf.Max(0f, riseDurationSeconds),
-                ApexHoldDurationSeconds = Mathf.Max(0f, apexHoldDurationSeconds),
-                LandEndRemainingSeconds = 0f,
-            };
-
-            if (_arcLungeAnimationState.RiseDurationSeconds > 0f && !string.IsNullOrWhiteSpace(def.riseAnimationName))
-            {
-                PlayArcLungeAnimation(anim, def.riseAnimationName, loop: false);
-                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Rise;
-                return;
-            }
-
-            if (_arcLungeAnimationState.ApexHoldDurationSeconds > 0f && !string.IsNullOrWhiteSpace(def.apexAnimationName))
-            {
-                PlayArcLungeAnimation(anim, def.apexAnimationName, loop: true);
-                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Apex;
-                return;
-            }
-
-            if (!string.IsNullOrWhiteSpace(def.fallAnimationName))
-            {
-                PlayArcLungeAnimation(anim, def.fallAnimationName, loop: true);
-                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
-            }
-        }
-
-        private void UpdateArcLungeAnimation()
-        {
-            if (!_arcLungeAnimationState.IsActive)
-                return;
-
-            var anim = _arcLungeAnimationState.AnimationController;
-            var motion = _arcLungeAnimationState.MotionController;
-            var def = _arcLungeAnimationState.Definition;
-            if (anim == null || motion == null || def == null)
-            {
-                ClearArcLungeAnimationState();
-                return;
-            }
-
-            if (_arcLungeAnimationState.Phase == ArcLungeAnimationPhaseState.LandEnd)
-            {
-                _arcLungeAnimationState.LandEndRemainingSeconds -= Time.deltaTime;
-                if (_arcLungeAnimationState.LandEndRemainingSeconds <= 0f)
-                    ClearArcLungeAnimationState();
-                return;
-            }
-
-            if (!motion.IsPlaying(MotionChannel.Skill))
-            {
-                PlayArcLungeLandEndOrClear();
-                return;
-            }
-
-            _arcLungeAnimationState.ElapsedSeconds += Time.deltaTime;
-            float riseEnd = _arcLungeAnimationState.RiseDurationSeconds;
-            float apexEnd = riseEnd + _arcLungeAnimationState.ApexHoldDurationSeconds;
-
-            if (_arcLungeAnimationState.Phase == ArcLungeAnimationPhaseState.Rise && _arcLungeAnimationState.ElapsedSeconds >= riseEnd)
-            {
-                if (_arcLungeAnimationState.ApexHoldDurationSeconds > 0f && !string.IsNullOrWhiteSpace(def.apexAnimationName))
-                {
-                    PlayArcLungeAnimation(anim, def.apexAnimationName, loop: true);
-                    _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Apex;
-                }
-                else if (!string.IsNullOrWhiteSpace(def.fallAnimationName))
-                {
-                    PlayArcLungeAnimation(anim, def.fallAnimationName, loop: true);
-                    _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
-                }
-                else
-                {
-                    _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
-                }
-            }
-
-            if (_arcLungeAnimationState.Phase == ArcLungeAnimationPhaseState.Apex && _arcLungeAnimationState.ElapsedSeconds >= apexEnd)
-            {
-                if (!string.IsNullOrWhiteSpace(def.fallAnimationName))
-                    PlayArcLungeAnimation(anim, def.fallAnimationName, loop: true);
-
-                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.Fall;
-            }
-        }
-
-        private void PlayArcLungeLandEndOrClear()
-        {
-            if (!_arcLungeAnimationState.IsActive)
-                return;
-
-            var anim = _arcLungeAnimationState.AnimationController;
-            var def = _arcLungeAnimationState.Definition;
-            if (anim == null || def == null)
-            {
-                ClearArcLungeAnimationState();
-                return;
-            }
-
-            if (!string.IsNullOrWhiteSpace(def.landEndAnimationName))
-            {
-                PlayArcLungeAnimation(anim, def.landEndAnimationName, loop: false);
-                _arcLungeAnimationState.Phase = ArcLungeAnimationPhaseState.LandEnd;
-                _arcLungeAnimationState.LandEndRemainingSeconds = GetCharacterAnimationDurationSafe(anim, def.landEndAnimationName);
-                return;
-            }
-
-            ClearArcLungeAnimationState();
-        }
-
-        private static void PlayArcLungeAnimation(
-            ICharacterAnimationController anim,
-            string animationName,
-            bool loop)
-        {
-            if (anim == null || string.IsNullOrWhiteSpace(animationName))
-                return;
-
-            anim.PlaySkillAnimation(new SkillAnimationRequest(
-                skillUid: 0,
-                phase: SkillAnimationPhase.Action,
-                loop: loop,
-                timeScale: 1f,
-                overrideAnimationName: animationName));
-        }
-
-        private static float GetCharacterAnimationDurationSafe(
-            ICharacterAnimationController anim,
-            string animationName)
-        {
-            if (anim == null || string.IsNullOrWhiteSpace(animationName))
-                return 0.05f;
-
-            float duration = anim.GetCharacterAnimationDuration(animationName, isMilliseconds: false);
-            return Mathf.Max(0.05f, duration);
-        }
-
-        private void ClearArcLungeAnimationState()
-        {
-            _arcLungeAnimationState = default;
+            _arcLungeAnimationController.Begin(ctx.caster, motion, def, riseDuration, apexHoldDuration);
         }
 
         /// <summary>
@@ -2066,7 +1880,7 @@ namespace GGemCo2DSkill
             CleanupSkillScreenFade(forCancel: true);
             CleanupSkillAfterimage(forCancel: true);
             _groundSlamAnimationController.Clear();
-            ClearArcLungeAnimationState();
+            _arcLungeAnimationController.Clear();
 
             _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
             _hasPendingFinishReport = true;
