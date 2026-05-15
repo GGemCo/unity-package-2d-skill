@@ -595,20 +595,10 @@ namespace GGemCo2DSkill
             if (payloadObj is not SetDummyAirborneStateEventDefinition def)
                 return;
 
-            if (!SkillDummyActorReferenceUtility.TryGetActorHandle(_dummyActors, def.actorKey, def.missingActorPolicy, out var handle))
-                return;
-
-            if (handle.Character == null)
-                return;
-
-            float targetAirHeight = def.airborneEnabled ? Mathf.Max(0f, def.targetAirHeight) : 0f;
-            StartDummyAirHeightTransition(
-                handle,
-                targetAirHeight: targetAirHeight,
-                durationSeconds: Mathf.Max(0f, def.durationSeconds),
-                easing: def.easing,
-                allowReplace: def.allowReplace,
-                keepAirborneGravity: def.airborneEnabled || targetAirHeight > 0f);
+            SkillDummyActorAirborneEventUtility.TryExecuteAirborneState(
+                this,
+                _dummyActors,
+                def);
         }
 
         /// <summary>
@@ -638,33 +628,6 @@ namespace GGemCo2DSkill
         private void MaintainDummyAirborneState()
         {
             SkillDummyActorMotionUtility.MaintainAirborneState(_dummyActors);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터의 공중 높이 전환을 시작합니다.
-        /// </summary>
-        /// <param name="handle">대상 더미 핸들입니다.</param>
-        /// <param name="targetAirHeight">목표 공중 높이(+Y)입니다.</param>
-        /// <param name="durationSeconds">보간 시간(초)입니다.</param>
-        /// <param name="easing">보간 easing입니다.</param>
-        /// <param name="allowReplace">기존 공중 보간 덮어쓰기 허용 여부입니다.</param>
-        /// <param name="keepAirborneGravity">완료 후에도 공중 중력 오버라이드를 유지할지 여부입니다.</param>
-        private void StartDummyAirHeightTransition(
-            SkillDummyActorHandle handle,
-            float targetAirHeight,
-            float durationSeconds,
-            Easing.EaseType easing,
-            bool allowReplace,
-            bool keepAirborneGravity)
-        {
-            SkillDummyActorMotionUtility.StartAirHeightTransition(
-                this,
-                handle,
-                targetAirHeight,
-                durationSeconds,
-                easing,
-                allowReplace,
-                keepAirborneGravity);
         }
 
         /// <summary>
