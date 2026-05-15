@@ -575,15 +575,10 @@ namespace GGemCo2DSkill
             if (payloadObj is not DespawnDummyCharacterEventDefinition def)
                 return;
 
-            if (!SkillDummyActorReferenceUtility.TryGetActorHandle(_dummyActors, def.actorKey, def.missingActorPolicy, out var handle))
-                return;
-
-            BeginDummyDespawn(
-                handle,
-                fadeOutEnabled: def.fadeOutEnabled,
-                fadeOutDurationSeconds: def.fadeOutDurationSeconds,
-                destroyAfterFade: def.destroyAfterFade,
-                removeFromRegistry: true);
+            SkillDummyActorDespawnEventUtility.TryExecuteDespawn(
+                this,
+                _dummyActors,
+                def);
         }
 
         /// <summary>
@@ -628,50 +623,6 @@ namespace GGemCo2DSkill
         private void MaintainDummyAirborneState()
         {
             SkillDummyActorMotionUtility.MaintainAirborneState(_dummyActors);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 제거를 시작합니다.
-        /// </summary>
-        /// <param name="handle">제거할 더미 핸들입니다.</param>
-        /// <param name="fadeOutEnabled">페이드 아웃 사용 여부입니다.</param>
-        /// <param name="fadeOutDurationSeconds">페이드 아웃 시간(초)입니다.</param>
-        /// <param name="destroyAfterFade">페이드 이후 Destroy 여부입니다.</param>
-        /// <param name="removeFromRegistry">완료 후 레지스트리 제거 여부입니다.</param>
-        private void BeginDummyDespawn(
-            SkillDummyActorHandle handle,
-            bool fadeOutEnabled,
-            float fadeOutDurationSeconds,
-            bool destroyAfterFade,
-            bool removeFromRegistry)
-        {
-            SkillDummyActorLifecycleUtility.BeginDespawn(
-                this,
-                _dummyActors,
-                handle,
-                fadeOutEnabled,
-                fadeOutDurationSeconds,
-                destroyAfterFade,
-                removeFromRegistry);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터를 즉시 정리합니다.
-        /// </summary>
-        /// <param name="handle">정리할 더미 핸들입니다.</param>
-        /// <param name="destroyGameObject">Destroy 수행 여부입니다.</param>
-        /// <param name="removeFromRegistry">레지스트리 제거 여부입니다.</param>
-        private void DestroyDummyActor(SkillDummyActorHandle handle, bool destroyGameObject, bool removeFromRegistry)
-        {
-            SkillDummyActorLifecycleUtility.DestroyActor(this, _dummyActors, handle, destroyGameObject, removeFromRegistry);
-        }
-
-        /// <summary>
-        /// 레지스트리에서 파괴된 더미 핸들을 정리합니다.
-        /// </summary>
-        private void PruneDummyActors()
-        {
-            SkillDummyActorLifecycleUtility.Prune(_dummyActors);
         }
 
         /// <summary>
