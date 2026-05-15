@@ -16,23 +16,11 @@ namespace GGemCo2DSkill
         private readonly RuntimeSkillDefinition _skill;
         private readonly SkillTargetContext _ctx;
 
-        private readonly ICharacterAnimationController _animController;
-        private readonly ICharacterActionController _actionController;
         private readonly ICharacterMotionController _motionController;
         private readonly Rigidbody2D _casterRigidbody2D;
         private readonly SkillRunChargeController _chargeController;
+        private readonly SkillRunPlaybackController _playbackController;
 
-        private SkillRuntimeSequence _sequence;
-        private float _time;
-        private int _nextEventIndex;
-
-        // Casting
-        private bool _didCastStart;
-        private bool _didCastLoop;
-        private bool _didCastEnd;
-        private bool _didUse;
-
-        private float _castElapsed;
         private Vector3 _snapshotCasterPos;
         private Vector3 _snapshotTargetPos;
         private Vector3 _snapshotGroundPoint;
@@ -55,7 +43,7 @@ namespace GGemCo2DSkill
         /// <summary>
         /// Use 애니메이션 기준으로 현재 스킬 이벤트 시퀀스가 진행된 시간입니다.
         /// </summary>
-        public float CurrentTime => _time;
+        public float CurrentTime => _playbackController.CurrentTime;
 
         /// <summary>
         /// 스킬 1회 실행 상태를 생성하고 실행에 필요한 캐릭터 컨트롤러와 차징 컨트롤러를 연결합니다.
@@ -72,8 +60,6 @@ namespace GGemCo2DSkill
             _owner = owner;
             _skill = skill;
             _ctx = ctx;
-            _animController = animController;
-            _actionController = actionController;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
             _chargeController = new SkillRunChargeController(
@@ -81,8 +67,18 @@ namespace GGemCo2DSkill
                 this,
                 _skill,
                 _ctx,
-                _animController,
+                animController,
                 () => _snapshotCasterPos);
+            _playbackController = new SkillRunPlaybackController(
+                _owner,
+                this,
+                _skill,
+                _ctx,
+                animController,
+                actionController,
+                () => _snapshotCasterPos,
+                () => _snapshotTargetPos,
+                () => _snapshotGroundPoint);
         }
 
         /// <summary>
@@ -125,7 +121,7 @@ namespace GGemCo2DSkill
         {
             SnapshotContext();
 
-            ApplyInitialActionState();
+            _playbackController.ApplyInitialActionState(HasCharge);
             _isLoading = true;
             _ = LoadSequenceAsync();
         }
@@ -152,9 +148,10 @@ namespace GGemCo2DSkill
                     return;
                 }
 
+                SkillRuntimeSequence sequence = null;
                 if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Monster)
                 {
-                    _sequence = await AddressableLoaderSkillRuntimeSequenceMonster.LoadAsyncMonster(runtimeSequenceKey);
+                    sequence = await AddressableLoaderSkillRuntimeSequenceMonster.LoadAsyncMonster(runtimeSequenceKey);
                 }
                 else if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Player)
                 {
@@ -167,11 +164,10 @@ namespace GGemCo2DSkill
                             .AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
                     }
 
-                    _sequence = await runtimeSequenceLoader.LoadByKeyAsync(runtimeSequenceKey);
+                    sequence = await runtimeSequenceLoader.LoadByKeyAsync(runtimeSequenceKey);
                 }
 
-                _nextEventIndex = 0;
-                _time = 0f;
+                _playbackController.SetSequence(sequence);
 
             }
             catch (Exception e)
@@ -203,8 +199,8 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            TickCastAndUse(dt);
-            TickRuntimeSequence(dt);
+            _playbackController.Tick(dt);
+            FinishIfPlaybackRequestedRunEnd();
         }
 
         /// <summary>
@@ -234,71 +230,15 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 차징 이후 캐스팅 시간을 누적하고, 사용 단계에 도달하면 Use 애니메이션과 액션 상태를 적용합니다.
+        /// 재생 컨트롤러가 스킬 종료를 요청한 경우 SkillRun 종료 절차로 연결합니다.
         /// </summary>
-        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
-        private void TickCastAndUse(float dt)
+        private void FinishIfPlaybackRequestedRunEnd()
         {
-            // 1) 캐스팅 처리
-            float castTime = Mathf.Max(0f, _skill.CastTime);
+            if (!_playbackController.ShouldEndRun || IsDone)
+                return;
 
-            if (castTime > 0f && !_didUse)
-            {
-                _castElapsed += dt;
-
-                if (!_didCastStart) PlayCastStart();
-                if (!_didCastLoop) PlayCastLoop();
-
-                if (_castElapsed >= castTime)
-                {
-                    PlayCastEnd();
-                    ApplyUseActionState();
-                    PlayUse();
-                }
-            }
-            else
-            {
-                if (!_didUse)
-                {
-                    ApplyUseActionState();
-                    PlayUse();
-                }
-            }
-        }
-
-        /// <summary>
-        /// Use 시작 시간을 기준으로 런타임 이벤트 시퀀스를 재생하고 완료 시 스킬 런을 종료합니다.
-        /// </summary>
-        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
-        private void TickRuntimeSequence(float dt)
-        {
-            // 2) 이벤트 시퀀스 재생(Use 시작부터 재생)
-            if (_didUse && _sequence != null && _sequence.Events != null)
-            {
-                while (_nextEventIndex < _sequence.Events.Length)
-                {
-                    var ev = _sequence.Events[_nextEventIndex];
-                    if (_time + 1e-6f < ev.StartTime) break;
-
-                    _owner.ExecuteEvent(this, _skill, _ctx, _sequence, ev, _snapshotCasterPos, _snapshotTargetPos,
-                        _snapshotGroundPoint);
-                    _nextEventIndex++;
-                }
-                _time += dt;
-
-                if (_time >= _sequence.Duration && _nextEventIndex >= _sequence.Events.Length)
-                {
-                    IsDone = true;
-                    EndRun();
-                }
-            }
-            else if (_didUse)
-            {
-                // 시퀀스가 없으면 Use 클립 길이 정도로 종료(간단 정책)
-                _time += dt;
-                IsDone = _time >= 0.3f;
-                if (IsDone) EndRun();
-            }
+            IsDone = true;
+            EndRun();
         }
 
         /// <summary>
@@ -309,127 +249,6 @@ namespace GGemCo2DSkill
             _snapshotCasterPos = _ctx.caster != null ? _ctx.caster.transform.position : Vector3.zero;
             _snapshotTargetPos = _ctx.lockedTarget != null ? _ctx.lockedTarget.transform.position : _snapshotCasterPos;
             _snapshotGroundPoint = _ctx.groundPoint;
-        }
-
-        /// <summary>
-        /// 캐스팅 시작 애니메이션을 한 번만 재생합니다.
-        /// </summary>
-        private void PlayCastStart()
-        {
-            if (_didCastStart) return;
-            _didCastStart = true;
-
-            // Core 애니메이션 컨트롤러를 우선 사용
-            if (GcLogger.IsNull(_animController, nameof(_animController))) return;
-
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.CastingStart,
-                loop: false,
-                timeScale: 1f,
-                overrideAnimationName: string.IsNullOrEmpty(_skill.CastStartClip) ? null : _skill.CastStartClip));
-        }
-
-        /// <summary>
-        /// 캐스팅 유지 루프 애니메이션을 한 번만 재생합니다.
-        /// </summary>
-        private void PlayCastLoop()
-        {
-            if (_didCastLoop) return;
-            _didCastLoop = true;
-
-            if (GcLogger.IsNull(_animController, nameof(_animController))) return;
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.CastingLoop,
-                loop: true,
-                timeScale: 1f,
-                overrideAnimationName: string.IsNullOrEmpty(_skill.CastLoopClip) ? null : _skill.CastLoopClip));
-        }
-
-        /// <summary>
-        /// 캐스팅 종료 애니메이션을 한 번만 재생합니다.
-        /// </summary>
-        private void PlayCastEnd()
-        {
-            if (_didCastEnd) return;
-            _didCastEnd = true;
-
-            if (GcLogger.IsNull(_animController, nameof(_animController))) return;
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.CastingEnd,
-                loop: false,
-                timeScale: 1f,
-                overrideAnimationName: string.IsNullOrEmpty(_skill.CastEndClip) ? null : _skill.CastEndClip));
-        }
-
-        /// <summary>
-        /// 실제 스킬 사용 단계로 진입하고 이벤트 타임라인 기준 시간을 초기화합니다.
-        /// </summary>
-        private void PlayUse()
-        {
-            if (_didUse) return;
-            _didUse = true;
-
-            // Use 시작 기준으로 이벤트 타임라인 리셋
-            _time = 0f;
-            _nextEventIndex = 0;
-            
-            if (_actionController != null)
-            {
-                _actionController.RequestAction(new CharacterActionRequest(
-                    CharacterConstants.CharacterStatus.UseSkill));
-            }
-            
-            if (GcLogger.IsNull(_animController, nameof(_animController))) return;
-            _animController.PlaySkillAnimation(new SkillAnimationRequest(
-                _skill.Uid,
-                SkillAnimationPhase.Action,
-                loop: false,
-                timeScale: 1f,
-                overrideAnimationName: string.IsNullOrEmpty(_skill.UseClip) ? null : _skill.UseClip));
-        }
-
-        /// <summary>
-        /// 스킬 런 시작 시점에 적용할 초기 액션 상태를 설정합니다.
-        /// 차징 또는 캐스팅이 있으면 준비 상태(CastingSkill)로 진입하고, 즉시 발동 스킬은 UseSkill로 진입합니다.
-        /// </summary>
-        private void ApplyInitialActionState()
-        {
-            if (_actionController == null || _ctx.caster == null)
-                return;
-
-            bool hasPreparePhase = HasCharge || _skill.CastTime > 0f;
-
-            var request = new CharacterActionRequest(
-                status: hasPreparePhase ? CharacterConstants.CharacterStatus.CastingSkill : CharacterConstants.CharacterStatus.UseSkill,
-                skillUid: _skill.Uid,
-                lockMove: true,
-                lockFacing: false);
-
-            _actionController.RequestAction(in request);
-        }
-        
-        /// <summary>
-        /// 실제 스킬 발동(Use) 시점에 UseSkill 상태를 적용합니다.
-        /// 캐스팅/차징 → 사용 단계 전환에 해당합니다.
-        /// </summary>
-        private void ApplyUseActionState()
-        {
-            if (_actionController == null || _ctx.caster == null)
-                return;
-
-            // 준비 상태를 사용 상태로 전환(정책상 필요하면 Clear 후 Request)
-            _actionController.ClearAction(CharacterConstants.CharacterStatus.CastingSkill);
-
-            var request = new CharacterActionRequest(
-                status: CharacterConstants.CharacterStatus.UseSkill,
-                skillUid: _skill.Uid,
-                lockMove: true,
-                lockFacing: false);
-
-            _actionController.RequestAction(in request);
         }
 
         /// <summary>
@@ -522,11 +341,7 @@ namespace GGemCo2DSkill
                 ReleasePositionHold();
             }
 
-            if (_actionController != null)
-            {
-                _actionController.ClearAction(CharacterConstants.CharacterStatus.UseSkill);
-                _actionController.ClearAction(CharacterConstants.CharacterStatus.CastingSkill);
-            }
+            _playbackController.CleanupActionState();
 
             _owner?.NotifyRunEnded(this);
         }
@@ -547,7 +362,7 @@ namespace GGemCo2DSkill
             // 대기 애니메이션으로 한 번 복귀시키지 않고 현재 스킬 재생만 끊습니다.
             if (reason != SkillCancelReason.ComboChain && reason != SkillCancelReason.ForcedBySystem)
             {
-                _animController?.StopSkillAnimation();
+                _playbackController.StopSkillAnimation();
             }
 
             // 상태 해제(UseSkill/CastingSkill 등)
