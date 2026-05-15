@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace GGemCo2DSkill
 {
@@ -17,15 +17,15 @@ namespace GGemCo2DSkill
         public string ActorKey => actorKey;
 
         /// <summary>
-        /// 생성 시점의 스킬 UID를 반환합니다.
+        /// 더미 캐릭터를 생성한 스킬 UID를 반환합니다.
         /// </summary>
         public int OwnerSkillUid => ownerSkillUid;
 
         /// <summary>
-        /// 더미 마커 데이터를 설정합니다.
+        /// 더미 캐릭터 마커에 런타임 식별 정보를 기록합니다.
         /// </summary>
-        /// <param name="key">더미 식별 키입니다.</param>
-        /// <param name="skillUid">생성 시점 스킬 UID입니다.</param>
+        /// <param name="key">더미 캐릭터를 식별할 actorKey입니다.</param>
+        /// <param name="skillUid">더미 캐릭터를 생성한 스킬 UID입니다.</param>
         public void Bind(string key, int skillUid)
         {
             actorKey = key ?? string.Empty;

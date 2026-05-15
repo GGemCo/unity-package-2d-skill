@@ -529,118 +529,17 @@ namespace GGemCo2DSkill
             if (payloadObj is not SpawnDummyCharacterEventDefinition def)
                 return;
 
-            var sceneGame = SceneGame.Instance;
-            if (sceneGame == null || sceneGame.CharacterManager == null)
-                return;
-
-            if (def.characterUid <= 0)
-            {
-                Debug.LogWarning("[SkillExecutor] SpawnDummyCharacter characterUid must be greater than 0.");
-                return;
-            }
-
-            string actorKey = SkillDummyEventUtility.NormalizeActorKey(def.actorKey);
-            if (string.IsNullOrEmpty(actorKey))
-            {
-                Debug.LogWarning("[SkillExecutor] SpawnDummyCharacter actorKey is empty.");
-                return;
-            }
-
-            PruneDummyActors();
-
-            if (_dummyActors.TryGetValue(actorKey, out var existing) && existing != null)
-            {
-                if (!def.replaceIfExists)
-                    return;
-
-                DestroyDummyActor(existing, destroyGameObject: true, removeFromRegistry: true);
-            }
-
-            Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
-            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
-            Vector3 groundPoint = ctx.groundPoint;
-
-            if (def.useSnapshotCenter)
-            {
-                casterPos = snapshotCasterPos;
-                targetPos = snapshotTargetPos;
-                groundPoint = snapshotGroundPoint;
-            }
-
-            if (!SkillDummyEventUtility.TryResolveSpawnPosition(run, def, casterPos, targetPos, groundPoint, out Vector3 spawnPos))
-                return;
-
-            spawnPos += def.localOffset;
-
-            int mapUid = sceneGame.mapManager != null ? sceneGame.mapManager.GetCurrentMapUid() : 0;
-            var regenData = new CharacterRegenData(def.characterUid, spawnPos, flip: false, mapUid, defaultVisible: true);
-
-            CharacterConstants.Type sourceType = SkillDummyEventUtility.ResolveSourceCharacterType(def.sourceType);
-            GameObject dummyObject = sceneGame.CharacterManager.CreateDummyCharacter(
-                sourceType,
-                def.characterUid,
-                regenData);
-
-            if (dummyObject == null)
-            {
-                Debug.LogWarning($"[SkillExecutor] Failed to spawn dummy character. source={def.sourceType}, uid={def.characterUid}, key={actorKey}");
-                return;
-            }
-
-            dummyObject.transform.position = new Vector3(spawnPos.x, spawnPos.y, dummyObject.transform.position.z);
-
-            var character = dummyObject.GetComponent<CharacterBase>() ?? dummyObject.GetComponentInParent<CharacterBase>();
-            if (character == null)
-            {
-                sceneGame.CharacterManager.RemoveCharacter(dummyObject);
-                Debug.LogWarning($"[SkillExecutor] Spawned dummy has no CharacterBase. key={actorKey}, uid={def.characterUid}");
-                return;
-            }
-
-            SkillDummyActorPresentationUtility.ConfigureRuntime(character);
-
-            var handle = new SkillDummyActorHandle
-            {
-                ActorKey = actorKey,
-                Character = character,
-                DespawnOnSkillEnd = def.despawnOnSkillEnd,
-                DespawnOnCancel = def.despawnOnCancel,
-                GroundPosition = new Vector3(spawnPos.x, spawnPos.y, character.transform.position.z),
-                AirHeight = 0f,
-            };
-
-            if (def.spawnFacing != CharacterConstants.FacingDirection8.None)
-                character.SetFacing(def.spawnFacing);
-
-            if (!string.IsNullOrWhiteSpace(def.initialAnimationName))
-                PlayDummyAnimation(handle, def.initialAnimationName, def.initialAnimationLoop, def.initialAnimationTimeScale);
-
-            var marker = character.GetComponent<SkillDummyCharacterMarker>();
-            if (marker == null)
-                marker = character.gameObject.AddComponent<SkillDummyCharacterMarker>();
-
-            marker.Bind(actorKey, run != null ? run.SkillUid : (skill != null ? skill.Uid : 0));
-
-            SkillDummyActorPresentationUtility.ApplyRuntimeLocks(handle);
-            _dummyActors[actorKey] = handle;
-            SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
-
-            if (def.fadeInEnabled && def.fadeInDurationSeconds > 0f)
-            {
-                SkillDummyActorPresentationUtility.SetVisualAlpha(character, 0f);
-                handle.ActiveFadeCoroutine = SkillDummyActorLifecycleUtility.StartFade(
-                    this,
-                    _dummyActors,
-                    handle,
-                    fadeIn: true,
-                    durationSeconds: def.fadeInDurationSeconds,
-                    destroyAfterFade: false,
-                    removeFromRegistry: false);
-            }
-            else
-            {
-                SkillDummyActorPresentationUtility.SetVisualAlpha(character, 1f);
-            }
+            SkillDummyActorSpawnUtility.TrySpawn(
+                this,
+                _dummyActors,
+                run,
+                skill,
+                ctx,
+                def,
+                snapshotCasterPos,
+                snapshotTargetPos,
+                snapshotGroundPoint,
+                out _);
         }
 
         /// <summary>
