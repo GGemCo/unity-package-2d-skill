@@ -107,11 +107,16 @@ namespace GGemCo2DSkill
             _hitStopController = GetComponent<CharacterHitStopController>();
         }
 
+        /// <summary>
+        /// 실행기가 비활성화될 때 남아 있는 런타임 리소스를 정리하고 진행 중인 스킬을 강제 취소합니다.
+        /// </summary>
         private void OnDisable()
         {
-            CleanupDummyActors(forceAll: true, forCancel: false);
-            SkillDummyActorReferenceUtility.ResetCasterTransientState(this, _casterActorHandle, clearCharacter: true);
-            CleanupSkillAfterimage(forCancel: false);
+            SkillExecutorCleanupUtility.CleanupOnDisable(
+                this,
+                _dummyActors,
+                _casterActorHandle,
+                _afterimageController);
 
             if (_current == null)
                 return;
@@ -162,14 +167,16 @@ namespace GGemCo2DSkill
 
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
 
-            _ownedVfxTracker.Cleanup();
-            CleanupDummyActors(forceAll: true, forCancel: false);
-            SkillDummyActorReferenceUtility.ResetCasterTransientState(this, _casterActorHandle, clearCharacter: true);
-            _attackSequence.Clear();
-            _screenFadeController.ResetCleanupFlags();
-            _afterimageController.ResetCleanupFlags();
-            _groundSlamAnimationController.Clear();
-            _arcLungeAnimationController.Clear();
+            SkillExecutorCleanupUtility.PrepareForNewRun(
+                this,
+                _ownedVfxTracker,
+                _dummyActors,
+                _casterActorHandle,
+                _attackSequence,
+                _screenFadeController,
+                _afterimageController,
+                _groundSlamAnimationController,
+                _arcLungeAnimationController);
 
             var motion = SkillCharacterComponentResolver.ResolveMotionController(targetCtx.caster);
             motion?.CancelMotion(MotionChannel.Skill, 2001);
@@ -246,23 +253,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 현재 SkillExecutor가 시작한 화면 페이드를 스킬 종료 사유에 맞게 정리합니다.
-        /// </summary>
-        /// <param name="forCancel">취소 종료이면 true, 정상 종료이면 false입니다.</param>
-        private void CleanupSkillScreenFade(bool forCancel)
-        {
-            _screenFadeController.Cleanup(this, forCancel);
-        }
-
-        /// <summary>
-        /// 스킬 화면 페이드 정리 예약 상태를 초기화합니다.
-        /// </summary>
-        private void ResetSkillScreenFadeCleanupFlags()
-        {
-            _screenFadeController.ResetCleanupFlags();
-        }
-
-        /// <summary>
         /// 캐릭터 잔상 이벤트 정의를 대상 캐릭터의 <c>CharacterAfterimageTrail</c> 컴포넌트로 전달합니다.
         /// </summary>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
@@ -280,15 +270,6 @@ namespace GGemCo2DSkill
                 return;
 
             _afterimageController.Play(targetObject, payloadObj, eventDurationSeconds);
-        }
-
-        /// <summary>
-        /// 현재 SkillExecutor가 시작한 캐릭터 잔상을 스킬 종료 사유에 맞게 정리합니다.
-        /// </summary>
-        /// <param name="forCancel">취소 종료이면 true, 정상 종료이면 false입니다.</param>
-        private void CleanupSkillAfterimage(bool forCancel)
-        {
-            _afterimageController.Cleanup(forCancel);
         }
 
         /// <summary>
@@ -626,16 +607,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 현재 등록된 더미 캐릭터를 종료 정책에 맞게 정리합니다.
-        /// </summary>
-        /// <param name="forceAll">모든 더미를 강제 정리할지 여부입니다.</param>
-        /// <param name="forCancel">취소 종료 기준(<see langword="true"/>) 또는 정상 종료 기준(<see langword="false"/>)을 선택합니다.</param>
-        private void CleanupDummyActors(bool forceAll, bool forCancel)
-        {
-            SkillDummyActorLifecycleUtility.Cleanup(this, _dummyActors, forceAll, forCancel);
-        }
-
-        /// <summary>
         /// 지정한 런이 현재 활성 런과 동일하고 이벤트를 처리 가능한 상태인지 반환합니다.
         /// </summary>
         internal bool CanProcessEvent(SkillRun run)
@@ -681,27 +652,13 @@ namespace GGemCo2DSkill
 
             _hasPendingFinishReport = false;
             _current = null;
-            _attackSequence.Clear();
-            CleanupDummyActors(forceAll: false, forCancel: false);
-            CleanupSkillScreenFade(forCancel: false);
-            CleanupSkillAfterimage(forCancel: false);
+            SkillExecutorCleanupUtility.CleanupOnRunEnd(
+                this,
+                _dummyActors,
+                _attackSequence,
+                _screenFadeController,
+                _afterimageController);
             ExecutionFinished?.Invoke(report);
-        }
-
-        /// <summary>
-        /// 현재 스킬 실행이 생성한 VFX를 모두 정리합니다.
-        /// </summary>
-        private void CleanupSpawnedVfxs()
-        {
-            _ownedVfxTracker.Cleanup();
-        }
-
-        private static void ClearDamageAreaGizmo(GameObject caster)
-        {
-#if UNITY_EDITOR
-            SkillTestRuntimeHub.Instance?.ClearDamageAreas(caster);
-            SkillTestRuntimeHub.Instance?.ClearLasers(caster);
-#endif
         }
 
         /// <summary>
@@ -729,13 +686,15 @@ namespace GGemCo2DSkill
             if (_current == null) return false;
 
             var run = _current;
-            ClearDamageAreaGizmo(run.Caster);
-            CleanupSpawnedVfxs();
-            CleanupDummyActors(forceAll: false, forCancel: true);
-            CleanupSkillScreenFade(forCancel: true);
-            CleanupSkillAfterimage(forCancel: true);
-            _groundSlamAnimationController.Clear();
-            _arcLungeAnimationController.Clear();
+            SkillExecutorCleanupUtility.CleanupForCancel(
+                this,
+                run.Caster,
+                _ownedVfxTracker,
+                _dummyActors,
+                _screenFadeController,
+                _afterimageController,
+                _groundSlamAnimationController,
+                _arcLungeAnimationController);
 
             _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
             _hasPendingFinishReport = true;
