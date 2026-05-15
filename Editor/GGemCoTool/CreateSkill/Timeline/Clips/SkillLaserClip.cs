@@ -90,6 +90,9 @@ namespace GGemCo2DSkillEditor
         [Tooltip("레이저 시작점 오버라이드 값입니다. 기준점과 모드에 따라 월드 좌표 또는 오프셋으로 해석됩니다.")]
         [SerializeField] private Vector2 startPositionOverride = Vector2.zero;
 
+        [Tooltip("Caster가 좌우 반전된 상태일 때 레이저 시작점 오프셋의 X 값을 반전할지 여부입니다. WorldPosition 모드에는 적용되지 않습니다.")]
+        [SerializeField] private bool useCasterFlipStartOffsetX = false;
+
         [Tooltip("레이저 시작점을 발사 후에도 계속 갱신할지, 발사 시점에 고정할지 정의합니다. startAnchor가 Caster가 아니면 현재는 발사 시점 좌표로 고정됩니다.")]
         [SerializeField] private LaserConstants.StartPointUpdateMode startPointUpdateMode = LaserConstants.StartPointUpdateMode.FollowOwner;
 
@@ -239,6 +242,11 @@ namespace GGemCo2DSkillEditor
         /// 레이저 시작점 오버라이드 값입니다.
         /// </summary>
         public Vector2 StartPositionOverride => startPositionOverride;
+
+        /// <summary>
+        /// Caster 좌우 반전 상태에 따라 레이저 시작점 오프셋 X 값을 반전할지 여부입니다.
+        /// </summary>
+        public bool UseCasterFlipStartOffsetX => useCasterFlipStartOffsetX;
 
         /// <summary>
         /// 레이저 시작점 갱신 방식입니다.

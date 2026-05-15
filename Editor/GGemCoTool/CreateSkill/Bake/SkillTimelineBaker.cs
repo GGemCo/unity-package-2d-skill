@@ -556,6 +556,7 @@ namespace GGemCo2DSkillEditor
                         def.namedAnchorKey = laser.NamedAnchorKey;
                         def.startPositionOverrideMode = laser.StartPositionOverrideMode;
                         def.startPositionOverride = laser.StartPositionOverride;
+                        def.useCasterFlipStartOffsetX = laser.UseCasterFlipStartOffsetX;
                         def.startPointUpdateMode = laser.StartPointUpdateMode;
                         def.scaleMultiplier = laser.ScaleMultiplier;
                         def.visualType = laser.VisualType;

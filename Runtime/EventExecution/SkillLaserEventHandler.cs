@@ -141,7 +141,8 @@ namespace GGemCo2DSkill
                 vfxAngleSyncModeOverride: def.vfxAngleSyncModeOverride,
                 startPositionOverrideMode: resolvedStartPositionOverrideMode,
                 startPositionOverride: resolvedStartPositionOverride,
-                startPointUpdateMode: resolvedStartPointUpdateMode);
+                startPointUpdateMode: resolvedStartPointUpdateMode,
+                useCasterFlipStartOffsetX: def.startAnchor == LaserStartAnchor.Caster && def.useCasterFlipStartOffsetX);
 
             RegisterLaserDebugGizmo(
                 casterChar,
