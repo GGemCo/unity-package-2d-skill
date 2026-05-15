@@ -237,7 +237,7 @@ namespace GGemCo2DSkill
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();
 
-            var motion = ResolveMotionController(targetCtx.caster);
+            var motion = SkillCharacterComponentResolver.ResolveMotionController(targetCtx.caster);
             motion?.CancelMotion(MotionChannel.Skill, 2001);
 
             if (targetCtx.caster != null)
@@ -248,8 +248,8 @@ namespace GGemCo2DSkill
             }
 
             _current = new SkillRun(this, skill, targetCtx,
-                ResolveAnimController(targetCtx.caster),
-                ResolveActionController(targetCtx.caster));
+                SkillCharacterComponentResolver.ResolveAnimationController(targetCtx.caster),
+                SkillCharacterComponentResolver.ResolveActionController(targetCtx.caster));
             _hasPendingFinishReport = false;
             _current.Start();
             return true;
@@ -820,7 +820,7 @@ namespace GGemCo2DSkill
             if (caster == null || motion == null || def == null)
                 return;
 
-            var anim = ResolveAnimController(caster);
+            var anim = SkillCharacterComponentResolver.ResolveAnimationController(caster);
             if (anim == null)
                 return;
 
@@ -1231,7 +1231,7 @@ namespace GGemCo2DSkill
             if (caster == null || motion == null || def == null)
                 return;
 
-            var anim = ResolveAnimController(caster);
+            var anim = SkillCharacterComponentResolver.ResolveAnimationController(caster);
             if (anim == null)
                 return;
 
@@ -1276,7 +1276,7 @@ namespace GGemCo2DSkill
             if (caster == null || motion == null || def == null)
                 return;
 
-            var anim = ResolveAnimController(caster);
+            var anim = SkillCharacterComponentResolver.ResolveAnimationController(caster);
             if (anim == null)
                 return;
 
@@ -1942,7 +1942,7 @@ namespace GGemCo2DSkill
                 return false;
             }
 
-            var character = ResolveCharacterBase(ctx.caster);
+            var character = SkillCharacterComponentResolver.ResolveCharacterBase(ctx.caster);
             if (character == null)
             {
                 if (missingPolicy == DummyMissingActorPolicy.Warn)
@@ -2067,7 +2067,7 @@ namespace GGemCo2DSkill
                 handle.ActiveMoveCoroutine = null;
             }
 
-            var motion = ResolveMotionController(character.gameObject);
+            var motion = SkillCharacterComponentResolver.ResolveMotionController(character.gameObject);
             if (motion != null && motion.IsPlaying(MotionChannel.Skill))
             {
                 if (!def.allowReplace)
@@ -2328,7 +2328,7 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            var motion = ResolveMotionController(handle.Character.gameObject);
+            var motion = SkillCharacterComponentResolver.ResolveMotionController(handle.Character.gameObject);
             motion?.CancelMotion(MotionChannel.Skill, reason: 9203);
             SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
 
@@ -2377,7 +2377,7 @@ namespace GGemCo2DSkill
             }
 
             var character = handle.Character;
-            var anim = SkillDummyActorPresentationUtility.ResolveAnimationController(character.gameObject);
+            var anim = SkillCharacterComponentResolver.ResolveAnimationController(character.gameObject);
             float duration = Mathf.Max(0f, durationSeconds);
 
             if (duration <= 0f)
@@ -2534,7 +2534,7 @@ namespace GGemCo2DSkill
             var character = handle.Character;
             if (character != null)
             {
-                var motion = ResolveMotionController(character.gameObject);
+                var motion = SkillCharacterComponentResolver.ResolveMotionController(character.gameObject);
                 motion?.CancelMotion(MotionChannel.Skill, reason: 9201);
 
                 SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
@@ -2622,81 +2622,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 지정한 오브젝트 계층에서 <see cref="CharacterBase"/>를 탐색합니다.
-        /// </summary>
-        /// <param name="target">탐색 기준 GameObject입니다.</param>
-        /// <returns>탐색된 캐릭터가 있으면 반환하고, 없으면 <see langword="null"/>을 반환합니다.</returns>
-        private static CharacterBase ResolveCharacterBase(GameObject target)
-        {
-            if (target == null)
-                return null;
-
-            var character = target.GetComponent<CharacterBase>();
-            if (character != null)
-                return character;
-
-            character = target.GetComponentInChildren<CharacterBase>(includeInactive: true);
-            if (character != null)
-                return character;
-
-            return target.GetComponentInParent<CharacterBase>();
-        }
-
-        /// <summary>
-        /// 캐스터에서 사용할 애니메이션 컨트롤러를 현재 오브젝트, 자식, 부모 순으로 탐색합니다.
-        /// </summary>
-        /// <param name="caster">애니메이션 컨트롤러를 찾을 기준 오브젝트입니다.</param>
-        /// <returns>찾은 애니메이션 컨트롤러 또는 찾지 못한 경우 <see langword="null"/>입니다.</returns>
-        private static ICharacterAnimationController ResolveAnimController(GameObject caster)
-        {
-            if (caster == null) return null;
-
-            if (caster.TryGetComponent<ICharacterAnimationController>(out var anim))
-                return anim;
-
-            anim = caster.GetComponentInChildren<ICharacterAnimationController>(includeInactive: true);
-            if (anim != null) return anim;
-
-            return caster.GetComponentInParent<ICharacterAnimationController>();
-        }
-
-        /// <summary>
-        /// 캐스터에서 사용할 액션 컨트롤러를 현재 오브젝트, 자식, 부모 순으로 탐색합니다.
-        /// </summary>
-        /// <param name="caster">액션 컨트롤러를 찾을 기준 오브젝트입니다.</param>
-        /// <returns>찾은 액션 컨트롤러 또는 찾지 못한 경우 <see langword="null"/>입니다.</returns>
-        private static ICharacterActionController ResolveActionController(GameObject caster)
-        {
-            if (caster == null) return null;
-
-            if (caster.TryGetComponent<ICharacterActionController>(out var action))
-                return action;
-
-            action = caster.GetComponentInChildren<ICharacterActionController>(includeInactive: true);
-            if (action != null) return action;
-
-            return caster.GetComponentInParent<ICharacterActionController>();
-        }
-
-        /// <summary>
-        /// 캐스터에서 사용할 모션 컨트롤러를 현재 오브젝트, 자식, 부모 순으로 탐색합니다.
-        /// </summary>
-        /// <param name="caster">모션 컨트롤러를 찾을 기준 오브젝트입니다.</param>
-        /// <returns>찾은 모션 컨트롤러 또는 찾지 못한 경우 <see langword="null"/>입니다.</returns>
-        private static ICharacterMotionController ResolveMotionController(GameObject caster)
-        {
-            if (caster == null) return null;
-
-            if (caster.TryGetComponent<ICharacterMotionController>(out var motion))
-                return motion;
-
-            motion = caster.GetComponentInChildren<ICharacterMotionController>(includeInactive: true);
-            if (motion != null) return motion;
-
-            return caster.GetComponentInParent<ICharacterMotionController>();
-        }
-
-        /// <summary>
         /// 지정한 런이 현재 활성 런과 동일하고 이벤트를 처리 가능한 상태인지 반환합니다.
         /// </summary>
         internal bool CanProcessEvent(SkillRun run)
@@ -2704,9 +2629,6 @@ namespace GGemCo2DSkill
             return run != null && ReferenceEquals(_current, run) && !run.IsDone;
         }
 
-        /// <summary>
-        /// 스킬 런 종료 시 실행기에 남아 있는 참조를 정리합니다.
-        /// </summary>
         /// <summary>
         /// 차징 상태 변경 스냅샷을 외부 UI/디버그 도구로 전달합니다.
         /// </summary>

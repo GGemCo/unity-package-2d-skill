@@ -19,7 +19,7 @@ namespace GGemCo2DSkill
                 return;
 
             float clamped = Mathf.Clamp01(alpha);
-            ICharacterAnimationController anim = ResolveAnimationController(character.gameObject);
+            ICharacterAnimationController anim = SkillCharacterComponentResolver.ResolveAnimationController(character.gameObject);
             anim?.SetCharacterColor(new Color(1f, 1f, 1f, clamped));
 
             SpriteRenderer[] spriteRenderers = character.GetComponentsInChildren<SpriteRenderer>(includeInactive: true);
@@ -78,7 +78,7 @@ namespace GGemCo2DSkill
             if (character == null || string.IsNullOrWhiteSpace(animationName))
                 return;
 
-            ICharacterAnimationController anim = ResolveAnimationController(character.gameObject);
+            ICharacterAnimationController anim = SkillCharacterComponentResolver.ResolveAnimationController(character.gameObject);
             if (anim == null)
                 return;
 
@@ -134,7 +134,7 @@ namespace GGemCo2DSkill
             character.SetAttackerTarget(null);
             character.SetStatusIdle();
 
-            ICharacterAnimationController anim = ResolveAnimationController(character.gameObject);
+            ICharacterAnimationController anim = SkillCharacterComponentResolver.ResolveAnimationController(character.gameObject);
             anim?.PlayWaitAnimation();
         }
 
@@ -177,25 +177,5 @@ namespace GGemCo2DSkill
             handle.BrainLockToken = null;
         }
 
-        /// <summary>
-        /// 캐릭터 오브젝트에서 애니메이션 컨트롤러를 조회합니다.
-        /// </summary>
-        /// <param name="target">조회할 캐릭터 또는 하위 오브젝트입니다.</param>
-        /// <returns>조회된 애니메이션 컨트롤러입니다. 없으면 <see langword="null"/>입니다.</returns>
-        public static ICharacterAnimationController ResolveAnimationController(GameObject target)
-        {
-            if (target == null)
-                return null;
-
-            ICharacterAnimationController direct = target.GetComponent<ICharacterAnimationController>();
-            if (direct != null)
-                return direct;
-
-            ICharacterAnimationController inChildren = target.GetComponentInChildren<ICharacterAnimationController>();
-            if (inChildren != null)
-                return inChildren;
-
-            return target.GetComponentInParent<ICharacterAnimationController>();
-        }
     }
 }
