@@ -50,6 +50,11 @@ namespace GGemCo2DSkill
         private readonly SkillAfterimageController _afterimageController = new();
 
         /// <summary>
+        /// 그라운드슬램 애니메이션과 공중 대기 후 낙하 전환 상태를 관리합니다.
+        /// </summary>
+        private readonly SkillGroundSlamAnimationController _groundSlamAnimationController = new();
+
+        /// <summary>
         /// 현재 스킬 실행에서 생성한 더미 캐릭터를 actorKey 기준으로 관리하는 컬렉션입니다.
         /// </summary>
         private readonly Dictionary<string, SkillDummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
@@ -93,43 +98,6 @@ namespace GGemCo2DSkill
         private int _executionSequence;
         private readonly SkillAttackSequence _attackSequence = new();
         private CharacterHitStopController _hitStopController;
-
-        private enum GroundSlamAnimationPhaseState
-        {
-            None = 0,
-            Start = 1,
-            FallLoop = 2,
-            LandEnd = 3,
-        }
-
-        private struct GroundSlamAnimationState
-        {
-            public bool IsActive;
-            public GameObject Caster;
-            public ICharacterAnimationController AnimationController;
-            public ICharacterMotionController MotionController;
-            public GroundSlamEventDefinition Definition;
-            public GroundSlamAnimationPhaseState Phase;
-            public bool UsePhaseBasedLoopTransition;
-            public bool IsInstantLandSequence;
-            public float PhaseRemainingSeconds;
-        }
-
-        private struct PendingGroundSlamState
-        {
-            public bool IsActive;
-            public GameObject Caster;
-            public ICharacterMotionController MotionController;
-            public GroundSlamEventDefinition Definition;
-            public Vector2 StartPosition;
-            public Vector2 TargetPosition;
-            public float FallDurationSeconds;
-            public float HoldRemainingSeconds;
-            public bool UsePhaseBasedLoopTransition;
-        }
-
-        private GroundSlamAnimationState _groundSlamAnimationState;
-        private PendingGroundSlamState _pendingGroundSlamState;
 
         private enum ArcLungeAnimationPhaseState
         {
@@ -213,8 +181,7 @@ namespace GGemCo2DSkill
                 }
             }
 
-            UpdatePendingGroundSlam();
-            UpdateGroundSlamAnimation();
+            _groundSlamAnimationController.Tick();
             UpdateArcLungeAnimation();
             MaintainDummyAirborneState();
         }
@@ -239,8 +206,7 @@ namespace GGemCo2DSkill
             _attackSequence.Clear();
             _screenFadeController.ResetCleanupFlags();
             _afterimageController.ResetCleanupFlags();
-            ClearGroundSlamAnimationState();
-            ClearPendingGroundSlamState();
+            _groundSlamAnimationController.Clear();
             ClearArcLungeAnimationState();
 
             var motion = SkillCharacterComponentResolver.ResolveMotionController(targetCtx.caster);
@@ -749,7 +715,7 @@ namespace GGemCo2DSkill
             Vector2 travel = targetPosition - startPosition;
             if (travel.sqrMagnitude <= 1e-8f)
             {
-                BeginGroundSlamInstantLandSequence(ctx.caster, motion, def);
+                _groundSlamAnimationController.BeginInstantLandSequence(ctx.caster, motion, def);
                 return;
             }
 
@@ -758,299 +724,21 @@ namespace GGemCo2DSkill
                 if (def.holdPositionDuringAirHold && !SkillGroundSlamMotionResolver.TryStartHoldMotion(motion, def, startPosition, holdDuration))
                     return;
 
-                ClearPendingGroundSlamState();
-                BeginGroundSlamAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: true);
-                _pendingGroundSlamState = new PendingGroundSlamState
-                {
-                    IsActive = true,
-                    Caster = ctx.caster,
-                    MotionController = motion,
-                    Definition = def,
-                    StartPosition = startPosition,
-                    TargetPosition = targetPosition,
-                    FallDurationSeconds = fallDuration,
-                    HoldRemainingSeconds = holdDuration,
-                    UsePhaseBasedLoopTransition = true,
-                };
+                _groundSlamAnimationController.BeginPendingSlam(
+                    ctx.caster,
+                    motion,
+                    def,
+                    startPosition,
+                    targetPosition,
+                    fallDuration,
+                    holdDuration);
                 return;
             }
 
             if (!SkillGroundSlamMotionResolver.TryStartSlamMotion(motion, def, startPosition, targetPosition, fallDuration))
                 return;
 
-            BeginGroundSlamAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: false);
-        }
-
-        private void UpdatePendingGroundSlam()
-        {
-            if (!_pendingGroundSlamState.IsActive)
-                return;
-
-            if (_pendingGroundSlamState.Caster == null || _pendingGroundSlamState.MotionController == null || _pendingGroundSlamState.Definition == null)
-            {
-                ClearPendingGroundSlamState();
-                ClearGroundSlamAnimationState();
-                return;
-            }
-
-            _pendingGroundSlamState.HoldRemainingSeconds -= Time.deltaTime;
-            if (_pendingGroundSlamState.HoldRemainingSeconds > 0f)
-                return;
-
-            var pending = _pendingGroundSlamState;
-            ClearPendingGroundSlamState();
-
-            if (!SkillGroundSlamMotionResolver.TryStartSlamMotion(pending.MotionController, pending.Definition, pending.StartPosition, pending.TargetPosition, pending.FallDurationSeconds))
-            {
-                ClearGroundSlamAnimationState();
-                return;
-            }
-
-            if (_groundSlamAnimationState.IsActive)
-            {
-                _groundSlamAnimationState.MotionController = pending.MotionController;
-                _groundSlamAnimationState.Definition = pending.Definition;
-                if (!string.IsNullOrWhiteSpace(pending.Definition.fallLoopAnimationName))
-                {
-                    PlayGroundSlamAnimation(_groundSlamAnimationState.AnimationController, pending.Definition.fallLoopAnimationName, loop: true);
-                    _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
-                }
-                else
-                {
-                    _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
-                }
-            }
-            else
-            {
-                BeginGroundSlamAnimation(pending.Caster, pending.MotionController, pending.Definition, pending.UsePhaseBasedLoopTransition);
-            }
-        }
-
-        private void BeginGroundSlamAnimation(
-            GameObject caster,
-            ICharacterMotionController motion,
-            GroundSlamEventDefinition def,
-            bool usePhaseBasedLoopTransition)
-        {
-            ClearGroundSlamAnimationState();
-
-            if (caster == null || motion == null || def == null)
-                return;
-
-            var anim = SkillCharacterComponentResolver.ResolveAnimationController(caster);
-            if (anim == null)
-                return;
-
-            _groundSlamAnimationState = new GroundSlamAnimationState
-            {
-                IsActive = true,
-                Caster = caster,
-                AnimationController = anim,
-                MotionController = motion,
-                Definition = def,
-                Phase = GroundSlamAnimationPhaseState.None,
-                UsePhaseBasedLoopTransition = usePhaseBasedLoopTransition,
-                IsInstantLandSequence = false,
-                PhaseRemainingSeconds = 0f,
-            };
-
-            if (!string.IsNullOrWhiteSpace(def.startAnimationName))
-            {
-                PlayGroundSlamAnimation(anim, def.startAnimationName, loop: false);
-                _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.Start;
-                return;
-            }
-
-            if (!string.IsNullOrWhiteSpace(def.fallLoopAnimationName))
-            {
-                PlayGroundSlamAnimation(anim, def.fallLoopAnimationName, loop: true);
-                _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
-                return;
-            }
-
-            _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.None;
-        }
-
-        private void BeginGroundSlamInstantLandSequence(
-            GameObject caster,
-            ICharacterMotionController motion,
-            GroundSlamEventDefinition def)
-        {
-            ClearPendingGroundSlamState();
-            ClearGroundSlamAnimationState();
-
-            if (caster == null || motion == null || def == null)
-                return;
-
-            var anim = SkillCharacterComponentResolver.ResolveAnimationController(caster);
-            if (anim == null)
-                return;
-
-            _groundSlamAnimationState = new GroundSlamAnimationState
-            {
-                IsActive = true,
-                Caster = caster,
-                AnimationController = anim,
-                MotionController = motion,
-                Definition = def,
-                Phase = GroundSlamAnimationPhaseState.None,
-                UsePhaseBasedLoopTransition = false,
-                IsInstantLandSequence = true,
-                PhaseRemainingSeconds = 0f,
-            };
-
-            if (!string.IsNullOrWhiteSpace(def.startAnimationName))
-            {
-                PlayGroundSlamAnimation(anim, def.startAnimationName, loop: false);
-                _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.Start;
-                _groundSlamAnimationState.PhaseRemainingSeconds = GetGroundSlamAnimationDuration(anim, def.startAnimationName);
-                return;
-            }
-
-            PlayGroundSlamLandEndOrClear();
-        }
-
-        private void UpdateGroundSlamInstantLandSequence()
-        {
-            if (!_groundSlamAnimationState.IsActive)
-                return;
-
-            _groundSlamAnimationState.PhaseRemainingSeconds -= Time.deltaTime;
-            if (_groundSlamAnimationState.PhaseRemainingSeconds > 0f)
-                return;
-
-            switch (_groundSlamAnimationState.Phase)
-            {
-                case GroundSlamAnimationPhaseState.Start:
-                    PlayGroundSlamLandEndOrClear();
-                    return;
-                case GroundSlamAnimationPhaseState.LandEnd:
-                    ClearGroundSlamAnimationState();
-                    return;
-                default:
-                    ClearGroundSlamAnimationState();
-                    return;
-            }
-        }
-
-        private void PlayGroundSlamLandEndOrClear()
-        {
-            if (!_groundSlamAnimationState.IsActive)
-                return;
-
-            var anim = _groundSlamAnimationState.AnimationController;
-            var def = _groundSlamAnimationState.Definition;
-            if (anim == null || def == null)
-            {
-                ClearGroundSlamAnimationState();
-                return;
-            }
-
-            if (!string.IsNullOrWhiteSpace(def.landEndAnimationName))
-            {
-                PlayGroundSlamAnimation(anim, def.landEndAnimationName, loop: false);
-                _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.LandEnd;
-                _groundSlamAnimationState.PhaseRemainingSeconds = GetGroundSlamAnimationDuration(anim, def.landEndAnimationName);
-                return;
-            }
-
-            ClearGroundSlamAnimationState();
-        }
-
-        private static float GetGroundSlamAnimationDuration(
-            ICharacterAnimationController anim,
-            string animationName)
-        {
-            return GetCharacterAnimationDurationSafe(anim, animationName);
-        }
-
-        private void UpdateGroundSlamAnimation()
-        {
-            if (!_groundSlamAnimationState.IsActive)
-                return;
-
-            var anim = _groundSlamAnimationState.AnimationController;
-            var motion = _groundSlamAnimationState.MotionController;
-            var def = _groundSlamAnimationState.Definition;
-
-            if (anim == null || motion == null || def == null)
-            {
-                ClearGroundSlamAnimationState();
-                return;
-            }
-
-            if (_groundSlamAnimationState.IsInstantLandSequence)
-            {
-                UpdateGroundSlamInstantLandSequence();
-                return;
-            }
-
-            if (!motion.IsPlaying(MotionChannel.Skill))
-            {
-                if (_pendingGroundSlamState.IsActive &&
-                    ReferenceEquals(_pendingGroundSlamState.MotionController, motion) &&
-                    ReferenceEquals(_pendingGroundSlamState.Definition, def))
-                {
-                    return;
-                }
-
-                if (_groundSlamAnimationState.Phase != GroundSlamAnimationPhaseState.LandEnd &&
-                    !string.IsNullOrWhiteSpace(def.landEndAnimationName))
-                {
-                    PlayGroundSlamAnimation(anim, def.landEndAnimationName, loop: false);
-                    _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.LandEnd;
-                }
-
-                ClearGroundSlamAnimationState();
-                return;
-            }
-
-            if (_groundSlamAnimationState.Phase != GroundSlamAnimationPhaseState.Start)
-                return;
-
-            if (_groundSlamAnimationState.UsePhaseBasedLoopTransition)
-                return;
-
-            if (!motion.TryGetMotionProgress(MotionChannel.Skill, out float progress01))
-                return;
-
-            if (progress01 < Mathf.Clamp01(def.startToLoopNormalizedTime))
-                return;
-
-            if (string.IsNullOrWhiteSpace(def.fallLoopAnimationName))
-            {
-                _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
-                return;
-            }
-
-            PlayGroundSlamAnimation(anim, def.fallLoopAnimationName, loop: true);
-            _groundSlamAnimationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
-        }
-
-        private static void PlayGroundSlamAnimation(
-            ICharacterAnimationController anim,
-            string animationName,
-            bool loop)
-        {
-            if (anim == null || string.IsNullOrWhiteSpace(animationName))
-                return;
-
-            anim.PlaySkillAnimation(new SkillAnimationRequest(
-                skillUid: 0,
-                phase: SkillAnimationPhase.Action,
-                loop: loop,
-                timeScale: 1f,
-                overrideAnimationName: animationName));
-        }
-
-        private void ClearGroundSlamAnimationState()
-        {
-            _groundSlamAnimationState = default;
-        }
-
-        private void ClearPendingGroundSlamState()
-        {
-            _pendingGroundSlamState = default;
+            _groundSlamAnimationController.BeginMotionAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: false);
         }
 
         /// <summary>
@@ -2377,8 +2065,7 @@ namespace GGemCo2DSkill
             CleanupDummyActors(forceAll: false, forCancel: true);
             CleanupSkillScreenFade(forCancel: true);
             CleanupSkillAfterimage(forCancel: true);
-            ClearGroundSlamAnimationState();
-            ClearPendingGroundSlamState();
+            _groundSlamAnimationController.Clear();
             ClearArcLungeAnimationState();
 
             _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
