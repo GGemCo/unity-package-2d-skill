@@ -126,18 +126,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 2D 기준으로 사용할 전방 벡터를 보정합니다.
-        /// 입력 전방이 비어 있거나 Z축 기준 기본값에 가까우면 캐스터의 좌우 방향을 사용합니다.
-        /// </summary>
-        /// <param name="caster">방향 보정 기준이 되는 캐스터 오브젝트입니다.</param>
-        /// <param name="forward">원본 전방 벡터입니다.</param>
-        /// <returns>Z가 제거되고 2D 기준으로 정규화된 전방 벡터를 반환합니다.</returns>
-        private static Vector3 ResolveForward2D(GameObject caster, Vector3 forward)
-        {
-            return SkillDirectionResolver.ResolveForward2D(caster, forward);
-        }
-
-        /// <summary>
         /// 현재 실행 중인 스킬 런타임을 프레임 단위로 갱신합니다.
         /// 실행이 완료되면 현재 런타임 참조를 해제합니다.
         /// </summary>
@@ -326,16 +314,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 캐릭터의 현재 바라보기 상태를 2D 방향으로 해석합니다.
-        /// </summary>
-        /// <param name="caster">방향을 확인할 캐스터 오브젝트입니다.</param>
-        /// <returns>현재 캐스터가 바라보는 2D 방향입니다.</returns>
-        private static Vector2 ResolveCurrentFacing2D(GameObject caster)
-        {
-            return SkillDirectionResolver.ResolveCurrentFacing2D(caster);
-        }
-
-        /// <summary>
         /// 돌진 이벤트 정의에 따라 캐릭터 이동을 시작합니다.
         /// 2D 방향을 보정하고 직선 또는 포물선 이동 요청을 모션 컨트롤러에 전달합니다.
         /// </summary>
@@ -358,64 +336,18 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// Ground Slam 이벤트 정의에 따라 착지 지점을 계산하고 내려치기 이동을 시작합니다.
+        /// 그라운드슬램 이벤트 실행을 전용 핸들러에 위임합니다.
         /// </summary>
         internal void HandleGroundSlam(
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             float eventDurationSeconds)
         {
-            if (payloadObj is not GroundSlamEventDefinition def) return;
-            if (ctx.caster == null) return;
-
-            var motion = ctx.caster.GetComponentInParent<ICharacterMotionController>();
-            if (motion == null) return;
-
-            float holdDuration = Mathf.Max(0f, def.airHoldDurationSeconds);
-            float fallDuration = def.fallDurationSeconds > 0f
-                ? def.fallDurationSeconds
-                : (def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : eventDurationSeconds);
-            if (fallDuration <= 0f) return;
-
-            Vector2 startPosition = ctx.caster.transform.position;
-            Vector2 forward = def.useSnapshotForward
-                ? new Vector2(ResolveForward2D(ctx.caster, ctx.forward).x, ResolveForward2D(ctx.caster, ctx.forward).y)
-                : ResolveCurrentFacing2D(ctx.caster);
-            if (forward.sqrMagnitude <= 1e-6f)
-                forward = Vector2.right;
-            else
-                forward.Normalize();
-
-            if (!SkillGroundSlamMotionResolver.TryResolveTargetPosition(ctx, def, startPosition, forward, out Vector2 targetPosition))
-                return;
-
-            Vector2 travel = targetPosition - startPosition;
-            if (travel.sqrMagnitude <= 1e-8f)
-            {
-                _groundSlamAnimationController.BeginInstantLandSequence(ctx.caster, motion, def);
-                return;
-            }
-
-            if (holdDuration > 0f)
-            {
-                if (def.holdPositionDuringAirHold && !SkillGroundSlamMotionResolver.TryStartHoldMotion(motion, def, startPosition, holdDuration))
-                    return;
-
-                _groundSlamAnimationController.BeginPendingSlam(
-                    ctx.caster,
-                    motion,
-                    def,
-                    startPosition,
-                    targetPosition,
-                    fallDuration,
-                    holdDuration);
-                return;
-            }
-
-            if (!SkillGroundSlamMotionResolver.TryStartSlamMotion(motion, def, startPosition, targetPosition, fallDuration))
-                return;
-
-            _groundSlamAnimationController.BeginMotionAnimation(ctx.caster, motion, def, usePhaseBasedLoopTransition: false);
+            SkillGroundSlamEventHandler.Handle(
+                ctx,
+                payloadObj,
+                eventDurationSeconds,
+                _groundSlamAnimationController);
         }
 
         /// <summary>
