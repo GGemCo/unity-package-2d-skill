@@ -212,9 +212,9 @@ namespace GGemCo2DSkill
             if (!def.playMoveAnimation || string.IsNullOrWhiteSpace(def.moveAnimationName))
                 return;
 
-            SkillDummyActorLifecycleUtility.CancelAnimationFollowup(runner, handle);
-            SkillDummyActorPresentationUtility.PlayAnimation(
-                handle.Character,
+            SkillDummyActorAnimationEventUtility.PlayAnimation(
+                runner,
+                handle,
                 def.moveAnimationName,
                 def.moveAnimationLoop,
                 def.moveAnimationTimeScale);

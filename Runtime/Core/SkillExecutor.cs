@@ -622,45 +622,13 @@ namespace GGemCo2DSkill
             if (payloadObj is not PlayDummyCharacterAnimationEventDefinition def)
                 return;
 
-            if (!SkillDummyActorReferenceUtility.TryResolveActorHandle(
-                    this,
-                    _dummyActors,
-                    _casterActorHandle,
-                    ctx,
-                    def.actorReferenceType,
-                    def.actorKey,
-                    def.missingActorPolicy,
-                    out var handle))
-                return;
-
-            PlayDummyAnimation(handle, def.animationName, def.loop, def.timeScale);
-
-            if (def.durationPolicy != DummyAnimationDurationPolicy.UseClipWindow)
-                return;
-
-            if (def.endPolicy == DummyAnimationEndPolicy.None)
-                return;
-
-            float duration = Mathf.Max(0f, eventDurationSeconds);
-            if (duration <= 0f)
-            {
-                SkillDummyActorPresentationUtility.ApplyAnimationEndPolicy(
-                    handle,
-                    def.endPolicy,
-                    def.endAnimationName,
-                    def.endAnimationLoop,
-                    def.endAnimationTimeScale);
-                return;
-            }
-
-            handle.ActiveAnimationCoroutine = SkillDummyActorLifecycleUtility.StartAnimationFollowup(
+            SkillDummyActorAnimationEventUtility.TryExecuteAnimation(
                 this,
-                handle,
-                duration,
-                def.endPolicy,
-                def.endAnimationName,
-                def.endAnimationLoop,
-                def.endAnimationTimeScale);
+                _dummyActors,
+                _casterActorHandle,
+                ctx,
+                def,
+                eventDurationSeconds);
         }
 
         /// <summary>
@@ -722,32 +690,6 @@ namespace GGemCo2DSkill
                 fadeOutDurationSeconds,
                 destroyAfterFade,
                 removeFromRegistry);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 애니메이션 요청을 시작합니다.
-        /// 기존에 예약된 후속 애니메이션 전환이 있으면 취소한 뒤 새 애니메이션을 재생합니다.
-        /// </summary>
-        /// <param name="handle">애니메이션을 재생할 더미 핸들입니다.</param>
-        /// <param name="animationName">재생할 애니메이션 이름입니다.</param>
-        /// <param name="loop">루프 재생 여부입니다.</param>
-        /// <param name="timeScale">재생 속도 배율입니다.</param>
-        private void PlayDummyAnimation(SkillDummyActorHandle handle, string animationName, bool loop, float timeScale)
-        {
-            if (handle == null)
-                return;
-
-            CancelDummyAnimationFollowup(handle);
-            SkillDummyActorPresentationUtility.PlayAnimation(handle.Character, animationName, loop, timeScale);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터에 예약된 애니메이션 후속 전환을 취소합니다.
-        /// </summary>
-        /// <param name="handle">취소할 더미 핸들입니다.</param>
-        private void CancelDummyAnimationFollowup(SkillDummyActorHandle handle)
-        {
-            SkillDummyActorLifecycleUtility.CancelAnimationFollowup(this, handle);
         }
 
         /// <summary>

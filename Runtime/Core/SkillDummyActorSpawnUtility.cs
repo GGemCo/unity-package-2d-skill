@@ -68,7 +68,7 @@ namespace GGemCo2DSkill
                 return false;
 
             handle = CreateHandle(actorKey, character, def, spawnPos);
-            ApplyInitialFacingAndAnimation(handle, def);
+            ApplyInitialFacingAndAnimation(runner, handle, def);
             BindMarker(character, actorKey, ResolveOwnerSkillUid(run, skill));
 
             SkillDummyActorPresentationUtility.ApplyRuntimeLocks(handle);
@@ -242,9 +242,11 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 생성 직후 바라보기 방향과 초기 애니메이션을 적용합니다.
         /// </summary>
+        /// <param name="runner">예약된 애니메이션 후속 전환을 취소할 MonoBehaviour입니다.</param>
         /// <param name="handle">초기 연출을 적용할 더미 핸들입니다.</param>
         /// <param name="def">더미 생성 이벤트 정의입니다.</param>
         private static void ApplyInitialFacingAndAnimation(
+            MonoBehaviour runner,
             SkillDummyActorHandle handle,
             SpawnDummyCharacterEventDefinition def)
         {
@@ -256,8 +258,9 @@ namespace GGemCo2DSkill
 
             if (!string.IsNullOrWhiteSpace(def.initialAnimationName))
             {
-                SkillDummyActorPresentationUtility.PlayAnimation(
-                    handle.Character,
+                SkillDummyActorAnimationEventUtility.PlayAnimation(
+                    runner,
+                    handle,
                     def.initialAnimationName,
                     def.initialAnimationLoop,
                     def.initialAnimationTimeScale);
