@@ -48,7 +48,7 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 현재 스킬 실행에서 생성한 더미 캐릭터를 actorKey 기준으로 관리하는 컬렉션입니다.
         /// </summary>
-        private readonly Dictionary<string, DummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
+        private readonly Dictionary<string, SkillDummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
 
         /// <summary>
         /// 캐스터를 더미 액터 참조처럼 다루기 위한 내부 식별 키입니다.
@@ -59,7 +59,7 @@ namespace GGemCo2DSkill
         /// Move/Animation 이벤트에서 Caster를 대상으로 선택했을 때 재사용하는 임시 핸들입니다.
         /// 실제 더미 레지스트리에는 등록하지 않습니다.
         /// </summary>
-        private readonly DummyActorHandle _casterActorHandle = new()
+        private readonly SkillDummyActorHandle _casterActorHandle = new()
         {
             ActorKey = CasterActorKey,
         };
@@ -151,88 +151,6 @@ namespace GGemCo2DSkill
         }
 
         private ArcLungeAnimationState _arcLungeAnimationState;
-
-        /// <summary>
-        /// 스킬 이벤트로 생성한 더미 캐릭터의 런타임 상태를 관리합니다.
-        /// </summary>
-        private sealed class DummyActorHandle
-        {
-            /// <summary>
-            /// 더미 식별 키입니다.
-            /// </summary>
-            public string ActorKey;
-
-            /// <summary>
-            /// 생성된 더미 캐릭터 인스턴스입니다.
-            /// </summary>
-            public CharacterBase Character;
-
-            /// <summary>
-            /// 스킬 정상 종료 시 자동 제거 여부입니다.
-            /// </summary>
-            public bool DespawnOnSkillEnd;
-
-            /// <summary>
-            /// 스킬 취소 시 자동 제거 여부입니다.
-            /// </summary>
-            public bool DespawnOnCancel;
-
-            /// <summary>
-            /// 진행 중인 페이드 코루틴입니다.
-            /// </summary>
-            public Coroutine ActiveFadeCoroutine;
-
-            /// <summary>
-            /// 진행 중인 이동 보정 코루틴입니다.
-            /// </summary>
-            public Coroutine ActiveMoveCoroutine;
-
-            /// <summary>
-            /// 진행 중인 공중 높이 보정 코루틴입니다.
-            /// </summary>
-            public Coroutine ActiveAirHeightCoroutine;
-
-            /// <summary>
-            /// 진행 중인 애니메이션 후속 전환 코루틴입니다.
-            /// </summary>
-            public Coroutine ActiveAnimationCoroutine;
-
-            /// <summary>
-            /// 애니메이션 후속 전환 요청 버전입니다.
-            /// 새 애니메이션 요청이 들어오면 기존 대기 코루틴을 무효화하는 데 사용합니다.
-            /// </summary>
-            public int AnimationRequestVersion;
-
-            /// <summary>
-            /// 지면 기준 이동 좌표입니다. 실제 월드 Y는 이 값에 AirHeight를 더해 계산합니다.
-            /// </summary>
-            public Vector3 GroundPosition;
-
-            /// <summary>
-            /// 지면 기준 공중 높이(+Y)입니다.
-            /// </summary>
-            public float AirHeight;
-
-            /// <summary>
-            /// 더미 캐릭터 제어 잠금 토큰입니다.
-            /// </summary>
-            public object ControlLockToken;
-
-            /// <summary>
-            /// 더미 캐릭터 브레인 잠금 토큰입니다.
-            /// </summary>
-            public object BrainLockToken;
-
-            /// <summary>
-            /// 공중 상태에서 사용하는 중력 오버라이드 컨트롤러입니다.
-            /// </summary>
-            public CharacterPhysicsOverrideController PhysicsOverrideController;
-
-            /// <summary>
-            /// 공중 상태 중력 오버라이드 해제에 사용할 핸들입니다.
-            /// </summary>
-            public CharacterPhysicsOverrideHandle GravityOverrideHandle;
-        }
 
         /// <summary>
         /// 실행기에 필요한 런타임 의존성을 초기화합니다.
@@ -1719,7 +1637,7 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            string actorKey = NormalizeDummyActorKey(def.actorKey);
+            string actorKey = SkillDummyEventUtility.NormalizeActorKey(def.actorKey);
             if (string.IsNullOrEmpty(actorKey))
             {
                 Debug.LogWarning("[SkillExecutor] SpawnDummyCharacter actorKey is empty.");
@@ -1747,7 +1665,7 @@ namespace GGemCo2DSkill
                 groundPoint = snapshotGroundPoint;
             }
 
-            if (!TryResolveDummySpawnPosition(run, def, casterPos, targetPos, groundPoint, out Vector3 spawnPos))
+            if (!SkillDummyEventUtility.TryResolveSpawnPosition(run, def, casterPos, targetPos, groundPoint, out Vector3 spawnPos))
                 return;
 
             spawnPos += def.localOffset;
@@ -1755,7 +1673,7 @@ namespace GGemCo2DSkill
             int mapUid = sceneGame.mapManager != null ? sceneGame.mapManager.GetCurrentMapUid() : 0;
             var regenData = new CharacterRegenData(def.characterUid, spawnPos, flip: false, mapUid, defaultVisible: true);
 
-            CharacterConstants.Type sourceType = ResolveDummySourceCharacterType(def.sourceType);
+            CharacterConstants.Type sourceType = SkillDummyEventUtility.ResolveSourceCharacterType(def.sourceType);
             GameObject dummyObject = sceneGame.CharacterManager.CreateDummyCharacter(
                 sourceType,
                 def.characterUid,
@@ -1779,7 +1697,7 @@ namespace GGemCo2DSkill
 
             ConfigureDummyCharacterRuntime(character);
 
-            var handle = new DummyActorHandle
+            var handle = new SkillDummyActorHandle
             {
                 ActorKey = actorKey,
                 Character = character,
@@ -1822,18 +1740,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 스킬 더미 소스 타입을 코어 캐릭터 타입으로 변환합니다.
-        /// </summary>
-        /// <param name="sourceType">스킬 이벤트에서 지정한 더미 소스 타입입니다.</param>
-        /// <returns>CharacterManager에서 사용하는 코어 캐릭터 타입입니다.</returns>
-        private static CharacterConstants.Type ResolveDummySourceCharacterType(DummyCharacterSourceType sourceType)
-        {
-            return sourceType == DummyCharacterSourceType.Npc
-                ? CharacterConstants.Type.Npc
-                : CharacterConstants.Type.Monster;
-        }
-
-        /// <summary>
         /// 스킬 이벤트로 생성된 더미 캐릭터를 이동시킵니다.
         /// </summary>
         /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
@@ -1865,7 +1771,7 @@ namespace GGemCo2DSkill
             {
                 if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
                 {
-                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter requires locked target. actor={GetDummyActorDisplayName(def.actorReferenceType, def.actorKey)}");
+                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter requires locked target. actor={SkillDummyEventUtility.GetActorDisplayName(def.actorReferenceType, def.actorKey)}");
                 }
                 return;
             }
@@ -1880,7 +1786,7 @@ namespace GGemCo2DSkill
             }
 
             Vector3 actorPos = handle.Character.transform.position;
-            if (!TryResolveDummyMoveTargetPosition(run, def, actorPos, targetPos, groundPoint, out Vector3 moveTarget))
+            if (!SkillDummyEventUtility.TryResolveMoveTargetPosition(run, def, actorPos, targetPos, groundPoint, out Vector3 moveTarget))
                 return;
 
             moveTarget += def.localOffset;
@@ -1985,143 +1891,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 더미 생성 기준점을 해석하여 최종 생성 위치를 계산합니다.
-        /// </summary>
-        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
-        /// <param name="def">더미 생성 이벤트 정의입니다.</param>
-        /// <param name="casterPos">해석된 캐스터 위치입니다.</param>
-        /// <param name="targetPos">해석된 타겟 위치입니다.</param>
-        /// <param name="groundPoint">해석된 지면 기준점입니다.</param>
-        /// <param name="spawnPos">계산된 생성 위치입니다.</param>
-        /// <returns>생성 위치 계산에 성공하면 <see langword="true"/>입니다.</returns>
-        private static bool TryResolveDummySpawnPosition(
-            SkillRun run,
-            SpawnDummyCharacterEventDefinition def,
-            Vector3 casterPos,
-            Vector3 targetPos,
-            Vector3 groundPoint,
-            out Vector3 spawnPos)
-        {
-            spawnPos = casterPos;
-            if (def == null)
-                return false;
-
-            switch (def.spawnAnchor)
-            {
-                case DummySpawnAnchor.Target:
-                    spawnPos = targetPos;
-                    return true;
-                case DummySpawnAnchor.Ground:
-                    spawnPos = groundPoint;
-                    return true;
-                case DummySpawnAnchor.NamedPositionAnchor:
-                    if (TryResolveNamedAnchorPosition(run, def.namedAnchorKey, out spawnPos))
-                        return true;
-
-                    Debug.LogWarning($"[SkillExecutor] SpawnDummyCharacter named anchor not found. key={def.namedAnchorKey}");
-                    return false;
-                case DummySpawnAnchor.Caster:
-                default:
-                    spawnPos = casterPos;
-                    return true;
-            }
-        }
-
-        /// <summary>
-        /// 더미 이동 목표 위치를 해석합니다.
-        /// </summary>
-        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
-        /// <param name="def">더미 이동 이벤트 정의입니다.</param>
-        /// <param name="actorPos">이동 대상 더미의 현재 월드 위치입니다.</param>
-        /// <param name="targetPos">해석된 타겟 위치입니다.</param>
-        /// <param name="groundPoint">해석된 지면 기준점입니다.</param>
-        /// <param name="moveTarget">해석된 이동 목표 위치입니다.</param>
-        /// <returns>이동 목표 해석에 성공하면 <see langword="true"/>입니다.</returns>
-        private static bool TryResolveDummyMoveTargetPosition(
-            SkillRun run,
-            MoveDummyCharacterEventDefinition def,
-            Vector3 actorPos,
-            Vector3 targetPos,
-            Vector3 groundPoint,
-            out Vector3 moveTarget)
-        {
-            moveTarget = targetPos;
-            if (def == null)
-                return false;
-
-            switch (def.moveTargetMode)
-            {
-                case DummyMoveTargetMode.GroundPoint:
-                    moveTarget = groundPoint;
-                    return true;
-                case DummyMoveTargetMode.LockedTarget:
-                    moveTarget = targetPos;
-                    return true;
-                case DummyMoveTargetMode.LockedTargetFront:
-                    float sideSign = ResolveTargetFrontSideSign(actorPos, targetPos);
-                    float frontDistance = Mathf.Max(0f, def.targetFrontDistance);
-                    moveTarget = targetPos + new Vector3(sideSign * frontDistance, 0f, 0f);
-                    return true;
-                case DummyMoveTargetMode.AbsoluteWorld:
-                    moveTarget = def.absoluteWorldPosition;
-                    return true;
-                case DummyMoveTargetMode.NamedPositionAnchor:
-                    if (TryResolveNamedAnchorPosition(run, def.namedAnchorKey, out moveTarget))
-                        return true;
-
-                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter named anchor not found. key={def.namedAnchorKey}");
-                    return false;
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// 타겟 중심 대비 더미가 서 있던 좌/우 방향 부호를 계산합니다.
-        /// </summary>
-        /// <param name="actorPos">더미의 현재 월드 위치입니다.</param>
-        /// <param name="targetPos">타겟 중심 월드 위치입니다.</param>
-        /// <returns>더미가 타겟의 오른쪽이면 1, 왼쪽이면 -1이며 겹치면 1을 반환합니다.</returns>
-        private static float ResolveTargetFrontSideSign(Vector3 actorPos, Vector3 targetPos)
-        {
-            float deltaX = actorPos.x - targetPos.x;
-            if (Mathf.Abs(deltaX) <= 1e-4f)
-                return 1f;
-
-            return Mathf.Sign(deltaX);
-        }
-
-        /// <summary>
-        /// 같은 스킬 런에 저장된 이름 있는 위치 앵커를 조회합니다.
-        /// </summary>
-        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
-        /// <param name="anchorKey">조회할 앵커 키입니다.</param>
-        /// <param name="position">조회된 위치입니다.</param>
-        /// <returns>앵커 조회에 성공하면 <see langword="true"/>입니다.</returns>
-        private static bool TryResolveNamedAnchorPosition(SkillRun run, string anchorKey, out Vector3 position)
-        {
-            position = Vector3.zero;
-            if (run == null || string.IsNullOrWhiteSpace(anchorKey))
-                return false;
-
-            if (!run.TryGetPositionAnchor(anchorKey, out var snapshot))
-                return false;
-
-            position = snapshot.Position;
-            return true;
-        }
-
-        /// <summary>
-        /// 더미 액터 키를 정규화합니다.
-        /// </summary>
-        /// <param name="actorKey">원본 액터 키입니다.</param>
-        /// <returns>앞뒤 공백을 제거한 키이며, 비어 있으면 빈 문자열입니다.</returns>
-        private static string NormalizeDummyActorKey(string actorKey)
-        {
-            return string.IsNullOrWhiteSpace(actorKey) ? string.Empty : actorKey.Trim();
-        }
-
-        /// <summary>
         /// 더미 이벤트가 지정한 대상(Actor/Caster)을 실제 런타임 핸들로 해석합니다.
         /// </summary>
         /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
@@ -2135,7 +1904,7 @@ namespace GGemCo2DSkill
             DummyActorReferenceType actorReferenceType,
             string actorKey,
             DummyMissingActorPolicy missingPolicy,
-            out DummyActorHandle handle)
+            out SkillDummyActorHandle handle)
         {
             switch (actorReferenceType)
             {
@@ -2157,7 +1926,7 @@ namespace GGemCo2DSkill
         private bool TryGetCasterActorHandle(
             SkillTargetContext ctx,
             DummyMissingActorPolicy missingPolicy,
-            out DummyActorHandle handle)
+            out SkillDummyActorHandle handle)
         {
             handle = null;
 
@@ -2230,30 +1999,17 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 더미 이벤트 로그에 표시할 대상 식별 문자열을 반환합니다.
-        /// </summary>
-        /// <param name="actorReferenceType">대상 참조 방식입니다.</param>
-        /// <param name="actorKey">Actor 참조 시 원본 actorKey입니다.</param>
-        /// <returns>로그 출력용 대상 식별 문자열입니다.</returns>
-        private static string GetDummyActorDisplayName(DummyActorReferenceType actorReferenceType, string actorKey)
-        {
-            return actorReferenceType == DummyActorReferenceType.Caster
-                ? "Caster"
-                : NormalizeDummyActorKey(actorKey);
-        }
-
-        /// <summary>
         /// actorKey에 해당하는 더미 핸들을 조회합니다.
         /// </summary>
         /// <param name="actorKey">조회할 더미 액터 키입니다.</param>
         /// <param name="missingPolicy">미존재 시 로깅 정책입니다.</param>
         /// <param name="handle">조회된 더미 핸들입니다.</param>
         /// <returns>조회에 성공하면 <see langword="true"/>입니다.</returns>
-        private bool TryGetDummyActorHandle(string actorKey, DummyMissingActorPolicy missingPolicy, out DummyActorHandle handle)
+        private bool TryGetDummyActorHandle(string actorKey, DummyMissingActorPolicy missingPolicy, out SkillDummyActorHandle handle)
         {
             handle = null;
 
-            string normalizedKey = NormalizeDummyActorKey(actorKey);
+            string normalizedKey = SkillDummyEventUtility.NormalizeActorKey(actorKey);
             if (string.IsNullOrEmpty(normalizedKey))
             {
                 if (missingPolicy == DummyMissingActorPolicy.Warn)
@@ -2275,7 +2031,7 @@ namespace GGemCo2DSkill
             return false;
         }
 
-            /// <summary>
+        /// <summary>
         /// 더미 캐릭터의 이동을 시작합니다.
         /// </summary>
         /// <param name="handle">이동 대상 더미 핸들입니다.</param>
@@ -2284,7 +2040,7 @@ namespace GGemCo2DSkill
         /// <param name="lookTargetTransform">이동 중 실시간으로 추적할 타겟 Transform입니다.</param>
         /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 바라보기 좌표입니다.</param>
         private void StartDummyMove(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             Vector3 targetPosition,
             MoveDummyCharacterEventDefinition def,
             Transform lookTargetTransform,
@@ -2356,7 +2112,7 @@ namespace GGemCo2DSkill
         /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 바라보기 좌표입니다.</param>
         /// <returns>코루틴 이터레이터입니다.</returns>
         private IEnumerator CoMoveDummyByTransform(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             Vector3 from,
             Vector3 to,
             float durationSeconds,
@@ -2404,7 +2160,7 @@ namespace GGemCo2DSkill
         /// <param name="lookTargetTransform">실시간으로 추적할 타겟 Transform입니다.</param>
         /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 타겟 좌표입니다.</param>
         private static void UpdateDummyFacingDuringMove(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             Transform lookTargetTransform,
             Vector3 fallbackLookTargetPosition)
         {
@@ -2462,7 +2218,7 @@ namespace GGemCo2DSkill
         /// ?붾? 罹먮┃?곗쓽 吏硫?湲곗? 醫뚰몴瑜??꾩옱 Transform 媛믪쑝濡??숆린?뷀빀?덈떎.
         /// </summary>
         /// <param name="handle">?숆린?뷀븷 ?붾? ?몃뱾?낅땲??</param>
-        private static void SyncDummyGroundFromTransform(DummyActorHandle handle)
+        private static void SyncDummyGroundFromTransform(SkillDummyActorHandle handle)
         {
             if (handle == null || handle.Character == null)
                 return;
@@ -2479,7 +2235,7 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="handle">대상 더미 핸들입니다.</param>
         /// <returns>지면 좌표 + 공중 높이가 반영된 월드 좌표입니다.</returns>
-        private static Vector3 ComposeDummyWorldPosition(DummyActorHandle handle)
+        private static Vector3 ComposeDummyWorldPosition(SkillDummyActorHandle handle)
         {
             return new Vector3(
                 handle.GroundPosition.x,
@@ -2491,7 +2247,7 @@ namespace GGemCo2DSkill
         /// 더미 캐릭터에 현재 지면 좌표/공중 높이를 반영하여 Transform을 갱신합니다.
         /// </summary>
         /// <param name="handle">위치를 갱신할 더미 핸들입니다.</param>
-        private static void ApplyDummyWorldPosition(DummyActorHandle handle)
+        private static void ApplyDummyWorldPosition(SkillDummyActorHandle handle)
         {
             if (handle == null || handle.Character == null)
                 return;
@@ -2518,7 +2274,7 @@ namespace GGemCo2DSkill
         /// 단일 더미의 공중 유지 상태를 점검하고, 필요 시 중력 오버라이드 및 월드 좌표를 재적용합니다.
         /// </summary>
         /// <param name="handle">점검할 더미 핸들입니다.</param>
-        private static void MaintainDummyAirborneState(DummyActorHandle handle)
+        private static void MaintainDummyAirborneState(SkillDummyActorHandle handle)
         {
             if (handle == null || handle.Character == null)
                 return;
@@ -2535,7 +2291,7 @@ namespace GGemCo2DSkill
         /// 더미를 수동 좌표 제어할 때 물리 속도로 인해 위치가 미세하게 누적되는 현상을 방지하기 위해 속도를 0으로 고정합니다.
         /// </summary>
         /// <param name="handle">속도를 보정할 더미 핸들입니다.</param>
-        private static void ZeroDummyRigidbodyVelocity(DummyActorHandle handle)
+        private static void ZeroDummyRigidbodyVelocity(SkillDummyActorHandle handle)
         {
             if (handle == null || handle.Character == null)
                 return;
@@ -2561,7 +2317,7 @@ namespace GGemCo2DSkill
         /// <param name="allowReplace">기존 공중 보간 덮어쓰기 허용 여부입니다.</param>
         /// <param name="keepAirborneGravity">완료 후에도 공중 중력 오버라이드를 유지할지 여부입니다.</param>
         private void StartDummyAirHeightTransition(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             float targetAirHeight,
             float durationSeconds,
             Easing.EaseType easing,
@@ -2622,7 +2378,7 @@ namespace GGemCo2DSkill
         /// <param name="keepAirborneGravity">완료 후 중력 오버라이드 유지 여부입니다.</param>
         /// <returns>코루틴 이터레이터입니다.</returns>
         private IEnumerator CoDummyAirHeightTransition(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             float startAirHeight,
             float targetAirHeight,
             float durationSeconds,
@@ -2670,7 +2426,7 @@ namespace GGemCo2DSkill
         /// 더미 캐릭터의 중력을 비활성화하는 오버라이드를 획득합니다.
         /// </summary>
         /// <param name="handle">중력 오버라이드를 적용할 더미 핸들입니다.</param>
-        private static void EnsureDummyGravityOverride(DummyActorHandle handle)
+        private static void EnsureDummyGravityOverride(SkillDummyActorHandle handle)
         {
             if (handle == null || handle.Character == null)
                 return;
@@ -2707,7 +2463,7 @@ namespace GGemCo2DSkill
         /// 더미 캐릭터에 적용한 중력 오버라이드를 해제합니다.
         /// </summary>
         /// <param name="handle">중력 오버라이드를 해제할 더미 핸들입니다.</param>
-        private static void ReleaseDummyGravityOverride(DummyActorHandle handle)
+        private static void ReleaseDummyGravityOverride(SkillDummyActorHandle handle)
         {
             if (handle == null)
                 return;
@@ -2729,7 +2485,7 @@ namespace GGemCo2DSkill
         /// <param name="destroyAfterFade">페이드 이후 Destroy 여부입니다.</param>
         /// <param name="removeFromRegistry">완료 후 레지스트리 제거 여부입니다.</param>
         private void BeginDummyDespawn(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             bool fadeOutEnabled,
             float fadeOutDurationSeconds,
             bool destroyAfterFade,
@@ -2795,7 +2551,7 @@ namespace GGemCo2DSkill
         /// <param name="removeFromRegistry">완료 후 레지스트리 제거 여부입니다.</param>
         /// <returns>코루틴 이터레이터입니다.</returns>
         private IEnumerator FadeDummyCharacterCoroutine(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             bool fadeIn,
             float durationSeconds,
             bool destroyAfterFade,
@@ -2889,7 +2645,7 @@ namespace GGemCo2DSkill
         /// <param name="animationName">재생할 애니메이션 이름입니다.</param>
         /// <param name="loop">루프 재생 여부입니다.</param>
         /// <param name="timeScale">재생 속도 배율입니다.</param>
-        private void PlayDummyAnimation(DummyActorHandle handle, string animationName, bool loop, float timeScale)
+        private void PlayDummyAnimation(SkillDummyActorHandle handle, string animationName, bool loop, float timeScale)
         {
             if (handle == null)
                 return;
@@ -2902,7 +2658,7 @@ namespace GGemCo2DSkill
         /// 더미 캐릭터에 예약된 애니메이션 후속 전환을 취소합니다.
         /// </summary>
         /// <param name="handle">취소할 더미 핸들입니다.</param>
-        private void CancelDummyAnimationFollowup(DummyActorHandle handle)
+        private void CancelDummyAnimationFollowup(SkillDummyActorHandle handle)
         {
             if (handle == null)
                 return;
@@ -2928,7 +2684,7 @@ namespace GGemCo2DSkill
         /// <param name="endAnimationTimeScale">커스텀 종료 애니메이션 재생 속도 배율입니다.</param>
         /// <returns>코루틴 이터레이터입니다.</returns>
         private IEnumerator DummyAnimationFollowupCoroutine(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             int requestVersion,
             float durationSeconds,
             DummyAnimationEndPolicy endPolicy,
@@ -2968,7 +2724,7 @@ namespace GGemCo2DSkill
         /// <param name="endAnimationLoop">커스텀 종료 애니메이션 루프 여부입니다.</param>
         /// <param name="endAnimationTimeScale">커스텀 종료 애니메이션 재생 속도 배율입니다.</param>
         private static void ApplyDummyAnimationEndPolicy(
-            DummyActorHandle handle,
+            SkillDummyActorHandle handle,
             DummyAnimationEndPolicy endPolicy,
             string endAnimationName,
             bool endAnimationLoop,
@@ -3066,7 +2822,7 @@ namespace GGemCo2DSkill
         /// 더미 캐릭터 제어/브레인 잠금을 적용합니다.
         /// </summary>
         /// <param name="handle">잠금을 적용할 더미 핸들입니다.</param>
-        private static void ApplyDummyRuntimeLocks(DummyActorHandle handle)
+        private static void ApplyDummyRuntimeLocks(SkillDummyActorHandle handle)
         {
             if (handle == null || handle.Character == null)
                 return;
@@ -3082,7 +2838,7 @@ namespace GGemCo2DSkill
         /// 더미 캐릭터 제어/브레인 잠금을 해제합니다.
         /// </summary>
         /// <param name="handle">잠금을 해제할 더미 핸들입니다.</param>
-        private static void ReleaseDummyRuntimeLocks(DummyActorHandle handle)
+        private static void ReleaseDummyRuntimeLocks(SkillDummyActorHandle handle)
         {
             if (handle == null)
                 return;
@@ -3107,7 +2863,7 @@ namespace GGemCo2DSkill
         /// <param name="handle">정리할 더미 핸들입니다.</param>
         /// <param name="destroyGameObject">Destroy 수행 여부입니다.</param>
         /// <param name="removeFromRegistry">레지스트리 제거 여부입니다.</param>
-        private void DestroyDummyActor(DummyActorHandle handle, bool destroyGameObject, bool removeFromRegistry)
+        private void DestroyDummyActor(SkillDummyActorHandle handle, bool destroyGameObject, bool removeFromRegistry)
         {
             if (handle == null)
                 return;
