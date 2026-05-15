@@ -46,6 +46,11 @@ namespace GGemCo2DSkill
         private readonly SkillScreenFadeController _screenFadeController = new();
 
         /// <summary>
+        /// 스킬 캐릭터 잔상 재생과 종료 시 정리 정책을 관리합니다.
+        /// </summary>
+        private readonly SkillAfterimageController _afterimageController = new();
+
+        /// <summary>
         /// 현재 스킬 실행에서 생성한 더미 캐릭터를 actorKey 기준으로 관리하는 컬렉션입니다.
         /// </summary>
         private readonly Dictionary<string, SkillDummyActorHandle> _dummyActors = new(StringComparer.Ordinal);
@@ -165,6 +170,7 @@ namespace GGemCo2DSkill
         {
             CleanupDummyActors(forceAll: true, forCancel: false);
             ResetCasterActorHandleTransientState(clearCharacter: true);
+            CleanupSkillAfterimage(forCancel: false);
 
             if (_current == null)
                 return;
@@ -233,6 +239,7 @@ namespace GGemCo2DSkill
             ResetCasterActorHandleTransientState(clearCharacter: true);
             _attackSequence.Clear();
             _screenFadeController.ResetCleanupFlags();
+            _afterimageController.ResetCleanupFlags();
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();
@@ -326,6 +333,35 @@ namespace GGemCo2DSkill
         private void ResetSkillScreenFadeCleanupFlags()
         {
             _screenFadeController.ResetCleanupFlags();
+        }
+
+        /// <summary>
+        /// 캐릭터 잔상 이벤트 정의를 대상 캐릭터의 <c>CharacterAfterimageTrail</c> 컴포넌트로 전달합니다.
+        /// </summary>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">Bake된 캐릭터 잔상 이벤트 정의입니다.</param>
+        /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
+        internal void HandleAfterimage(
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            float eventDurationSeconds)
+        {
+            if (payloadObj is not SkillAfterimageEventDefinition def)
+                return;
+
+            if (!TryResolveAfterimageTarget(ctx, def, out var targetObject))
+                return;
+
+            _afterimageController.Play(targetObject, payloadObj, eventDurationSeconds);
+        }
+
+        /// <summary>
+        /// 현재 SkillExecutor가 시작한 캐릭터 잔상을 스킬 종료 사유에 맞게 정리합니다.
+        /// </summary>
+        /// <param name="forCancel">취소 종료이면 true, 정상 종료이면 false입니다.</param>
+        private void CleanupSkillAfterimage(bool forCancel)
+        {
+            _afterimageController.Cleanup(forCancel);
         }
 
         /// <summary>
@@ -1601,6 +1637,57 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 캐릭터 잔상 이벤트가 지정한 대상을 실제 GameObject로 해석합니다.
+        /// </summary>
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <param name="def">캐릭터 잔상 이벤트 정의입니다.</param>
+        /// <param name="targetObject">해석된 잔상 대상 GameObject입니다.</param>
+        /// <returns>대상 해석에 성공하면 <see langword="true"/>를 반환합니다.</returns>
+        private bool TryResolveAfterimageTarget(
+            SkillTargetContext ctx,
+            SkillAfterimageEventDefinition def,
+            out GameObject targetObject)
+        {
+            targetObject = null;
+
+            if (def == null)
+                return false;
+
+            switch (def.targetType)
+            {
+                case SkillAfterimageTargetType.Caster:
+                    targetObject = ctx.caster;
+                    if (targetObject != null)
+                        return true;
+
+                    if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
+                        Debug.LogWarning("[SkillExecutor] Afterimage target is Caster, but caster is null.");
+                    return false;
+
+                case SkillAfterimageTargetType.LockedTarget:
+                    targetObject = ctx.lockedTarget;
+                    if (targetObject != null)
+                        return true;
+
+                    if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
+                        Debug.LogWarning("[SkillExecutor] Afterimage target is LockedTarget, but locked target is null.");
+                    return false;
+
+                case SkillAfterimageTargetType.DummyActor:
+                    if (!TryGetDummyActorHandle(def.actorKey, def.missingActorPolicy, out var handle))
+                        return false;
+
+                    targetObject = handle.Character != null ? handle.Character.gameObject : null;
+                    return targetObject != null;
+
+                default:
+                    if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
+                        Debug.LogWarning($"[SkillExecutor] Unsupported afterimage target type. targetType={def.targetType}");
+                    return false;
+            }
+        }
+
+        /// <summary>
         /// 더미 이벤트가 지정한 대상(Actor/Caster)을 실제 런타임 핸들로 해석합니다.
         /// </summary>
         /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
@@ -2375,6 +2462,7 @@ namespace GGemCo2DSkill
             _attackSequence.Clear();
             CleanupDummyActors(forceAll: false, forCancel: false);
             CleanupSkillScreenFade(forCancel: false);
+            CleanupSkillAfterimage(forCancel: false);
             ExecutionFinished?.Invoke(report);
         }
 
@@ -2423,6 +2511,7 @@ namespace GGemCo2DSkill
             CleanupSpawnedVfxs();
             CleanupDummyActors(forceAll: false, forCancel: true);
             CleanupSkillScreenFade(forCancel: true);
+            CleanupSkillAfterimage(forCancel: true);
             ClearGroundSlamAnimationState();
             ClearPendingGroundSlamState();
             ClearArcLungeAnimationState();

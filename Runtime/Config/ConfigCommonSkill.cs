@@ -102,6 +102,11 @@ namespace Config
             /// 스킬 실행 중 화면 전체 페이드 연출을 수행합니다.
             /// </summary>
             ScreenFade = 17,
+
+            /// <summary>
+            /// 스킬 실행 중 캐릭터 잔상 트레일 또는 단발 잔상을 생성합니다.
+            /// </summary>
+            Afterimage = 18,
         }
 
         /// <summary>

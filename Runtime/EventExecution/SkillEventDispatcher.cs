@@ -97,6 +97,10 @@ namespace GGemCo2DSkill
                     executor.HandleScreenFade(payload, context.EventDurationSeconds);
                     break;
 
+                case ConfigCommonSkill.SkillEventType.Afterimage:
+                    executor.HandleAfterimage(targetContext, payload, context.EventDurationSeconds);
+                    break;
+
                 case ConfigCommonSkill.SkillEventType.SpawnDummyCharacter:
                     executor.HandleSpawnDummyCharacter(
                         context.Run,

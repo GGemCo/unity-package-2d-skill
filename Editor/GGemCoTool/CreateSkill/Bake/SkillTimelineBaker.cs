@@ -387,6 +387,25 @@ namespace GGemCo2DSkillEditor
                         return def;
                     };
 
+                case SkillAfterimageClip afterimage:
+                    return () =>
+                    {
+                        var def = ScriptableObject.CreateInstance<SkillAfterimageEventDefinition>();
+                        def.targetType = afterimage.TargetType;
+                        def.actorKey = afterimage.ActorKey;
+                        def.missingActorPolicy = afterimage.MissingActorPolicy;
+                        def.mode = afterimage.Mode;
+                        def.useClipDuration = afterimage.UseClipDuration;
+                        def.durationOverrideSeconds = Mathf.Max(0f, afterimage.DurationOverrideSeconds);
+                        def.spawnIntervalSeconds = Mathf.Max(0.005f, afterimage.SpawnIntervalSeconds);
+                        def.ghostLifetimeSeconds = Mathf.Max(0.01f, afterimage.GhostLifetimeSeconds);
+                        def.ghostColor = afterimage.GhostColor;
+                        def.sortingOrderOffset = afterimage.SortingOrderOffset;
+                        def.clearOnSkillEnd = afterimage.ClearOnSkillEnd;
+                        def.clearOnCancel = afterimage.ClearOnCancel;
+                        return def;
+                    };
+
                 case SkillLungeClip lunge:
                     return () =>
                     {
