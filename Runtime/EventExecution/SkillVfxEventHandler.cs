@@ -47,20 +47,23 @@ namespace GGemCo2DSkill
             Vector3 spawnPos = ResolveVfxSpawnPosition(skill, ctx, def, casterPos, targetPos, groundPoint);
             spawnPos += def.localOffset;
 
+            Vector2 resolvedForward = SkillDirectionResolver.ResolveForward2D(ctx.caster, ctx.forward);
             SaveVfxPositionAnchorIfNeeded(
                 run,
                 def,
                 spawnPos,
-                SkillDirectionResolver.ResolveForward2D(ctx.caster, ctx.forward),
+                resolvedForward,
                 casterPos,
                 targetPos,
                 groundPoint);
+
+            Vector2 visualDirection = ResolveVfxVisualDirection(def, spawnPos, casterPos, targetPos, resolvedForward);
 
             VfxBehaviourBase vfx = null;
             SceneGame sceneGame = SceneGame.Instance;
             if (sceneGame != null && sceneGame.VfxManager != null)
             {
-                vfx = sceneGame.VfxManager.CreateVfx(BuildVfxSpawnRequest(def, spawnPos));
+                vfx = sceneGame.VfxManager.CreateVfx(BuildVfxSpawnRequest(def, spawnPos, visualDirection, resolvedForward));
             }
 
             if (vfx == null)
@@ -111,15 +114,23 @@ namespace GGemCo2DSkill
         /// <param name="def">스킬 Timeline에서 Bake된 VFX 이벤트 정의입니다.</param>
         /// <param name="spawnPos">타겟팅 규칙과 오프셋을 반영한 월드 생성 위치입니다.</param>
         /// <returns>VFX 매니저에 전달할 생성 요청입니다.</returns>
-        private static VfxSpawnRequest BuildVfxSpawnRequest(VfxEventDefinition def, Vector3 spawnPos)
+        private static VfxSpawnRequest BuildVfxSpawnRequest(
+            VfxEventDefinition def,
+            Vector3 spawnPos,
+            Vector2 visualDirection,
+            Vector2 sourceDirection)
         {
             TryResolveVfxDuration(def, out float vfxDuration);
+            bool hasDirection = visualDirection.sqrMagnitude > 0.0001f || sourceDirection.sqrMagnitude > 0.0001f;
 
             return new VfxSpawnRequest
             {
                 VfxUid = def != null ? def.vfxUid : 0,
                 WorldPosition = spawnPos,
                 DurationOverride = vfxDuration,
+                UseDirection = hasDirection,
+                Direction = visualDirection,
+                SourceDirection = sourceDirection,
                 SortingLayerOverride = def != null && def.overrideSortingLayer
                     ? def.sortingLayerOverride
                     : (ConfigSortingLayer.Keys?)null,
@@ -127,6 +138,75 @@ namespace GGemCo2DSkill
                     ? def.sortingOrderOverride
                     : (int?)null,
             };
+        }
+
+        /// <summary>
+        /// VFX가 실제로 바라볼 방향을 이벤트 앵커와 타겟팅 정책 기준으로 계산합니다.
+        /// </summary>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <param name="spawnPos">최종 생성 위치입니다.</param>
+        /// <param name="casterPos">이벤트 시점의 캐스터 위치입니다.</param>
+        /// <param name="targetPos">이벤트 시점의 타겟 위치입니다.</param>
+        /// <param name="resolvedForward">캐스터 전방으로 해석된 fallback 방향입니다.</param>
+        /// <returns>VFX 방향 보정에 사용할 2D 방향입니다.</returns>
+        private static Vector2 ResolveVfxVisualDirection(
+            VfxEventDefinition def,
+            Vector3 spawnPos,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector2 resolvedForward)
+        {
+            Vector2 fallbackForward = NormalizeOrDefault(resolvedForward);
+            if (def == null)
+                return fallbackForward;
+
+            if (def.targetingOverride.enabled)
+            {
+                switch (def.targetingOverride.mode)
+                {
+                    case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                    case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
+                    case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                        return NormalizeOrFallback((Vector2)(targetPos - casterPos), fallbackForward);
+                    case ConfigCommonSkill.SkillTargetingMode.Self:
+                        return fallbackForward;
+                    case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                    default:
+                        return NormalizeOrFallback((Vector2)(spawnPos - casterPos), fallbackForward);
+                }
+            }
+
+            switch (ResolveVfxSpawnAnchor(def))
+            {
+                case VfxSpawnAnchor.Target:
+                    return NormalizeOrFallback((Vector2)(targetPos - casterPos), fallbackForward);
+                case VfxSpawnAnchor.Ground:
+                    return NormalizeOrFallback((Vector2)(spawnPos - casterPos), fallbackForward);
+                case VfxSpawnAnchor.Caster:
+                default:
+                    return fallbackForward;
+            }
+        }
+
+        /// <summary>
+        /// 방향 값이 유효하면 정규화하고, 아니면 fallback 방향을 사용합니다.
+        /// </summary>
+        /// <param name="direction">검사할 방향입니다.</param>
+        /// <param name="fallback">대체 방향입니다.</param>
+        /// <returns>정규화된 방향입니다.</returns>
+        private static Vector2 NormalizeOrFallback(Vector2 direction, Vector2 fallback)
+        {
+            return direction.sqrMagnitude > 0.0001f ? direction.normalized : NormalizeOrDefault(fallback);
+        }
+
+        /// <summary>
+        /// 방향 값이 비어 있으면 오른쪽 방향을 기본값으로 사용합니다.
+        /// </summary>
+        /// <param name="direction">검사할 방향입니다.</param>
+        /// <returns>정규화된 방향입니다.</returns>
+        private static Vector2 NormalizeOrDefault(Vector2 direction)
+        {
+            return direction.sqrMagnitude > 0.0001f ? direction.normalized : Vector2.right;
         }
 
         /// <summary>
