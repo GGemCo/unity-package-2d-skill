@@ -1695,7 +1695,7 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            ConfigureDummyCharacterRuntime(character);
+            SkillDummyActorPresentationUtility.ConfigureRuntime(character);
 
             var handle = new SkillDummyActorHandle
             {
@@ -1719,13 +1719,13 @@ namespace GGemCo2DSkill
 
             marker.Bind(actorKey, run != null ? run.SkillUid : (skill != null ? skill.Uid : 0));
 
-            ApplyDummyRuntimeLocks(handle);
+            SkillDummyActorPresentationUtility.ApplyRuntimeLocks(handle);
             _dummyActors[actorKey] = handle;
             SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
 
             if (def.fadeInEnabled && def.fadeInDurationSeconds > 0f)
             {
-                SetDummyVisualAlpha(character, 0f);
+                SkillDummyActorPresentationUtility.SetVisualAlpha(character, 0f);
                 handle.ActiveFadeCoroutine = StartCoroutine(FadeDummyCharacterCoroutine(
                     handle,
                     fadeIn: true,
@@ -1735,7 +1735,7 @@ namespace GGemCo2DSkill
             }
             else
             {
-                SetDummyVisualAlpha(character, 1f);
+                SkillDummyActorPresentationUtility.SetVisualAlpha(character, 1f);
             }
         }
 
@@ -1876,7 +1876,12 @@ namespace GGemCo2DSkill
             float duration = Mathf.Max(0f, eventDurationSeconds);
             if (duration <= 0f)
             {
-                ApplyDummyAnimationEndPolicy(handle, def.endPolicy, def.endAnimationName, def.endAnimationLoop, def.endAnimationTimeScale);
+                SkillDummyActorPresentationUtility.ApplyAnimationEndPolicy(
+                    handle,
+                    def.endPolicy,
+                    def.endAnimationName,
+                    def.endAnimationLoop,
+                    def.endAnimationTimeScale);
                 return;
             }
 
@@ -1988,7 +1993,7 @@ namespace GGemCo2DSkill
 
             CancelDummyAnimationFollowup(_casterActorHandle);
             SkillDummyActorRuntimeUtility.ReleaseGravityOverride(_casterActorHandle);
-            ReleaseDummyRuntimeLocks(_casterActorHandle);
+            SkillDummyActorPresentationUtility.ReleaseRuntimeLocks(_casterActorHandle);
 
             if (!clearCharacter)
                 return;
@@ -2372,27 +2377,27 @@ namespace GGemCo2DSkill
             }
 
             var character = handle.Character;
-            var anim = ResolveAnimController(character.gameObject);
+            var anim = SkillDummyActorPresentationUtility.ResolveAnimationController(character.gameObject);
             float duration = Mathf.Max(0f, durationSeconds);
 
             if (duration <= 0f)
             {
-                SetDummyVisualAlpha(character, fadeIn ? 1f : 0f);
+                SkillDummyActorPresentationUtility.SetVisualAlpha(character, fadeIn ? 1f : 0f);
             }
             else if (anim != null)
             {
                 if (fadeIn)
-                    SetDummyVisualAlpha(character, 0f);
+                    SkillDummyActorPresentationUtility.SetVisualAlpha(character, 0f);
 
                 yield return anim.FadeEffect(duration, fadeIn);
-                SetDummyVisualAlpha(character, fadeIn ? 1f : 0f);
+                SkillDummyActorPresentationUtility.SetVisualAlpha(character, fadeIn ? 1f : 0f);
             }
             else
             {
                 float startAlpha = fadeIn ? 0f : 1f;
                 float endAlpha = fadeIn ? 1f : 0f;
                 float elapsed = 0f;
-                SetDummyVisualAlpha(character, startAlpha);
+                SkillDummyActorPresentationUtility.SetVisualAlpha(character, startAlpha);
 
                 while (elapsed < duration)
                 {
@@ -2401,12 +2406,12 @@ namespace GGemCo2DSkill
 
                     elapsed += Time.deltaTime;
                     float t = Mathf.Clamp01(elapsed / duration);
-                    SetDummyVisualAlpha(handle.Character, Mathf.Lerp(startAlpha, endAlpha, t));
+                    SkillDummyActorPresentationUtility.SetVisualAlpha(handle.Character, Mathf.Lerp(startAlpha, endAlpha, t));
                     yield return null;
                 }
 
                 if (handle.Character != null)
-                    SetDummyVisualAlpha(handle.Character, endAlpha);
+                    SkillDummyActorPresentationUtility.SetVisualAlpha(handle.Character, endAlpha);
             }
 
             handle.ActiveFadeCoroutine = null;
@@ -2415,33 +2420,6 @@ namespace GGemCo2DSkill
                 yield break;
 
             DestroyDummyActor(handle, destroyGameObject: destroyAfterFade, removeFromRegistry: removeFromRegistry);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 비주얼 알파값을 설정합니다.
-        /// </summary>
-        /// <param name="character">알파를 적용할 캐릭터입니다.</param>
-        /// <param name="alpha">적용할 알파값(0~1)입니다.</param>
-        private static void SetDummyVisualAlpha(CharacterBase character, float alpha)
-        {
-            if (character == null)
-                return;
-
-            float clamped = Mathf.Clamp01(alpha);
-            var anim = ResolveAnimController(character.gameObject);
-            anim?.SetCharacterColor(new Color(1f, 1f, 1f, clamped));
-
-            var spriteRenderers = character.GetComponentsInChildren<SpriteRenderer>(includeInactive: true);
-            for (int i = 0; i < spriteRenderers.Length; i++)
-            {
-                var sr = spriteRenderers[i];
-                if (sr == null)
-                    continue;
-
-                Color color = sr.color;
-                color.a = clamped;
-                sr.color = color;
-            }
         }
 
         /// <summary>
@@ -2458,7 +2436,7 @@ namespace GGemCo2DSkill
                 return;
 
             CancelDummyAnimationFollowup(handle);
-            PlayDummyAnimation(handle.Character, animationName, loop, timeScale);
+            SkillDummyActorPresentationUtility.PlayAnimation(handle.Character, animationName, loop, timeScale);
         }
 
         /// <summary>
@@ -2519,149 +2497,7 @@ namespace GGemCo2DSkill
                 yield break;
 
             handle.ActiveAnimationCoroutine = null;
-            ApplyDummyAnimationEndPolicy(handle, endPolicy, endAnimationName, endAnimationLoop, endAnimationTimeScale);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 애니메이션 종료 정책을 적용합니다.
-        /// </summary>
-        /// <param name="handle">종료 정책을 적용할 더미 핸들입니다.</param>
-        /// <param name="endPolicy">적용할 종료 정책입니다.</param>
-        /// <param name="endAnimationName">커스텀 종료 애니메이션 이름입니다.</param>
-        /// <param name="endAnimationLoop">커스텀 종료 애니메이션 루프 여부입니다.</param>
-        /// <param name="endAnimationTimeScale">커스텀 종료 애니메이션 재생 속도 배율입니다.</param>
-        private static void ApplyDummyAnimationEndPolicy(
-            SkillDummyActorHandle handle,
-            DummyAnimationEndPolicy endPolicy,
-            string endAnimationName,
-            bool endAnimationLoop,
-            float endAnimationTimeScale)
-        {
-            if (handle == null || handle.Character == null)
-                return;
-
-            switch (endPolicy)
-            {
-                case DummyAnimationEndPolicy.PlayWait:
-                    PlayDummyAnimation(handle.Character, ICharacterAnimationController.WaitForwardAnim, true, 1f);
-                    break;
-                case DummyAnimationEndPolicy.PlayCustom:
-                    PlayDummyAnimation(handle.Character, endAnimationName, endAnimationLoop, endAnimationTimeScale);
-                    break;
-                default:
-                    break;
-            }
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 애니메이션을 재생합니다.
-        /// </summary>
-        /// <param name="character">애니메이션 대상 캐릭터입니다.</param>
-        /// <param name="animationName">재생할 애니메이션 이름입니다.</param>
-        /// <param name="loop">루프 재생 여부입니다.</param>
-        /// <param name="timeScale">재생 속도 배율입니다.</param>
-        private static void PlayDummyAnimation(CharacterBase character, string animationName, bool loop, float timeScale)
-        {
-            if (character == null || string.IsNullOrWhiteSpace(animationName))
-                return;
-
-            var anim = ResolveAnimController(character.gameObject);
-            if (anim == null)
-                return;
-
-            anim.PlaySkillAnimation(new SkillAnimationRequest(
-                skillUid: 0,
-                phase: SkillAnimationPhase.Action,
-                loop: loop,
-                timeScale: Mathf.Max(0f, timeScale),
-                overrideAnimationName: animationName));
-        }
-
-        /// <summary>
-        /// 더미 캐릭터의 런타임 제어 상태를 정리합니다.
-        /// </summary>
-        /// <param name="character">정리할 더미 캐릭터입니다.</param>
-        private static void ConfigureDummyCharacterRuntime(CharacterBase character)
-        {
-            if (character == null)
-                return;
-
-            var brainTicker = character.GetComponent<MonsterBrainTicker>();
-            if (brainTicker != null)
-                brainTicker.enabled = false;
-
-            var controllers = character.GetComponents<CharacterBaseController>();
-            for (int i = 0; i < controllers.Length; i++)
-            {
-                if (controllers[i] != null)
-                    controllers[i].enabled = false;
-            }
-
-            var behaviours = character.GetComponents<MonoBehaviour>();
-            for (int i = 0; i < behaviours.Length; i++)
-            {
-                var mb = behaviours[i];
-                if (mb == null)
-                    continue;
-
-                if (mb is IMonsterBrain || mb.GetType().Name == "MonsterBtRunner")
-                    mb.enabled = false;
-            }
-
-            var rb = character.characterRigidbody2D != null
-                ? character.characterRigidbody2D
-                : character.GetComponentInParent<Rigidbody2D>();
-            if (rb != null)
-            {
-                rb.SetLinearVelocity(Vector2.zero);
-                rb.angularVelocity = 0f;
-            }
-
-            character.SetAggro(false);
-            character.SetAttackerTarget(null);
-            character.SetStatusIdle();
-
-            var anim = ResolveAnimController(character.gameObject);
-            anim?.PlayWaitAnimation();
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 제어/브레인 잠금을 적용합니다.
-        /// </summary>
-        /// <param name="handle">잠금을 적용할 더미 핸들입니다.</param>
-        private static void ApplyDummyRuntimeLocks(SkillDummyActorHandle handle)
-        {
-            if (handle == null || handle.Character == null)
-                return;
-
-            if (handle.ControlLockToken == null)
-                handle.ControlLockToken = handle.Character.AcquireControlLock(handle);
-
-            if (handle.BrainLockToken == null)
-                handle.BrainLockToken = handle.Character.AcquireBrainLock(handle);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 제어/브레인 잠금을 해제합니다.
-        /// </summary>
-        /// <param name="handle">잠금을 해제할 더미 핸들입니다.</param>
-        private static void ReleaseDummyRuntimeLocks(SkillDummyActorHandle handle)
-        {
-            if (handle == null)
-                return;
-
-            var character = handle.Character;
-            if (character != null)
-            {
-                if (handle.ControlLockToken != null)
-                    character.ReleaseControlLock(handle.ControlLockToken);
-
-                if (handle.BrainLockToken != null)
-                    character.ReleaseBrainLock(handle.BrainLockToken);
-            }
-
-            handle.ControlLockToken = null;
-            handle.BrainLockToken = null;
+            SkillDummyActorPresentationUtility.ApplyAnimationEndPolicy(handle, endPolicy, endAnimationName, endAnimationLoop, endAnimationTimeScale);
         }
 
         /// <summary>
@@ -2702,7 +2538,7 @@ namespace GGemCo2DSkill
                 motion?.CancelMotion(MotionChannel.Skill, reason: 9201);
 
                 SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-                ReleaseDummyRuntimeLocks(handle);
+                SkillDummyActorPresentationUtility.ReleaseRuntimeLocks(handle);
 
                 if (destroyGameObject)
                 {
@@ -2720,7 +2556,7 @@ namespace GGemCo2DSkill
             else
             {
                 SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-                ReleaseDummyRuntimeLocks(handle);
+                SkillDummyActorPresentationUtility.ReleaseRuntimeLocks(handle);
             }
 
             if (removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
