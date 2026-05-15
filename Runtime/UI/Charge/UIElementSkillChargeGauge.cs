@@ -1,4 +1,4 @@
-using GGemCo2DCore;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -35,16 +35,17 @@ namespace GGemCo2DSkill
         [Tooltip("캐릭터가 좌우 반전되었을 때 위치 오프셋의 X 값을 반전할지 여부입니다.")]
         [SerializeField] private bool useFlipOffset = true;
 
-        [Tooltip("캐릭터가 좌우 반전되었을 때 Slider 또는 Filled Image의 진행 방향을 반전할지 여부입니다.")]
+        [Tooltip("캐릭터가 좌우 반전되었을 때 Slider 시각 루트의 localScale.x 부호를 반전할지 여부입니다.")]
         [SerializeField] private bool useFlipSliderVisual = true;
 
+        [Tooltip("좌우 반전을 적용할 Slider 시각 루트 목록입니다. 비어 있으면 Progress/Gauge Slider 또는 Fill Image를 자동으로 사용합니다.")]
+        [SerializeField] private RectTransform[] flipSliderVisualTargets;
+
+        private readonly List<RectTransform> _resolvedFlipTargets = new();
+        private readonly Dictionary<RectTransform, Vector3> _defaultFlipTargetScales = new();
         private RectTransform _rectTransform;
-        private Slider.Direction _defaultProgressSliderDirection;
-        private Slider.Direction _defaultGaugeSliderDirection;
-        private int _defaultProgressFillOrigin;
-        private int _defaultGaugeFillOrigin;
         private bool _hasCachedDefaultVisual;
-        private bool _lastAppliedFlip;
+        private bool? _lastAppliedFlip;
 
         /// <summary>
         /// 차징 게이지 위치 오프셋에 캐릭터 좌우 반전을 적용할지 여부입니다.
@@ -52,7 +53,7 @@ namespace GGemCo2DSkill
         public bool UseFlipOffset => useFlipOffset;
 
         /// <summary>
-        /// 차징 게이지 Slider 또는 Filled Image의 진행 방향에 캐릭터 좌우 반전을 적용할지 여부입니다.
+        /// 차징 게이지 Slider 시각 루트의 localScale.x 부호에 캐릭터 좌우 반전을 적용할지 여부입니다.
         /// </summary>
         public bool UseFlipSliderVisual => useFlipSliderVisual;
 
@@ -84,7 +85,7 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 캐릭터 좌우 반전 상태에 맞춰 게이지 시각 방향을 적용합니다.
+        /// 캐릭터 좌우 반전 상태에 맞춰 게이지 시각 루트의 Scale 반전을 적용합니다.
         /// </summary>
         /// <param name="isFlipped">캐릭터가 기본 방향 기준으로 좌우 반전된 상태인지 여부입니다.</param>
         public void ApplyFlipVisual(bool isFlipped)
@@ -92,14 +93,10 @@ namespace GGemCo2DSkill
             CacheDefaultVisualState();
 
             bool shouldFlip = useFlipSliderVisual && isFlipped;
-            if (_lastAppliedFlip == shouldFlip)
+            if (_lastAppliedFlip.HasValue && _lastAppliedFlip.Value == shouldFlip)
                 return;
 
-            ApplySliderDirection(progressSlider, _defaultProgressSliderDirection, shouldFlip);
-            ApplySliderDirection(gaugeSlider, _defaultGaugeSliderDirection, shouldFlip);
-            ApplyImageFillOrigin(progressFillImage, _defaultProgressFillOrigin, shouldFlip);
-            ApplyImageFillOrigin(gaugeFillImage, _defaultGaugeFillOrigin, shouldFlip);
-
+            ApplyFlipTargetScale(shouldFlip);
             _lastAppliedFlip = shouldFlip;
         }
 
@@ -129,77 +126,87 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// Inspector에 설정된 기본 Slider 방향과 Filled Image 방향을 저장합니다.
+        /// Inspector에 설정된 반전 대상과 기본 Scale 값을 저장합니다.
         /// </summary>
         private void CacheDefaultVisualState()
         {
             if (_hasCachedDefaultVisual)
                 return;
 
-            _defaultProgressSliderDirection = progressSlider != null ? progressSlider.direction : Slider.Direction.LeftToRight;
-            _defaultGaugeSliderDirection = gaugeSlider != null ? gaugeSlider.direction : Slider.Direction.LeftToRight;
-            _defaultProgressFillOrigin = progressFillImage != null ? progressFillImage.fillOrigin : 0;
-            _defaultGaugeFillOrigin = gaugeFillImage != null ? gaugeFillImage.fillOrigin : 0;
-            _hasCachedDefaultVisual = true;
-            _lastAppliedFlip = useFlipSliderVisual && false;
-        }
+            _resolvedFlipTargets.Clear();
+            _defaultFlipTargetScales.Clear();
 
-        /// <summary>
-        /// 기준 방향과 반전 여부에 맞춰 Slider 진행 방향을 적용합니다.
-        /// </summary>
-        /// <param name="slider">방향을 적용할 Slider입니다.</param>
-        /// <param name="defaultDirection">Prefab에 설정된 기본 Slider 방향입니다.</param>
-        /// <param name="shouldFlip">좌우 진행 방향을 반전할지 여부입니다.</param>
-        private static void ApplySliderDirection(Slider slider, Slider.Direction defaultDirection, bool shouldFlip)
-        {
-            if (slider == null)
-                return;
-
-            slider.direction = shouldFlip ? GetFlippedDirection(defaultDirection) : defaultDirection;
-        }
-
-        /// <summary>
-        /// 기준 방향과 반전 여부에 맞춰 Filled Image의 수평 Fill 기준점을 적용합니다.
-        /// </summary>
-        /// <param name="image">Fill 기준점을 적용할 Image입니다.</param>
-        /// <param name="defaultFillOrigin">Prefab에 설정된 기본 Fill Origin 값입니다.</param>
-        /// <param name="shouldFlip">수평 Fill 기준점을 반전할지 여부입니다.</param>
-        private static void ApplyImageFillOrigin(Image image, int defaultFillOrigin, bool shouldFlip)
-        {
-            if (image == null)
-                return;
-
-            if (image.type != Image.Type.Filled || image.fillMethod != Image.FillMethod.Horizontal)
-                return;
-
-            image.fillOrigin = shouldFlip ? GetFlippedHorizontalFillOrigin(defaultFillOrigin) : defaultFillOrigin;
-        }
-
-        /// <summary>
-        /// 좌우 Slider 진행 방향을 반전한 값을 반환합니다.
-        /// </summary>
-        /// <param name="direction">Prefab에 설정된 기본 Slider 방향입니다.</param>
-        /// <returns>좌우 방향만 반전한 Slider 방향입니다.</returns>
-        private static Slider.Direction GetFlippedDirection(Slider.Direction direction)
-        {
-            return direction switch
+            if (flipSliderVisualTargets != null && flipSliderVisualTargets.Length > 0)
             {
-                Slider.Direction.LeftToRight => Slider.Direction.RightToLeft,
-                Slider.Direction.RightToLeft => Slider.Direction.LeftToRight,
-                _ => direction
-            };
+                foreach (RectTransform target in flipSliderVisualTargets)
+                    AddFlipTarget(target);
+            }
+            else
+            {
+                AddFlipTarget(GetFallbackFlipTarget(progressSlider, progressFillImage));
+                AddFlipTarget(GetFallbackFlipTarget(gaugeSlider, gaugeFillImage));
+            }
+
+            _hasCachedDefaultVisual = true;
+            _lastAppliedFlip = null;
         }
 
         /// <summary>
-        /// Filled Image의 수평 Fill 기준점을 반전한 값을 반환합니다.
+        /// 좌우 반전 대상에 기본 Scale 또는 반전 Scale을 적용합니다.
         /// </summary>
-        /// <param name="origin">기본 수평 Fill Origin 값입니다. 0은 Left, 1은 Right입니다.</param>
-        /// <returns>반전된 수평 Fill Origin 값입니다.</returns>
-        private static int GetFlippedHorizontalFillOrigin(int origin)
+        /// <param name="shouldFlip">기본 Scale의 X 부호를 반전할지 여부입니다.</param>
+        private void ApplyFlipTargetScale(bool shouldFlip)
         {
-            return origin == 0 ? 1 : 0;
+            foreach (RectTransform target in _resolvedFlipTargets)
+            {
+                if (target == null)
+                    continue;
+
+                if (!_defaultFlipTargetScales.TryGetValue(target, out Vector3 defaultScale))
+                    continue;
+
+                float scaleX = shouldFlip ? -defaultScale.x : defaultScale.x;
+                target.localScale = new Vector3(scaleX, defaultScale.y, defaultScale.z);
+            }
         }
 
+        /// <summary>
+        /// 명시적 반전 대상이 없을 때 사용할 기본 반전 대상을 반환합니다.
+        /// </summary>
+        /// <param name="slider">우선 사용할 Slider입니다.</param>
+        /// <param name="fillImage">Slider가 없을 때 사용할 Fill Image입니다.</param>
+        /// <returns>반전 대상으로 사용할 RectTransform입니다.</returns>
+        private static RectTransform GetFallbackFlipTarget(Slider slider, Image fillImage)
+        {
+            if (slider != null)
+                return slider.transform as RectTransform;
+
+            if (fillImage != null)
+                return fillImage.rectTransform;
+
+            return null;
+        }
+
+        /// <summary>
+        /// 좌우 반전을 적용할 RectTransform과 기본 Scale 값을 등록합니다.
+        /// </summary>
+        /// <param name="target">좌우 반전을 적용할 RectTransform입니다.</param>
+        private void AddFlipTarget(RectTransform target)
+        {
+            if (target == null)
+                return;
+
+            if (_defaultFlipTargetScales.ContainsKey(target))
+                return;
+
+            _resolvedFlipTargets.Add(target);
+            _defaultFlipTargetScales[target] = target.localScale;
+        }
+
+        /// <summary>
+        /// 차징 시간 진행도를 UI에 적용합니다.
+        /// </summary>
+        /// <param name="normalizedValue">0~1 범위의 차징 시간 진행도입니다.</param>
         private void SetProgress(float normalizedValue)
         {
             float value = Mathf.Clamp01(normalizedValue);
@@ -215,6 +222,12 @@ namespace GGemCo2DSkill
                 progressFillImage.fillAmount = value;
         }
 
+        /// <summary>
+        /// 차징 내구도 게이지 값을 UI에 적용합니다.
+        /// </summary>
+        /// <param name="currentValue">현재 차징 내구도 값입니다.</param>
+        /// <param name="maxValue">최대 차징 내구도 값입니다.</param>
+        /// <param name="normalizedValue">0~1 범위의 차징 내구도 비율입니다.</param>
         private void SetGauge(float currentValue, float maxValue, float normalizedValue)
         {
             float safeMax = Mathf.Max(1f, maxValue);
