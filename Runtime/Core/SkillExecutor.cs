@@ -555,61 +555,15 @@ namespace GGemCo2DSkill
             if (payloadObj is not MoveDummyCharacterEventDefinition def)
                 return;
 
-            if (!SkillDummyActorReferenceUtility.TryResolveActorHandle(
-                    this,
-                    _dummyActors,
-                    _casterActorHandle,
-                    ctx,
-                    def.actorReferenceType,
-                    def.actorKey,
-                    def.missingActorPolicy,
-                    out var handle))
-                return;
-
-            if (handle.Character == null)
-                return;
-
-            bool requiresLockedTarget =
-                def.moveTargetMode == DummyMoveTargetMode.LockedTarget ||
-                def.moveTargetMode == DummyMoveTargetMode.LockedTargetFront;
-
-            if (requiresLockedTarget && !def.useSnapshotCenter && ctx.lockedTarget == null)
-            {
-                if (def.missingActorPolicy == DummyMissingActorPolicy.Warn)
-                {
-                    Debug.LogWarning($"[SkillExecutor] MoveDummyCharacter requires locked target. actor={SkillDummyEventUtility.GetActorDisplayName(def.actorReferenceType, def.actorKey)}");
-                }
-                return;
-            }
-
-            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
-            Vector3 groundPoint = ctx.groundPoint;
-
-            if (def.useSnapshotCenter)
-            {
-                targetPos = snapshotTargetPos;
-                groundPoint = snapshotGroundPoint;
-            }
-
-            Vector3 actorPos = handle.Character.transform.position;
-            if (!SkillDummyEventUtility.TryResolveMoveTargetPosition(run, def, actorPos, targetPos, groundPoint, out Vector3 moveTarget))
-                return;
-
-            moveTarget += def.localOffset;
-
-            if (def.playMoveAnimation && !string.IsNullOrWhiteSpace(def.moveAnimationName))
-            {
-                PlayDummyAnimation(handle, def.moveAnimationName, def.moveAnimationLoop, def.moveAnimationTimeScale);
-            }
-
-            Transform lookTargetTransform = null;
-            Vector3 fallbackLookTargetPosition = targetPos;
-            if (def.lookAtTargetDuringMove && !def.useSnapshotCenter && ctx.lockedTarget != null)
-            {
-                lookTargetTransform = ctx.lockedTarget.transform;
-            }
-
-            StartDummyMove(handle, moveTarget, def, lookTargetTransform, fallbackLookTargetPosition);
+            SkillDummyActorMoveEventUtility.TryExecuteMove(
+                this,
+                _dummyActors,
+                _casterActorHandle,
+                run,
+                ctx,
+                def,
+                snapshotTargetPos,
+                snapshotGroundPoint);
         }
 
         /// <summary>
@@ -707,30 +661,6 @@ namespace GGemCo2DSkill
                 def.endAnimationName,
                 def.endAnimationLoop,
                 def.endAnimationTimeScale);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터의 이동을 시작합니다.
-        /// </summary>
-        /// <param name="handle">이동 대상 더미 핸들입니다.</param>
-        /// <param name="targetPosition">이동 목표 위치입니다.</param>
-        /// <param name="def">이동 이벤트 정의입니다.</param>
-        /// <param name="lookTargetTransform">이동 중 실시간으로 추적할 타겟 Transform입니다.</param>
-        /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 바라보기 좌표입니다.</param>
-        private void StartDummyMove(
-            SkillDummyActorHandle handle,
-            Vector3 targetPosition,
-            MoveDummyCharacterEventDefinition def,
-            Transform lookTargetTransform,
-            Vector3 fallbackLookTargetPosition)
-        {
-            SkillDummyActorMotionUtility.StartMove(
-                this,
-                handle,
-                targetPosition,
-                def,
-                lookTargetTransform,
-                fallbackLookTargetPosition);
         }
 
         /// <summary>
