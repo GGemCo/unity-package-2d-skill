@@ -1,0 +1,181 @@
+﻿using Config;
+using GGemCo2DCore;
+using UnityEngine;
+
+namespace GGemCo2DSkill
+{
+    /// <summary>
+    /// 투사체 스킬 이벤트의 대상 좌표 해석과 투사체 발사 메타데이터 생성을 담당합니다.
+    /// </summary>
+    internal static class SkillProjectileEventHandler
+    {
+        /// <summary>
+        /// 투사체 이벤트 정의를 바탕으로 발사 대상과 좌표를 계산하고 투사체를 생성합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">투사체 이벤트 페이로드 오브젝트입니다.</param>
+        /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
+        /// <param name="ownerObject">투사체 부가 효과의 출처로 사용할 실행기 GameObject입니다.</param>
+        /// <param name="attackSequence">공격 식별자를 발급하고 연계 해제 정책을 저장할 시퀀스입니다.</param>
+        public static void Handle(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint,
+            GameObject ownerObject,
+            SkillAttackSequence attackSequence)
+        {
+            if (payloadObj is not ProjectileEventDefinition def)
+                return;
+            if (ctx.caster == null)
+                return;
+
+            CharacterBase casterChar = ctx.caster.GetComponent<CharacterBase>();
+            if (casterChar == null)
+                return;
+
+            if (TableLoaderManager.Instance == null)
+                return;
+
+            Vector3 casterPos = ctx.caster.transform.position;
+            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
+            Vector3 groundPoint = ctx.groundPoint;
+
+            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
+            {
+                casterPos = snapshotCasterPos;
+                targetPos = snapshotTargetPos;
+                groundPoint = snapshotGroundPoint;
+            }
+
+            ConfigCommonSkill.SkillTargetingMode mode =
+                (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
+            if (def.targetingOverride.enabled)
+                mode = def.targetingOverride.mode;
+
+            CharacterBase targetChar = ctx.lockedTarget != null
+                ? ctx.lockedTarget.GetComponent<CharacterBase>()
+                : null;
+
+            ResolveProjectileTarget(
+                skill,
+                ctx,
+                def,
+                mode,
+                casterChar,
+                casterPos,
+                targetPos,
+                groundPoint,
+                ref targetChar,
+                out bool usePosOverride,
+                out Vector2 posOverride);
+
+            int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
+
+            var meta = new MetadataProjectile(
+                uid: def.projectileUid,
+                damageType: def.damageType,
+                damage: def.damage,
+                target: targetChar,
+                owner: casterChar,
+                speedMultiplier: def.speedMultiplier,
+                scaleMultiplier: def.scaleMultiplier,
+                visualType: def.visualType,
+                visualSprite: def.visualSprite,
+                visualAnimatorController: def.visualAnimatorController,
+                visualVfxUidOverride: def.visualVfxUidOverride,
+                useTargetPositionOverride: usePosOverride,
+                targetPositionOverride: posOverride,
+                skillUid: skill.Uid,
+                attackId: attackId,
+                allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
+                elementGaugeApplications: SkillOnHitEffectUtility.BuildElementGaugeApplications(
+                    def.onHitElementGauges,
+                    ownerObject,
+                    damageApplied: true),
+                useHitLifetimeModeOverride: def.useProjectileHitBehaviorOverride,
+                hitLifetimeModeOverride: def.hitLifetimeMode,
+                useDamageApplyModeOverride: def.useProjectileHitBehaviorOverride,
+                damageApplyModeOverride: def.damageApplyMode,
+                useTickDamageIntervalOverride: def.useProjectileHitBehaviorOverride &&
+                                                   def.damageApplyMode == ProjectileConstants.DamageApplyMode.PeriodicOverlap,
+                tickDamageIntervalOverride: Mathf.Max(0f, def.tickDamageIntervalSeconds));
+
+            casterChar.LaunchProjectile(meta);
+        }
+
+        /// <summary>
+        /// 스킬 타겟팅 모드와 이벤트 오버라이드 설정을 기준으로 투사체가 사용할 타겟 참조 또는 좌표 오버라이드를 계산합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="def">투사체 이벤트 정의입니다.</param>
+        /// <param name="mode">최종 적용할 스킬 타겟팅 모드입니다.</param>
+        /// <param name="casterChar">투사체를 발사하는 캐스터 캐릭터입니다.</param>
+        /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
+        /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
+        /// <param name="targetChar">좌표 오버라이드가 필요 없을 때 사용할 타겟 캐릭터 참조입니다.</param>
+        /// <param name="usePosOverride">좌표 오버라이드를 사용할지 여부입니다.</param>
+        /// <param name="posOverride">투사체가 사용할 좌표 오버라이드입니다.</param>
+        private static void ResolveProjectileTarget(
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            ProjectileEventDefinition def,
+            ConfigCommonSkill.SkillTargetingMode mode,
+            CharacterBase casterChar,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector3 groundPoint,
+            ref CharacterBase targetChar,
+            out bool usePosOverride,
+            out Vector2 posOverride)
+        {
+            usePosOverride = false;
+            posOverride = default;
+
+            switch (mode)
+            {
+                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
+                    usePosOverride = true;
+                    posOverride = new Vector2(groundPoint.x, groundPoint.y);
+                    break;
+
+                case ConfigCommonSkill.SkillTargetingMode.Self:
+                    targetChar = casterChar;
+                    usePosOverride = false;
+                    break;
+
+                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
+                    if (targetChar != null)
+                    {
+                        usePosOverride = false;
+                    }
+                    else
+                    {
+                        usePosOverride = true;
+                        posOverride = new Vector2(targetPos.x, targetPos.y);
+                    }
+                    break;
+
+                default:
+                    Vector3 fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                    float range = SkillRangeResolver.GetPlacementRange(skill);
+                    if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
+                        range = def.targetingOverride.rangeOverride;
+
+                    Vector3 p = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
+                    usePosOverride = true;
+                    posOverride = new Vector2(p.x, p.y);
+                    break;
+            }
+        }
+    }
+}

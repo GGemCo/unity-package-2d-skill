@@ -264,23 +264,7 @@ namespace GGemCo2DSkill
         /// <returns>Z가 제거되고 2D 기준으로 정규화된 전방 벡터를 반환합니다.</returns>
         private static Vector3 ResolveForward2D(GameObject caster, Vector3 forward)
         {
-            // 2D 기준: forward가 비어있거나(0), 기본값(Vector3.forward)처럼 Z축 위주로 들어오는 경우를 보정합니다.
-            var f2 = new Vector2(forward.x, forward.y);
-            if (f2.sqrMagnitude < 1e-6f || Mathf.Abs(forward.z) > 0.5f)
-            {
-                float sign = 1f;
-                if (caster != null)
-                {
-                    sign = Mathf.Sign(caster.transform.localScale.x);
-                    if (Mathf.Approximately(sign, 0f)) sign = 1f;
-                }
-
-                return new Vector3(sign, 0f, 0f);
-            }
-
-            // Z는 사용하지 않습니다(2D).
-            f2.Normalize();
-            return new Vector3(f2.x, f2.y, 0f);
+            return SkillDirectionResolver.ResolveForward2D(caster, forward);
         }
 
         /// <summary>
@@ -443,76 +427,14 @@ namespace GGemCo2DSkill
             SkillPositionHoldEventHandler.Handle(run, ctx, payloadObj, eventDurationSeconds);
         }
 
-        private static bool TryResolveVfxDuration(VfxEventDefinition def, out float duration)
-        {
-            duration = 0f;
-            if (def == null)
-                return false;
-
-            switch (def.lifetimeMode)
-            {
-                case VfxLifetimeMode.UseVfxDefault:
-                    return false;
-
-                case VfxLifetimeMode.OneShot:
-                    duration = 0f;
-                    return true;
-
-                case VfxLifetimeMode.FixedDuration:
-                    duration = Mathf.Max(0f, def.lifetimeSeconds);
-                    return true;
-
-                case VfxLifetimeMode.Infinite:
-                    duration = -1f;
-                    return true;
-
-                default:
-                    return false;
-            }
-        }
-
         /// <summary>
-        /// 스킬 이벤트 정의와 계산된 생성 위치를 Core VFX 생성 요청으로 변환합니다.
+        /// 캐릭터의 현재 바라보기 상태를 2D 방향으로 해석합니다.
         /// </summary>
-        /// <param name="def">스킬 Timeline에서 Bake된 VFX 이벤트 정의입니다.</param>
-        /// <param name="spawnPos">타겟팅 규칙과 오프셋을 반영한 월드 생성 위치입니다.</param>
-        /// <returns>VFX 매니저에 전달할 생성 요청입니다.</returns>
-        private static VfxSpawnRequest BuildVfxSpawnRequest(VfxEventDefinition def, Vector3 spawnPos)
-        {
-            TryResolveVfxDuration(def, out var vfxDuration);
-
-            return new VfxSpawnRequest
-            {
-                VfxUid = def != null ? def.vfxUid : 0,
-                WorldPosition = spawnPos,
-                DurationOverride = vfxDuration,
-                SortingLayerOverride = def != null && def.overrideSortingLayer
-                    ? def.sortingLayerOverride
-                    : (ConfigSortingLayer.Keys?)null,
-                SortingOrderOverride = def != null && def.overrideSortingOrder
-                    ? def.sortingOrderOverride
-                    : (int?)null,
-            };
-        }
-
+        /// <param name="caster">방향을 확인할 캐스터 오브젝트입니다.</param>
+        /// <returns>현재 캐스터가 바라보는 2D 방향입니다.</returns>
         private static Vector2 ResolveCurrentFacing2D(GameObject caster)
         {
-            if (caster == null)
-                return Vector2.right;
-
-            var characterBase = caster.GetComponent<CharacterBase>();
-            if (characterBase != null)
-            {
-                var facing = CharacterConstants.FacingToVector2(characterBase.CurrentFacing);
-                if (facing.sqrMagnitude > 1e-6f)
-                    return facing.normalized;
-            }
-
-            float sign = Mathf.Sign(caster.transform.localScale.x);
-            if (Mathf.Approximately(sign, 0f))
-                sign = 1f;
-
-            return new Vector2(sign, 0f);
+            return SkillDirectionResolver.ResolveCurrentFacing2D(caster);
         }
         
         /// <summary>
@@ -1751,7 +1673,7 @@ namespace GGemCo2DSkill
                 skillUid: skill.Uid,
                 attackId: attackId,
                 allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
-                elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, gameObject, damageApplied: true),
+                elementGaugeApplications: SkillOnHitEffectUtility.BuildElementGaugeApplications(def.onHitElementGauges, gameObject, damageApplied: true),
                 useDurationOverride: true,
                 durationOverride: Mathf.Max(0f, def.durationSeconds),
                 useDamageTimingOverride: true,
@@ -2187,109 +2109,15 @@ namespace GGemCo2DSkill
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint)
         {
-            if (payloadObj is not ProjectileEventDefinition def) return;
-            if (ctx.caster == null) return;
-
-            var casterChar = ctx.caster.GetComponent<CharacterBase>();
-            if (casterChar == null) return;
-
-            if (TableLoaderManager.Instance == null)
-                return;
-
-            // ----------------------
-            // Center/Target resolve (Vfx와 동일한 정책)
-            // ----------------------
-            Vector3 casterPos = ctx.caster.transform.position;
-            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
-            Vector3 groundPoint = ctx.groundPoint;
-
-            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
-            {
-                casterPos = snapshotCasterPos;
-                targetPos = snapshotTargetPos;
-                groundPoint = snapshotGroundPoint;
-            }
-
-            var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
-            if (def.targetingOverride.enabled)
-                mode = def.targetingOverride.mode;
-
-            // 기본: Fixed 타겟이 있으면 전달하고, 좌표 기반이면 Override 좌표로 전달한다.
-            CharacterBase targetChar = null;
-            if (ctx.lockedTarget != null)
-                targetChar = ctx.lockedTarget.GetComponent<CharacterBase>();
-
-            bool usePosOverride = false;
-            Vector2 posOverride = default;
-
-            switch (mode)
-            {
-                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
-                    usePosOverride = true;
-                    posOverride = new Vector2(groundPoint.x, groundPoint.y);
-                    break;
-
-                case ConfigCommonSkill.SkillTargetingMode.Self:
-                    targetChar = casterChar;
-                    usePosOverride = false;
-                    break;
-                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
-                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
-                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
-                    // 타겟이 없으면 좌표 기반으로 폴백
-                    if (targetChar != null)
-                    {
-                        // Fixed 타입이면 Core에서 Target을 사용, Area 타입이면 Target 주변 샘플링을 사용할 수 있다.
-                        usePosOverride = false;
-                    }
-                    else
-                    {
-                        usePosOverride = true;
-                        posOverride = new Vector2(targetPos.x, targetPos.y);
-                    }
-                    break;
-
-                default:
-                    // Forward / fallback
-                    var fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
-                    float range = SkillRangeResolver.GetPlacementRange(skill);
-                    if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
-                        range = def.targetingOverride.rangeOverride;
-
-                    var p = SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
-                    usePosOverride = true;
-                    posOverride = new Vector2(p.x, p.y);
-                    break;
-            }
-
-            int attackId = _attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
-
-            var meta = new MetadataProjectile(
-                uid: def.projectileUid,
-                damageType: def.damageType,
-                damage: def.damage,
-                target: targetChar,
-                owner: casterChar,
-                speedMultiplier: def.speedMultiplier,
-                scaleMultiplier: def.scaleMultiplier,
-                visualType: def.visualType,
-                visualSprite: def.visualSprite,
-                visualAnimatorController: def.visualAnimatorController,
-                visualVfxUidOverride: def.visualVfxUidOverride,
-                useTargetPositionOverride: usePosOverride,
-                targetPositionOverride: posOverride,
-                skillUid: skill.Uid,
-                attackId: attackId,
-                allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
-                elementGaugeApplications: BuildElementGaugeApplications(def.onHitElementGauges, gameObject, damageApplied: true),
-                useHitLifetimeModeOverride: def.useProjectileHitBehaviorOverride,
-                hitLifetimeModeOverride: def.hitLifetimeMode,
-                useDamageApplyModeOverride: def.useProjectileHitBehaviorOverride,
-                damageApplyModeOverride: def.damageApplyMode,
-                useTickDamageIntervalOverride: def.useProjectileHitBehaviorOverride && def.damageApplyMode == ProjectileConstants.DamageApplyMode.PeriodicOverlap,
-                tickDamageIntervalOverride: Mathf.Max(0f, def.tickDamageIntervalSeconds));
-
-            casterChar.LaunchProjectile(meta);
+            SkillProjectileEventHandler.Handle(
+                skill,
+                ctx,
+                payloadObj,
+                snapshotCasterPos,
+                snapshotTargetPos,
+                snapshotGroundPoint,
+                gameObject,
+                _attackSequence);
         }
 
         /// <summary>
@@ -2473,7 +2301,7 @@ namespace GGemCo2DSkill
                     OnHitCrowdControlTiming.AfterDamage,
                     _resolvedOnHitCrowdControls);
 
-                metadataDamage.ElementGaugeApplications = BuildElementGaugeApplications(def.onHitElementGauges, gameObject, didApplyDamage);
+                metadataDamage.ElementGaugeApplications = SkillOnHitEffectUtility.BuildElementGaugeApplications(def.onHitElementGauges, gameObject, didApplyDamage);
 
                 if (didApplyDamage)
                 {
@@ -2602,140 +2430,6 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 안의 이름 있는 위치 앵커로 저장합니다.
-        /// </summary>
-        /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
-        /// <param name="def">VFX 이벤트 정의입니다.</param>
-        /// <param name="spawnPos">VFX가 생성될 최종 월드 위치입니다.</param>
-        /// <param name="resolvedForward">이벤트 시점에 해석된 2D 전방 방향입니다.</param>
-        /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
-        /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
-        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
-        private static void SaveVfxPositionAnchorIfNeeded(
-            SkillRun run,
-            VfxEventDefinition def,
-            Vector3 spawnPos,
-            Vector3 resolvedForward,
-            Vector3 casterPos,
-            Vector3 targetPos,
-            Vector3 groundPoint)
-        {
-            if (run == null || def == null || !def.positionAnchorWrite.enabled)
-                return;
-
-            if (string.IsNullOrWhiteSpace(def.positionAnchorWrite.key))
-                return;
-
-            var snapshot = new SkillPositionAnchorSnapshot(
-                spawnPos,
-                resolvedForward,
-                casterPos,
-                targetPos,
-                groundPoint,
-                run.CurrentTime);
-
-            run.SavePositionAnchor(def.positionAnchorWrite.key, snapshot);
-        }
-
-        /// <summary>
-        /// VFX 이벤트의 앵커 설정을 런타임 생성 위치 기준점으로 해석합니다.
-        /// </summary>
-        /// <param name="def">VFX 이벤트 정의입니다.</param>
-        /// <returns>이벤트가 사용해야 할 생성 위치 기준점입니다.</returns>
-        private static VfxSpawnAnchor ResolveVfxSpawnAnchor(VfxEventDefinition def)
-        {
-            if (def == null)
-                return VfxSpawnAnchor.Caster;
-
-            // 기존 RuntimeSequence 에셋은 Target 앵커를 attachToTarget 플래그로만 저장했습니다.
-            // 새 spawnAnchor 필드가 없던 에셋도 타겟 부착 VFX는 이전처럼 타겟 기준으로 처리합니다.
-            if (def.attachToTarget)
-                return VfxSpawnAnchor.Target;
-
-            return def.spawnAnchor;
-        }
-
-        /// <summary>
-        /// VFX 이벤트에 명시된 타겟팅 오버라이드로 생성 월드 위치를 계산합니다.
-        /// </summary>
-        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
-        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
-        /// <param name="def">VFX 이벤트 정의입니다.</param>
-        /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
-        /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
-        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
-        /// <returns>타겟팅 오버라이드가 가리키는 VFX 생성 월드 위치입니다.</returns>
-        private static Vector3 ResolveVfxTargetingOverridePosition(
-            RuntimeSkillDefinition skill,
-            SkillTargetContext ctx,
-            VfxEventDefinition def,
-            Vector3 casterPos,
-            Vector3 targetPos,
-            Vector3 groundPoint)
-        {
-            switch (def.targetingOverride.mode)
-            {
-                case ConfigCommonSkill.SkillTargetingMode.GroundTarget:
-                    return groundPoint;
-                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
-                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
-                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
-                    return targetPos;
-                case ConfigCommonSkill.SkillTargetingMode.Self:
-                    return casterPos;
-                default:
-                    var fwd = ResolveForward2D(ctx.caster, ctx.forward);
-                    float range = def.targetingOverride.rangeOverride > 0f
-                        ? def.targetingOverride.rangeOverride
-                        : SkillRangeResolver.GetPlacementRange(skill);
-                    return SkillRangeResolver.ResolveForwardPlacementPosition(casterPos, fwd, range);
-            }
-        }
-
-        /// <summary>
-        /// VFX 이벤트의 앵커 설정에 따라 실제 생성 월드 위치를 계산합니다.
-        /// </summary>
-        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
-        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
-        /// <param name="def">VFX 이벤트 정의입니다.</param>
-        /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
-        /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
-        /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
-        /// <returns>VFX를 생성할 월드 위치입니다.</returns>
-        private static Vector3 ResolveVfxSpawnPosition(
-            RuntimeSkillDefinition skill,
-            SkillTargetContext ctx,
-            VfxEventDefinition def,
-            Vector3 casterPos,
-            Vector3 targetPos,
-            Vector3 groundPoint)
-        {
-            if (def != null && def.targetingOverride.enabled)
-                return ResolveVfxTargetingOverridePosition(skill, ctx, def, casterPos, targetPos, groundPoint);
-
-            switch (ResolveVfxSpawnAnchor(def))
-            {
-                case VfxSpawnAnchor.Target:
-                    return targetPos;
-                case VfxSpawnAnchor.Ground:
-                    return groundPoint;
-                case VfxSpawnAnchor.Caster:
-                default:
-                    return casterPos;
-            }
-        }
-
-        /// <summary>
-        /// 생성된 VFX를 타겟 Transform에 부착해야 하는지 확인합니다.
-        /// </summary>
-        /// <param name="def">VFX 이벤트 정의입니다.</param>
-        /// <returns>타겟에 부착해야 하면 <see langword="true"/>입니다.</returns>
-        private static bool ShouldAttachVfxToTarget(VfxEventDefinition def)
-        {
-            return ResolveVfxSpawnAnchor(def) == VfxSpawnAnchor.Target;
-        }
-
-        /// <summary>
         /// 이펙트 이벤트 정의를 바탕으로 생성 위치를 계산하고 이펙트를 생성합니다.
         /// </summary>
         /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
@@ -2754,58 +2448,15 @@ namespace GGemCo2DSkill
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint)
         {
-            if (payloadObj is not VfxEventDefinition def) return;
-
-            // ----------------------
-            // Spawn position resolve
-            // ----------------------
-            Vector3 casterPos = ctx.caster != null ? ctx.caster.transform.position : snapshotCasterPos;
-            Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
-            Vector3 groundPoint = ctx.groundPoint;
-
-            if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
-            {
-                casterPos = snapshotCasterPos;
-                targetPos = snapshotTargetPos;
-                groundPoint = snapshotGroundPoint;
-            }
-
-            // VFX의 생성 위치는 스킬 타겟팅 모드가 아니라 SkillSpawnVfxClip의 Anchor 설정을 기준으로 결정합니다.
-            Vector3 spawnPos = ResolveVfxSpawnPosition(skill, ctx, def, casterPos, targetPos, groundPoint);
-
-            // localOffset은 월드 오프셋으로 처리(2D 프로젝트 기준: z는 그대로)
-            spawnPos += def.localOffset;
-            SaveVfxPositionAnchorIfNeeded(
+            SkillVfxEventHandler.Handle(
                 run,
-                def,
-                spawnPos,
-                ResolveForward2D(ctx.caster, ctx.forward),
-                casterPos,
-                targetPos,
-                groundPoint);
-
-            // ----------------------
-            // Vfx create
-            // ----------------------
-            VfxBehaviourBase vfx = null;
-            var sceneGame = SceneGame.Instance;
-
-            // 1) Core VfxManager 기반 생성(권장)
-            if (sceneGame != null && sceneGame.VfxManager != null)
-            {
-                vfx = sceneGame.VfxManager.CreateVfx(BuildVfxSpawnRequest(def, spawnPos));
-            }
-
-            // 2) 폴백: 프리팹 직접 Instantiate
-            if (vfx == null) return;
-
-            if (ShouldAttachVfxToTarget(def) && ctx.lockedTarget != null)
-            {
-                vfx.transform.SetParent(ctx.lockedTarget.transform, worldPositionStays: true);
-            }
-
-            vfx.transform.position = spawnPos;
-            RegisterSpawnedVfx(vfx);
+                skill,
+                ctx,
+                payloadObj,
+                snapshotCasterPos,
+                snapshotTargetPos,
+                snapshotGroundPoint,
+                _ownedVfxTracker);
         }
 
         /// <summary>
@@ -2841,39 +2492,6 @@ namespace GGemCo2DSkill
         {
             SkillStatusEventHandler.HandleApplyTempHp(skill, ctx, payloadObj);
         }
-
-        private static ElementGaugeApplication[] BuildElementGaugeApplications(OnHitElementGaugeEntry[] entries, GameObject caster, bool damageApplied)
-        {
-            if (entries == null || entries.Length == 0)
-                return null;
-
-            List<ElementGaugeApplication> results = null;
-
-            for (int i = 0; i < entries.Length; i++)
-            {
-                var entry = entries[i];
-                if (entry.damageType == ConfigCommon.DamageType.None || entry.damageType == ConfigCommon.DamageType.Physic)
-                    continue;
-                if (entry.gaugeValue <= 0f)
-                    continue;
-                if (entry.requireDamageDealt && !damageApplied)
-                    continue;
-                if (entry.requireAffectUid > 0 && !AffectApi.HasAttached(caster, entry.requireAffectUid))
-                    continue;
-
-                float chance = entry.chance <= 0f ? 1f : Mathf.Clamp01(entry.chance);
-                if (chance <= 0f)
-                    continue;
-                if (chance < 0.9999f && UnityEngine.Random.value > chance)
-                    continue;
-
-                results ??= new List<ElementGaugeApplication>(4);
-                results.Add(new ElementGaugeApplication(entry.damageType, entry.gaugeValue));
-            }
-
-            return results != null && results.Count > 0 ? results.ToArray() : null;
-        }
-
 
         /// <summary>
         /// OnHit 설정 목록을 순회하며 조건에 맞는 Affect를 대상에게 적용합니다.
@@ -4641,15 +4259,6 @@ namespace GGemCo2DSkill
             CleanupDummyActors(forceAll: false, forCancel: false);
             CleanupSkillScreenFade(forCancel: false);
             ExecutionFinished?.Invoke(report);
-        }
-
-        /// <summary>
-        /// 현재 스킬 실행이 소유해야 하는 VFX를 추적기로 전달합니다.
-        /// </summary>
-        /// <param name="vfx">추적할 VFX 인스턴스입니다.</param>
-        private void RegisterSpawnedVfx(VfxBehaviourBase vfx)
-        {
-            _ownedVfxTracker.Register(vfx);
         }
 
         /// <summary>
