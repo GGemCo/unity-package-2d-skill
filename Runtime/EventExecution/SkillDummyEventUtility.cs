@@ -95,9 +95,7 @@ namespace GGemCo2DSkill
                     moveTarget = targetPos;
                     return true;
                 case DummyMoveTargetMode.LockedTargetFront:
-                    float sideSign = ResolveTargetFrontSideSign(actorPos, targetPos);
-                    float frontDistance = Mathf.Max(0f, def.targetFrontDistance);
-                    moveTarget = targetPos + new Vector3(sideSign * frontDistance, 0f, 0f);
+                    moveTarget = targetPos + ResolveSignedTargetFrontOffset(actorPos, targetPos, def.targetFrontDistance);
                     return true;
                 case DummyMoveTargetMode.AbsoluteWorld:
                     moveTarget = def.absoluteWorldPosition;
@@ -134,6 +132,19 @@ namespace GGemCo2DSkill
             return actorReferenceType == DummyActorReferenceType.Caster
                 ? "Caster"
                 : NormalizeActorKey(actorKey);
+        }
+
+        /// <summary>
+        /// 타겟 중심에서 더미가 있던 좌/우 방향을 기준으로 부호 있는 이동 오프셋을 계산합니다.
+        /// </summary>
+        /// <param name="actorPos">더미의 현재 월드 위치입니다.</param>
+        /// <param name="targetPos">타겟 중심 월드 위치입니다.</param>
+        /// <param name="signedDistance">타겟 중심에서 떨어질 거리입니다. 양수는 더미가 있던 방향, 음수는 반대 방향입니다.</param>
+        /// <returns>타겟 중심에 더할 월드 좌표 오프셋입니다.</returns>
+        private static Vector3 ResolveSignedTargetFrontOffset(Vector3 actorPos, Vector3 targetPos, float signedDistance)
+        {
+            float sideSign = ResolveTargetFrontSideSign(actorPos, targetPos);
+            return new Vector3(sideSign * signedDistance, 0f, 0f);
         }
 
         /// <summary>

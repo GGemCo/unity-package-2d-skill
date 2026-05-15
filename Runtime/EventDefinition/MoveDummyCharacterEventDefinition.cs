@@ -25,7 +25,7 @@ namespace GGemCo2DSkill
         [Tooltip("moveTargetMode가 AbsoluteWorld일 때 사용할 지면 기준 절대 월드 좌표입니다. 공중 높이는 별도 이벤트로 제어합니다.")]
         public Vector3 absoluteWorldPosition;
 
-        [Tooltip("moveTargetMode가 LockedTargetFront일 때 타겟 중심에서 앞쪽(더미가 위치한 좌/우 방향)으로 이동할 거리입니다.")]
+        [Tooltip("moveTargetMode가 LockedTargetFront일 때 타겟 중심에서 더미가 위치한 좌/우 방향으로 더할 거리입니다. 양수는 같은 방향, 음수는 반대 방향으로 계산됩니다.")]
         public float targetFrontDistance = 0.5f;
 
         [Tooltip("해석된 지면 목표 위치에 더할 오프셋입니다. 공중 높이 오프셋은 포함하지 않습니다.")]
