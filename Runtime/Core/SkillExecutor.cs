@@ -629,12 +629,14 @@ namespace GGemCo2DSkill
             if (def.fadeInEnabled && def.fadeInDurationSeconds > 0f)
             {
                 SkillDummyActorPresentationUtility.SetVisualAlpha(character, 0f);
-                handle.ActiveFadeCoroutine = StartCoroutine(FadeDummyCharacterCoroutine(
+                handle.ActiveFadeCoroutine = SkillDummyActorLifecycleUtility.StartFade(
+                    this,
+                    _dummyActors,
                     handle,
                     fadeIn: true,
                     durationSeconds: def.fadeInDurationSeconds,
                     destroyAfterFade: false,
-                    removeFromRegistry: false));
+                    removeFromRegistry: false);
             }
             else
             {
@@ -788,14 +790,14 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            handle.ActiveAnimationCoroutine = StartCoroutine(DummyAnimationFollowupCoroutine(
+            handle.ActiveAnimationCoroutine = SkillDummyActorLifecycleUtility.StartAnimationFollowup(
+                this,
                 handle,
-                ++handle.AnimationRequestVersion,
                 duration,
                 def.endPolicy,
                 def.endAnimationName,
                 def.endAnimationLoop,
-                def.endAnimationTimeScale));
+                def.endAnimationTimeScale);
         }
 
         /// <summary>
@@ -927,34 +929,7 @@ namespace GGemCo2DSkill
         /// </param>
         private void ResetCasterActorHandleTransientState(bool clearCharacter)
         {
-            if (_casterActorHandle.ActiveMoveCoroutine != null)
-            {
-                StopCoroutine(_casterActorHandle.ActiveMoveCoroutine);
-                _casterActorHandle.ActiveMoveCoroutine = null;
-            }
-
-            if (_casterActorHandle.ActiveFadeCoroutine != null)
-            {
-                StopCoroutine(_casterActorHandle.ActiveFadeCoroutine);
-                _casterActorHandle.ActiveFadeCoroutine = null;
-            }
-
-            if (_casterActorHandle.ActiveAirHeightCoroutine != null)
-            {
-                StopCoroutine(_casterActorHandle.ActiveAirHeightCoroutine);
-                _casterActorHandle.ActiveAirHeightCoroutine = null;
-            }
-
-            CancelDummyAnimationFollowup(_casterActorHandle);
-            SkillDummyActorRuntimeUtility.ReleaseGravityOverride(_casterActorHandle);
-            SkillDummyActorPresentationUtility.ReleaseRuntimeLocks(_casterActorHandle);
-
-            if (!clearCharacter)
-                return;
-
-            _casterActorHandle.Character = null;
-            _casterActorHandle.GroundPosition = Vector3.zero;
-            _casterActorHandle.AirHeight = 0f;
+            SkillDummyActorLifecycleUtility.ResetCasterHandleTransientState(this, _casterActorHandle, clearCharacter);
         }
 
         /// <summary>
@@ -1257,123 +1232,14 @@ namespace GGemCo2DSkill
             bool destroyAfterFade,
             bool removeFromRegistry)
         {
-            if (handle == null)
-                return;
-
-            if (handle.ActiveMoveCoroutine != null)
-            {
-                StopCoroutine(handle.ActiveMoveCoroutine);
-                handle.ActiveMoveCoroutine = null;
-            }
-
-            if (handle.ActiveAirHeightCoroutine != null)
-            {
-                StopCoroutine(handle.ActiveAirHeightCoroutine);
-                handle.ActiveAirHeightCoroutine = null;
-            }
-
-            CancelDummyAnimationFollowup(handle);
-
-            if (handle.Character == null)
-            {
-                SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-                if (removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
-                    _dummyActors.Remove(handle.ActorKey);
-                return;
-            }
-
-            var motion = SkillCharacterComponentResolver.ResolveMotionController(handle.Character.gameObject);
-            motion?.CancelMotion(MotionChannel.Skill, reason: 9203);
-            SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-
-            float duration = Mathf.Max(0f, fadeOutDurationSeconds);
-            if (fadeOutEnabled && duration > 0f)
-            {
-                if (handle.ActiveFadeCoroutine != null)
-                {
-                    StopCoroutine(handle.ActiveFadeCoroutine);
-                    handle.ActiveFadeCoroutine = null;
-                }
-
-                handle.ActiveFadeCoroutine = StartCoroutine(FadeDummyCharacterCoroutine(
-                    handle,
-                    fadeIn: false,
-                    durationSeconds: duration,
-                    destroyAfterFade: destroyAfterFade,
-                    removeFromRegistry: removeFromRegistry));
-                return;
-            }
-
-            DestroyDummyActor(handle, destroyGameObject: destroyAfterFade, removeFromRegistry: removeFromRegistry);
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 페이드 인/아웃을 처리합니다.
-        /// </summary>
-        /// <param name="handle">페이드를 적용할 더미 핸들입니다.</param>
-        /// <param name="fadeIn">페이드 인이면 <see langword="true"/>입니다.</param>
-        /// <param name="durationSeconds">페이드 시간(초)입니다.</param>
-        /// <param name="destroyAfterFade">페이드 아웃 완료 후 Destroy 여부입니다.</param>
-        /// <param name="removeFromRegistry">완료 후 레지스트리 제거 여부입니다.</param>
-        /// <returns>코루틴 이터레이터입니다.</returns>
-        private IEnumerator FadeDummyCharacterCoroutine(
-            SkillDummyActorHandle handle,
-            bool fadeIn,
-            float durationSeconds,
-            bool destroyAfterFade,
-            bool removeFromRegistry)
-        {
-            if (handle == null || handle.Character == null)
-            {
-                if (handle != null && removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
-                    _dummyActors.Remove(handle.ActorKey);
-                yield break;
-            }
-
-            var character = handle.Character;
-            var anim = SkillCharacterComponentResolver.ResolveAnimationController(character.gameObject);
-            float duration = Mathf.Max(0f, durationSeconds);
-
-            if (duration <= 0f)
-            {
-                SkillDummyActorPresentationUtility.SetVisualAlpha(character, fadeIn ? 1f : 0f);
-            }
-            else if (anim != null)
-            {
-                if (fadeIn)
-                    SkillDummyActorPresentationUtility.SetVisualAlpha(character, 0f);
-
-                yield return anim.FadeEffect(duration, fadeIn);
-                SkillDummyActorPresentationUtility.SetVisualAlpha(character, fadeIn ? 1f : 0f);
-            }
-            else
-            {
-                float startAlpha = fadeIn ? 0f : 1f;
-                float endAlpha = fadeIn ? 1f : 0f;
-                float elapsed = 0f;
-                SkillDummyActorPresentationUtility.SetVisualAlpha(character, startAlpha);
-
-                while (elapsed < duration)
-                {
-                    if (handle.Character == null)
-                        yield break;
-
-                    elapsed += Time.deltaTime;
-                    float t = Mathf.Clamp01(elapsed / duration);
-                    SkillDummyActorPresentationUtility.SetVisualAlpha(handle.Character, Mathf.Lerp(startAlpha, endAlpha, t));
-                    yield return null;
-                }
-
-                if (handle.Character != null)
-                    SkillDummyActorPresentationUtility.SetVisualAlpha(handle.Character, endAlpha);
-            }
-
-            handle.ActiveFadeCoroutine = null;
-
-            if (fadeIn)
-                yield break;
-
-            DestroyDummyActor(handle, destroyGameObject: destroyAfterFade, removeFromRegistry: removeFromRegistry);
+            SkillDummyActorLifecycleUtility.BeginDespawn(
+                this,
+                _dummyActors,
+                handle,
+                fadeOutEnabled,
+                fadeOutDurationSeconds,
+                destroyAfterFade,
+                removeFromRegistry);
         }
 
         /// <summary>
@@ -1399,59 +1265,7 @@ namespace GGemCo2DSkill
         /// <param name="handle">취소할 더미 핸들입니다.</param>
         private void CancelDummyAnimationFollowup(SkillDummyActorHandle handle)
         {
-            if (handle == null)
-                return;
-
-            if (handle.ActiveAnimationCoroutine != null)
-            {
-                StopCoroutine(handle.ActiveAnimationCoroutine);
-                handle.ActiveAnimationCoroutine = null;
-            }
-
-            handle.AnimationRequestVersion++;
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 애니메이션 유지 시간이 끝난 뒤 후속 애니메이션 전환을 처리합니다.
-        /// </summary>
-        /// <param name="handle">후속 전환을 적용할 더미 핸들입니다.</param>
-        /// <param name="requestVersion">예약 당시의 애니메이션 요청 버전입니다.</param>
-        /// <param name="durationSeconds">대기 시간(초)입니다.</param>
-        /// <param name="endPolicy">대기 완료 후 적용할 종료 정책입니다.</param>
-        /// <param name="endAnimationName">커스텀 종료 애니메이션 이름입니다.</param>
-        /// <param name="endAnimationLoop">커스텀 종료 애니메이션 루프 여부입니다.</param>
-        /// <param name="endAnimationTimeScale">커스텀 종료 애니메이션 재생 속도 배율입니다.</param>
-        /// <returns>코루틴 이터레이터입니다.</returns>
-        private IEnumerator DummyAnimationFollowupCoroutine(
-            SkillDummyActorHandle handle,
-            int requestVersion,
-            float durationSeconds,
-            DummyAnimationEndPolicy endPolicy,
-            string endAnimationName,
-            bool endAnimationLoop,
-            float endAnimationTimeScale)
-        {
-            float remaining = Mathf.Max(0f, durationSeconds);
-            while (remaining > 0f)
-            {
-                if (handle == null || handle.Character == null)
-                    yield break;
-
-                if (handle.AnimationRequestVersion != requestVersion)
-                    yield break;
-
-                remaining -= Time.deltaTime;
-                yield return null;
-            }
-
-            if (handle == null || handle.Character == null)
-                yield break;
-
-            if (handle.AnimationRequestVersion != requestVersion)
-                yield break;
-
-            handle.ActiveAnimationCoroutine = null;
-            SkillDummyActorPresentationUtility.ApplyAnimationEndPolicy(handle, endPolicy, endAnimationName, endAnimationLoop, endAnimationTimeScale);
+            SkillDummyActorLifecycleUtility.CancelAnimationFollowup(this, handle);
         }
 
         /// <summary>
@@ -1462,62 +1276,7 @@ namespace GGemCo2DSkill
         /// <param name="removeFromRegistry">레지스트리 제거 여부입니다.</param>
         private void DestroyDummyActor(SkillDummyActorHandle handle, bool destroyGameObject, bool removeFromRegistry)
         {
-            if (handle == null)
-                return;
-
-            if (handle.ActiveMoveCoroutine != null)
-            {
-                StopCoroutine(handle.ActiveMoveCoroutine);
-                handle.ActiveMoveCoroutine = null;
-            }
-
-            if (handle.ActiveFadeCoroutine != null)
-            {
-                StopCoroutine(handle.ActiveFadeCoroutine);
-                handle.ActiveFadeCoroutine = null;
-            }
-
-            if (handle.ActiveAirHeightCoroutine != null)
-            {
-                StopCoroutine(handle.ActiveAirHeightCoroutine);
-                handle.ActiveAirHeightCoroutine = null;
-            }
-
-            CancelDummyAnimationFollowup(handle);
-
-            var character = handle.Character;
-            if (character != null)
-            {
-                var motion = SkillCharacterComponentResolver.ResolveMotionController(character.gameObject);
-                motion?.CancelMotion(MotionChannel.Skill, reason: 9201);
-
-                SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-                SkillDummyActorPresentationUtility.ReleaseRuntimeLocks(handle);
-
-                if (destroyGameObject)
-                {
-                    var sceneGame = SceneGame.Instance;
-                    if (sceneGame != null && sceneGame.CharacterManager != null)
-                        sceneGame.CharacterManager.RemoveCharacter(character.gameObject);
-                    else
-                        Destroy(character.gameObject);
-                }
-                else
-                {
-                    character.gameObject.SetActive(false);
-                }
-            }
-            else
-            {
-                SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-                SkillDummyActorPresentationUtility.ReleaseRuntimeLocks(handle);
-            }
-
-            if (removeFromRegistry && !string.IsNullOrEmpty(handle.ActorKey))
-                _dummyActors.Remove(handle.ActorKey);
-
-            handle.Character = null;
-            handle.AirHeight = 0f;
+            SkillDummyActorLifecycleUtility.DestroyActor(this, _dummyActors, handle, destroyGameObject, removeFromRegistry);
         }
 
         /// <summary>
@@ -1525,24 +1284,7 @@ namespace GGemCo2DSkill
         /// </summary>
         private void PruneDummyActors()
         {
-            if (_dummyActors.Count == 0)
-                return;
-
-            var keysToRemove = new List<string>();
-            foreach (var pair in _dummyActors)
-            {
-                if (pair.Value == null || pair.Value.Character == null)
-                {
-                    if (pair.Value != null)
-                        SkillDummyActorRuntimeUtility.ReleaseGravityOverride(pair.Value);
-                    keysToRemove.Add(pair.Key);
-                }
-            }
-
-            for (int i = 0; i < keysToRemove.Count; i++)
-            {
-                _dummyActors.Remove(keysToRemove[i]);
-            }
+            SkillDummyActorLifecycleUtility.Prune(_dummyActors);
         }
 
         /// <summary>
@@ -1552,27 +1294,7 @@ namespace GGemCo2DSkill
         /// <param name="forCancel">취소 종료 기준(<see langword="true"/>) 또는 정상 종료 기준(<see langword="false"/>)을 선택합니다.</param>
         private void CleanupDummyActors(bool forceAll, bool forCancel)
         {
-            if (_dummyActors.Count == 0)
-                return;
-
-            var keys = new List<string>(_dummyActors.Keys);
-            for (int i = 0; i < keys.Count; i++)
-            {
-                string key = keys[i];
-                if (!_dummyActors.TryGetValue(key, out var handle) || handle == null)
-                {
-                    _dummyActors.Remove(key);
-                    continue;
-                }
-
-                bool shouldCleanup = forceAll || (forCancel ? handle.DespawnOnCancel : handle.DespawnOnSkillEnd);
-                if (!shouldCleanup)
-                    continue;
-
-                DestroyDummyActor(handle, destroyGameObject: true, removeFromRegistry: true);
-            }
-
-            PruneDummyActors();
+            SkillDummyActorLifecycleUtility.Cleanup(this, _dummyActors, forceAll, forCancel);
         }
 
         /// <summary>
