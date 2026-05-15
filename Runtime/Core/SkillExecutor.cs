@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections;
 using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine;
@@ -980,111 +979,13 @@ namespace GGemCo2DSkill
             Transform lookTargetTransform,
             Vector3 fallbackLookTargetPosition)
         {
-            if (handle == null || handle.Character == null || def == null)
-                return;
-
-            SkillDummyActorRuntimeUtility.SyncGroundFromTransform(handle);
-            var character = handle.Character;
-            Vector3 targetGroundPosition = new Vector3(targetPosition.x, targetPosition.y, handle.GroundPosition.z);
-
-            if (handle.ActiveMoveCoroutine != null)
-            {
-                if (!def.allowReplace)
-                    return;
-
-                StopCoroutine(handle.ActiveMoveCoroutine);
-                handle.ActiveMoveCoroutine = null;
-            }
-
-            var motion = SkillCharacterComponentResolver.ResolveMotionController(character.gameObject);
-            if (motion != null && motion.IsPlaying(MotionChannel.Skill))
-            {
-                if (!def.allowReplace)
-                    return;
-
-                motion.CancelMotion(MotionChannel.Skill, reason: 9202);
-            }
-
-            Vector3 currentGroundPosition = handle.GroundPosition;
-            Vector2 delta = new Vector2(
-                targetGroundPosition.x - currentGroundPosition.x,
-                targetGroundPosition.y - currentGroundPosition.y);
-            float distance = delta.magnitude;
-            float duration = Mathf.Max(0f, def.durationSeconds);
-
-            if (distance <= 1e-4f || duration <= 0f)
-            {
-                handle.GroundPosition = targetGroundPosition;
-                SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
-                if (def.lookAtTargetDuringMove)
-                    SkillDummyActorRuntimeUtility.UpdateFacingDuringMove(handle, lookTargetTransform, fallbackLookTargetPosition);
-                return;
-            }
-
-            // 더미는 지면 좌표와 공중 높이를 분리 관리하므로, 이동 보간은 지면 좌표만 갱신합니다.
-            handle.ActiveMoveCoroutine = StartCoroutine(CoMoveDummyByTransform(
+            SkillDummyActorMotionUtility.StartMove(
+                this,
                 handle,
-                currentGroundPosition,
-                targetGroundPosition,
-                duration,
-                def.easing,
-                def.lookAtTargetDuringMove,
+                targetPosition,
+                def,
                 lookTargetTransform,
-                fallbackLookTargetPosition));
-        }
-
-        /// <summary>
-        /// 더미 캐릭터의 지면 좌표를 보간하여 이동시키고, 설정된 경우 타겟 바라보기를 함께 갱신합니다.
-        /// </summary>
-        /// <param name="handle">이동 대상 더미 핸들입니다.</param>
-        /// <param name="from">시작 위치입니다.</param>
-        /// <param name="to">도착 위치입니다.</param>
-        /// <param name="durationSeconds">이동 시간(초)입니다.</param>
-        /// <param name="easeType">보간 easing입니다.</param>
-        /// <param name="lookAtTargetDuringMove">이동 중 타겟 바라보기 갱신 여부입니다.</param>
-        /// <param name="lookTargetTransform">실시간으로 추적할 타겟 Transform입니다.</param>
-        /// <param name="fallbackLookTargetPosition">실시간 타겟이 없을 때 사용할 고정 바라보기 좌표입니다.</param>
-        /// <returns>코루틴 이터레이터입니다.</returns>
-        private IEnumerator CoMoveDummyByTransform(
-            SkillDummyActorHandle handle,
-            Vector3 from,
-            Vector3 to,
-            float durationSeconds,
-            Easing.EaseType easeType,
-            bool lookAtTargetDuringMove,
-            Transform lookTargetTransform,
-            Vector3 fallbackLookTargetPosition)
-        {
-            if (handle == null || handle.Character == null)
-                yield break;
-
-            float duration = Mathf.Max(0.0001f, durationSeconds);
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                if (handle.Character == null)
-                    yield break;
-
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                float eased = Easing.Apply(t, easeType);
-                handle.GroundPosition = Vector3.LerpUnclamped(from, to, eased);
-                SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
-                if (lookAtTargetDuringMove)
-                    SkillDummyActorRuntimeUtility.UpdateFacingDuringMove(handle, lookTargetTransform, fallbackLookTargetPosition);
-                yield return null;
-            }
-
-            if (handle.Character != null)
-            {
-                handle.GroundPosition = to;
-                SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
-                if (lookAtTargetDuringMove)
-                    SkillDummyActorRuntimeUtility.UpdateFacingDuringMove(handle, lookTargetTransform, fallbackLookTargetPosition);
-            }
-
-            handle.ActiveMoveCoroutine = null;
+                fallbackLookTargetPosition);
         }
 
         /// <summary>
@@ -1093,13 +994,7 @@ namespace GGemCo2DSkill
         /// </summary>
         private void MaintainDummyAirborneState()
         {
-            if (_dummyActors.Count == 0)
-                return;
-
-            foreach (var pair in _dummyActors)
-            {
-                SkillDummyActorRuntimeUtility.MaintainAirborneState(pair.Value);
-            }
+            SkillDummyActorMotionUtility.MaintainAirborneState(_dummyActors);
         }
 
         /// <summary>
@@ -1119,102 +1014,14 @@ namespace GGemCo2DSkill
             bool allowReplace,
             bool keepAirborneGravity)
         {
-            if (handle == null || handle.Character == null)
-                return;
-
-            if (handle.ActiveAirHeightCoroutine != null)
-            {
-                if (!allowReplace)
-                    return;
-
-                StopCoroutine(handle.ActiveAirHeightCoroutine);
-                handle.ActiveAirHeightCoroutine = null;
-            }
-
-            SkillDummyActorRuntimeUtility.SyncGroundFromTransform(handle);
-
-            float startHeight = Mathf.Max(0f, handle.AirHeight);
-            float endHeight = Mathf.Max(0f, targetAirHeight);
-            float duration = Mathf.Max(0f, durationSeconds);
-
-            if (keepAirborneGravity || startHeight > 0f || endHeight > 0f)
-                SkillDummyActorRuntimeUtility.EnsureGravityOverride(handle);
-
-            SkillDummyActorRuntimeUtility.ZeroRigidbodyVelocity(handle);
-
-            if (Mathf.Abs(endHeight - startHeight) <= 1e-4f || duration <= 0f)
-            {
-                handle.AirHeight = endHeight;
-                SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
-                SkillDummyActorRuntimeUtility.ZeroRigidbodyVelocity(handle);
-
-                if (!keepAirborneGravity && endHeight <= 0f)
-                    SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-                return;
-            }
-
-            handle.ActiveAirHeightCoroutine = StartCoroutine(CoDummyAirHeightTransition(
+            SkillDummyActorMotionUtility.StartAirHeightTransition(
+                this,
                 handle,
-                startHeight,
-                endHeight,
-                duration,
+                targetAirHeight,
+                durationSeconds,
                 easing,
-                keepAirborneGravity));
-        }
-
-        /// <summary>
-        /// 더미 캐릭터 공중 높이 전환을 프레임 단위로 보간합니다.
-        /// </summary>
-        /// <param name="handle">대상 더미 핸들입니다.</param>
-        /// <param name="startAirHeight">시작 공중 높이입니다.</param>
-        /// <param name="targetAirHeight">목표 공중 높이입니다.</param>
-        /// <param name="durationSeconds">보간 시간(초)입니다.</param>
-        /// <param name="easing">보간 easing입니다.</param>
-        /// <param name="keepAirborneGravity">완료 후 중력 오버라이드 유지 여부입니다.</param>
-        /// <returns>코루틴 이터레이터입니다.</returns>
-        private IEnumerator CoDummyAirHeightTransition(
-            SkillDummyActorHandle handle,
-            float startAirHeight,
-            float targetAirHeight,
-            float durationSeconds,
-            Easing.EaseType easing,
-            bool keepAirborneGravity)
-        {
-            if (handle == null || handle.Character == null)
-                yield break;
-
-            float duration = Mathf.Max(0.0001f, durationSeconds);
-            float elapsed = 0f;
-
-            while (elapsed < duration)
-            {
-                if (handle.Character == null)
-                {
-                    handle.ActiveAirHeightCoroutine = null;
-                    SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
-                    yield break;
-                }
-
-                elapsed += Time.deltaTime;
-                float t = Mathf.Clamp01(elapsed / duration);
-                float eased = Easing.Apply(t, easing);
-                handle.AirHeight = Mathf.Lerp(startAirHeight, targetAirHeight, eased);
-                SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
-                SkillDummyActorRuntimeUtility.ZeroRigidbodyVelocity(handle);
-                yield return null;
-            }
-
-            if (handle.Character != null)
-            {
-                handle.AirHeight = targetAirHeight;
-                SkillDummyActorRuntimeUtility.ApplyWorldPosition(handle);
-                SkillDummyActorRuntimeUtility.ZeroRigidbodyVelocity(handle);
-            }
-
-            handle.ActiveAirHeightCoroutine = null;
-
-            if (!keepAirborneGravity && targetAirHeight <= 0f)
-                SkillDummyActorRuntimeUtility.ReleaseGravityOverride(handle);
+                allowReplace,
+                keepAirborneGravity);
         }
 
         /// <summary>
