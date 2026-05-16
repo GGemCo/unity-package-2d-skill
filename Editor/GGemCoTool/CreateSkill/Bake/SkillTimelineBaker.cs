@@ -308,6 +308,7 @@ namespace GGemCo2DSkillEditor
                         // Target state filter
                         def.isGroundOnly = dmg.IsGroundOnly;
                         def.isAirOnly = dmg.IsAirOnly;
+                        def.facingDamagePolicy = dmg.FacingDamagePolicy;
 
                         // OnHit Affect(피격 대상)
                         def.onHitAffects = dmg.OnHitAffects;

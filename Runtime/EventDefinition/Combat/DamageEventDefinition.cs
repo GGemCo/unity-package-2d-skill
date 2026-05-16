@@ -3,6 +3,22 @@ using UnityEngine;
 
 namespace GGemCo2DSkill
 {
+    /// <summary>
+    /// 데미지 적용 시 캐스터/타겟의 바라보기 조건을 어떻게 처리할지 정의합니다.
+    /// </summary>
+    public enum DamageFacingPolicy
+    {
+        /// <summary>
+        /// 기존 바라보기 판정 규칙을 따릅니다.
+        /// </summary>
+        RespectFacing = 0,
+
+        /// <summary>
+        /// 바라보기 상태를 무시하고 데미지를 적용합니다.
+        /// </summary>
+        IgnoreFacing = 1,
+    }
+
     public sealed class DamageEventDefinition : ScriptableObject
     {
         [Header("Damage")]
@@ -26,6 +42,10 @@ namespace GGemCo2DSkill
         public bool isGroundOnly = false;
         [Tooltip("지면에 붙어있는 대상은 제외하고, 공중에 떠 있는 대상에게만 데미지를 적용합니다.")]
         public bool isAirOnly = false;
+
+        [Header("Facing Policy")]
+        [Tooltip("데미지 적용 시 캐스터/타겟 바라보기 판정을 따를지 무시할지 결정합니다.")]
+        public DamageFacingPolicy facingDamagePolicy = DamageFacingPolicy.RespectFacing;
 
         [Header("OnHit Affect")]
         public OnHitAffectEntry[] onHitAffects;

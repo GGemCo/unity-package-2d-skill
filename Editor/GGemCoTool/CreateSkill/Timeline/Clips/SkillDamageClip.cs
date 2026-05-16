@@ -124,6 +124,10 @@ namespace GGemCo2DSkillEditor
         [Tooltip("[공중 전용] 대상이 공중에 있을 때만 데미지를 적용합니다. 지상 대상은 제외됩니다.")]
         [SerializeField] private bool isAirOnly = false;
 
+        [Header("Facing Policy")]
+        [Tooltip("[바라보기 판정] 켜면 기존 바라보기 규칙을 따르고, 끄면 바라보기 상태를 무시하고 데미지를 적용합니다.")]
+        [SerializeField] private DamageFacingPolicy facingDamagePolicy = DamageFacingPolicy.RespectFacing;
+
 
         [Header("Camera Shake")]
         [Tooltip("[카메라 Shake 사용] 이 타격이 실제 데미지를 확정했을 때 카메라 Shake를 재생합니다.")]
@@ -234,6 +238,11 @@ namespace GGemCo2DSkillEditor
         /// 대상이 공중에 있을 때만 데미지를 적용할지 여부를 반환합니다.
         /// </summary>
         public bool IsAirOnly => isAirOnly;
+
+        /// <summary>
+        /// 데미지 적용 시 바라보기 판정을 어떻게 처리할지 반환합니다.
+        /// </summary>
+        public DamageFacingPolicy FacingDamagePolicy => facingDamagePolicy;
 
         /// <summary>
         /// 이 타격에서 캐스터에게 경직을 사용할지 여부를 반환합니다.

@@ -133,7 +133,7 @@ namespace GGemCo2DSkill
                     DamageCameraShakeDirectionMode = def.cameraShakeDirectionMode,
                 };
 
-                bool didApplyDamage = ShouldApplyFacingDamage(castCharacterBase, target, ownerObject);
+                bool didApplyDamage = ShouldApplyDamageByFacingPolicy(def, castCharacterBase, target, ownerObject);
 
                 CollectOnHitCrowdControlUids(
                     def.onHitCrowdControls,
@@ -220,6 +220,30 @@ namespace GGemCo2DSkill
 #endif
 
         /// <summary>
+        /// 데미지 이벤트 정의의 바라보기 정책에 따라 실제 데미지 적용 여부를 결정합니다.
+        /// </summary>
+        /// <param name="def">데미지 이벤트 정의입니다.</param>
+        /// <param name="caster">공격 캐릭터입니다.</param>
+        /// <param name="target">피격 후보 캐릭터입니다.</param>
+        /// <param name="ownerObject">캐스터 위치 대체값으로 사용할 실행기 오브젝트입니다.</param>
+        /// <returns>현재 정책에서 실제 데미지를 적용해야 하면 <see langword="true"/>입니다.</returns>
+        private static bool ShouldApplyDamageByFacingPolicy(
+            DamageEventDefinition def,
+            CharacterBase caster,
+            CharacterBase target,
+            GameObject ownerObject)
+        {
+            if (caster == null || target == null)
+                return false;
+
+            if (def != null && def.facingDamagePolicy == DamageFacingPolicy.IgnoreFacing)
+                return true;
+
+            return ShouldApplyFacingDamage(caster, target, ownerObject);
+        }
+
+        /// <summary>
+        /// 바라보기 정책이 <see cref="DamageFacingPolicy.RespectFacing"/>일 때,
         /// 캐스터와 타겟의 바라보기 상태를 기준으로 실제 데미지를 적용할지 결정합니다.
         /// </summary>
         /// <param name="caster">공격 캐릭터입니다.</param>
