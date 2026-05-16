@@ -11,19 +11,31 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 더미 공중 상태 이벤트를 해석해 대상 더미를 찾고, 목표 높이와 중력 유지 정책을 계산한 뒤 전환을 시작합니다.
         /// </summary>
-        /// <param name="runner">공중 높이 전환 코루틴을 실행할 MonoBehaviour입니다.</param>
+        /// <param name="runner">공중 높이 전환 코루틴을 실행하거나 중단할 MonoBehaviour입니다.</param>
         /// <param name="registry">더미 액터 레지스트리입니다.</param>
+        /// <param name="casterHandle">Caster 참조에 재사용할 임시 핸들입니다.</param>
+        /// <param name="ctx">현재 스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="def">더미 공중 상태 이벤트 정의입니다.</param>
         /// <returns>공중 상태 전환 명령 시작에 성공하면 <see langword="true"/>입니다.</returns>
         public static bool TryExecuteAirborneState(
             MonoBehaviour runner,
             Dictionary<string, SkillDummyActorHandle> registry,
+            SkillDummyActorHandle casterHandle,
+            SkillTargetContext ctx,
             SetDummyAirborneStateEventDefinition def)
         {
             if (runner == null || def == null)
                 return false;
 
-            if (!SkillDummyActorReferenceUtility.TryGetActorHandle(registry, def.actorKey, def.missingActorPolicy, out var handle))
+            if (!SkillDummyActorReferenceUtility.TryResolveActorHandle(
+                    runner,
+                    registry,
+                    casterHandle,
+                    ctx,
+                    def.actorReferenceType,
+                    def.actorKey,
+                    def.missingActorPolicy,
+                    out var handle))
                 return false;
 
             if (handle.Character == null)

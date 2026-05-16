@@ -14,6 +14,8 @@ namespace GGemCo2DSkillEditor
     public sealed class SkillSetDummyAirborneStateClip : SkillEventClipBase
     {
         [Header("Identity")]
+        [Tooltip("공중 상태를 적용할 대상을 결정하는 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        [SerializeField] private DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Actor;
         [SerializeField] private string actorKey = "dummy_1";
 
         [Header("Airborne State")]
@@ -32,7 +34,12 @@ namespace GGemCo2DSkillEditor
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.SetDummyAirborneState;
 
         /// <summary>
-        /// 대상 더미 캐릭터 키를 반환합니다.
+        /// 공중 상태를 적용할 대상 참조 방식을 반환합니다.
+        /// </summary>
+        public DummyActorReferenceType ActorReferenceType => actorReferenceType;
+
+        /// <summary>
+        /// 대상 더미 캐릭터의 actorKey를 반환합니다.
         /// </summary>
         public string ActorKey => actorKey;
 
@@ -62,7 +69,7 @@ namespace GGemCo2DSkillEditor
         public bool AllowReplace => allowReplace;
 
         /// <summary>
-        /// 더미 미존재 시 처리 정책을 반환합니다.
+        /// 대상 미존재 시 처리 정책을 반환합니다.
         /// </summary>
         public DummyMissingActorPolicy MissingActorPolicy => missingActorPolicy;
     }

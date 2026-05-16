@@ -129,8 +129,7 @@ namespace GGemCo2DSkill
             }
 
             casterHandle.ActorKey = CasterActorKey;
-            casterHandle.AirHeight = 0f;
-            SkillDummyActorRuntimeUtility.SyncGroundFromTransform(casterHandle);
+            SyncGroundWhenNotAirborne(casterHandle);
             handle = casterHandle;
             return true;
         }
@@ -211,6 +210,23 @@ namespace GGemCo2DSkill
         {
             if (missingPolicy == DummyMissingActorPolicy.Warn)
                 Debug.LogWarning($"[SkillExecutor] Dummy actor not found. key={actorKey}");
+        }
+
+        /// <summary>
+        /// 캐스터 임시 핸들이 공중 상태를 추적 중이 아닐 때만 지면 좌표를 현재 Transform 기준으로 동기화합니다.
+        /// 공중 상태를 이미 추적 중이면 AirHeight를 유지해 연속 공중 전환 기준점이 깨지지 않도록 합니다.
+        /// </summary>
+        /// <param name="casterHandle">동기화할 캐스터 임시 핸들입니다.</param>
+        private static void SyncGroundWhenNotAirborne(SkillDummyActorHandle casterHandle)
+        {
+            if (casterHandle == null)
+                return;
+
+            if (casterHandle.AirHeight > 1e-4f || casterHandle.ActiveAirHeightCoroutine != null)
+                return;
+
+            casterHandle.AirHeight = 0f;
+            SkillDummyActorRuntimeUtility.SyncGroundFromTransform(casterHandle);
         }
     }
 }

@@ -634,6 +634,7 @@ namespace GGemCo2DSkillEditor
                     return () =>
                     {
                         var def = ScriptableObject.CreateInstance<SetDummyAirborneStateEventDefinition>();
+                        def.actorReferenceType = airborneDummy.ActorReferenceType;
                         def.actorKey = airborneDummy.ActorKey;
                         def.airborneEnabled = airborneDummy.AirborneEnabled;
                         def.targetAirHeight = Mathf.Max(0f, airborneDummy.TargetAirHeight);

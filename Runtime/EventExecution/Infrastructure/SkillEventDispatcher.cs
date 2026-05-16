@@ -126,7 +126,7 @@ namespace GGemCo2DSkill
                     break;
 
                 case ConfigCommonSkill.SkillEventType.SetDummyAirborneState:
-                    executor.HandleSetDummyAirborneState(payload);
+                    executor.HandleSetDummyAirborneState(targetContext, payload);
                     break;
 
                 case ConfigCommonSkill.SkillEventType.PlayDummyCharacterAnimation:

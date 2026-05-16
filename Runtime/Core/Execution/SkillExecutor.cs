@@ -565,8 +565,9 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 스킬 이벤트로 더미 캐릭터의 공중 상태(높이/중력)를 제어합니다.
         /// </summary>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">이벤트 페이로드 오브젝트입니다.</param>
-        internal void HandleSetDummyAirborneState(UnityEngine.Object payloadObj)
+        internal void HandleSetDummyAirborneState(SkillTargetContext ctx, UnityEngine.Object payloadObj)
         {
             if (payloadObj is not SetDummyAirborneStateEventDefinition def)
                 return;
@@ -574,6 +575,8 @@ namespace GGemCo2DSkill
             SkillDummyActorAirborneEventUtility.TryExecuteAirborneState(
                 this,
                 _dummyActors,
+                _casterActorHandle,
+                ctx,
                 def);
         }
 
