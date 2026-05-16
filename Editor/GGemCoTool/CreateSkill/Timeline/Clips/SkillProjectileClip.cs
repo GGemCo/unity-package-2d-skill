@@ -1,8 +1,8 @@
 ﻿using System;
 using Config;
 using GGemCo2DCore;
+using GGemCo2DSkill;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace GGemCo2DSkillEditor
 {
@@ -56,6 +56,16 @@ namespace GGemCo2DSkillEditor
         [Header("Targeting Overrides")]
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private GGemCo2DSkill.TargetingOverride targetingOverride;
+
+        [Header("타겟 지점 정책")]
+        [Tooltip("프로젝타일 조준에 사용할 고정 타겟 지점을 계산하는 방식입니다. UseDefaultTargeting은 기존 동작을 유지합니다.")]
+        [SerializeField] private ProjectileTargetPointPolicy targetPointPolicy = ProjectileTargetPointPolicy.UseDefaultTargeting;
+
+        [Tooltip("targetPointPolicy가 FixedOffsetFromTargetCenter일 때, 타겟 중심을 기준으로 적용할 오프셋입니다.")]
+        [SerializeField] private Vector2 fixedTargetOffset = Vector2.zero;
+
+        [Tooltip("targetPointPolicy가 FixedNormalizedPointInTargetHitArea일 때, 타겟 HitArea 내부에서 사용할 정규화된 지점입니다. (0,0)=좌측 하단, (1,1)=우측 상단")]
+        [SerializeField] private Vector2 fixedTargetHitAreaNormalized = new(0.5f, 0.5f);
 
         [Header("Projectile Hit Behavior Override")]
         [Tooltip("프로젝타일의 적중 생명 주기와 데미지 방식을 이벤트 단위로 덮어쓸지 여부입니다.")]
@@ -128,6 +138,21 @@ namespace GGemCo2DSkillEditor
         /// 프로젝타일의 타게팅 규칙을 보정하는 오버라이드 설정입니다.
         /// </summary>
         public GGemCo2DSkill.TargetingOverride TargetingOverride => targetingOverride;
+
+        /// <summary>
+        /// 프로젝타일 목표점 고정 정책입니다.
+        /// </summary>
+        public ProjectileTargetPointPolicy TargetPointPolicy => targetPointPolicy;
+
+        /// <summary>
+        /// 타겟 중심점 기준 고정 오프셋입니다.
+        /// </summary>
+        public Vector2 FixedTargetOffset => fixedTargetOffset;
+
+        /// <summary>
+        /// 타겟 HitArea 정규화 좌표(0~1)입니다.
+        /// </summary>
+        public Vector2 FixedTargetHitAreaNormalized => fixedTargetHitAreaNormalized;
 
         /// <summary>
         /// 프로젝타일 적중 생명 주기와 데미지 방식을 덮어쓸지 여부입니다.

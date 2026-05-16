@@ -521,6 +521,9 @@ namespace GGemCo2DSkillEditor
                         def.visualSprite = proj.VisualSprite;
                         def.visualAnimatorController = proj.VisualAnimatorController;
                         def.visualVfxUidOverride = proj.VisualVfxUidOverride;
+                        def.targetPointPolicy = proj.TargetPointPolicy;
+                        def.fixedTargetOffset = proj.FixedTargetOffset;
+                        def.fixedTargetHitAreaNormalized = proj.FixedTargetHitAreaNormalized;
                         def.useProjectileHitBehaviorOverride = proj.UseProjectileHitBehaviorOverride;
                         def.hitLifetimeMode = proj.HitLifetimeMode;
                         def.damageApplyMode = proj.DamageApplyMode;

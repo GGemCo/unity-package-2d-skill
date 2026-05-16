@@ -32,6 +32,16 @@ namespace GGemCo2DSkill
         public RuntimeAnimatorController visualAnimatorController;
         public int visualVfxUidOverride = 0;
 
+        [Header("타겟 지점 정책")]
+        [Tooltip("프로젝타일 조준에 사용할 고정 타겟 지점을 계산하는 방식입니다. UseDefaultTargeting은 기존 동작을 유지합니다.")]
+        public ProjectileTargetPointPolicy targetPointPolicy = ProjectileTargetPointPolicy.UseDefaultTargeting;
+
+        [Tooltip("targetPointPolicy가 FixedOffsetFromTargetCenter일 때, 타겟 중심을 기준으로 적용할 오프셋입니다.")]
+        public Vector2 fixedTargetOffset = Vector2.zero;
+
+        [Tooltip("targetPointPolicy가 FixedNormalizedPointInTargetHitArea일 때, 타겟 HitArea 내부에서 사용할 정규화된 지점입니다. (0,0)=좌측 하단, (1,1)=우측 상단")]
+        public Vector2 fixedTargetHitAreaNormalized = new(0.5f, 0.5f);
+
         [Header("Projectile Hit Behavior Override")]
         [Tooltip("프로젝타일의 적중 생명 주기와 데미지 방식을 이벤트 단위로 덮어쓸지 여부입니다.")]
         public bool useProjectileHitBehaviorOverride = false;
