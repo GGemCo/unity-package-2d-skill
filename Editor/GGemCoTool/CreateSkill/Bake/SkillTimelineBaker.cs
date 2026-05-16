@@ -528,6 +528,10 @@ namespace GGemCo2DSkillEditor
                         def.hitLifetimeMode = proj.HitLifetimeMode;
                         def.damageApplyMode = proj.DamageApplyMode;
                         def.tickDamageIntervalSeconds = Mathf.Max(0f, proj.TickDamageIntervalSeconds);
+                        def.useEnvironmentHitPolicyOverride = proj.UseEnvironmentHitPolicyOverride;
+                        def.environmentHitPolicy = proj.EnvironmentHitPolicy;
+                        def.useDefaultGroundWallEnvironmentLayers = proj.UseDefaultGroundWallEnvironmentLayers;
+                        def.customEnvironmentHitLayerMask = proj.CustomEnvironmentHitLayerMask;
                         def.allowSkillChainOnConfirmedDamage = proj.AllowSkillChainOnConfirmedDamage;
                         def.targetingOverride = proj.TargetingOverride;
                         return def;

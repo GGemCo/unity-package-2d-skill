@@ -55,6 +55,19 @@ namespace GGemCo2DSkill
         [Tooltip("PeriodicOverlap일 때 몇 초 간격으로 데미지를 적용할지 설정합니다.")]
         public float tickDamageIntervalSeconds = 0.25f;
 
+        [Header("Environment Hit Effect")]
+        [Tooltip("타겟이 아닌 Ground/Wall 환경 Collider와 충돌했을 때 Hit VFX를 출력할지 여부입니다.")]
+        public bool useEnvironmentHitPolicyOverride = false;
+
+        [Tooltip("환경 Collider와 충돌했을 때 Hit VFX 출력 및 발사체 수명을 어떻게 처리할지 결정합니다.")]
+        public ProjectileConstants.EnvironmentHitPolicy environmentHitPolicy = ProjectileConstants.EnvironmentHitPolicy.Ignore;
+
+        [Tooltip("기본 환경 충돌 레이어로 GGemCo_TileMapGround, GGemCo_TileMapWall을 사용합니다. 끄면 customEnvironmentHitLayerMask를 사용합니다.")]
+        public bool useDefaultGroundWallEnvironmentLayers = true;
+
+        [Tooltip("useDefaultGroundWallEnvironmentLayers가 꺼져 있을 때 사용할 커스텀 환경 충돌 레이어입니다.")]
+        public LayerMask customEnvironmentHitLayerMask = 0;
+
         [Header("Chain Cancel")]
         [Tooltip("이 Projectile 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
         public bool allowSkillChainOnConfirmedDamage = false;

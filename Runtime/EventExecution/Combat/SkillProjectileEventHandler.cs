@@ -110,7 +110,12 @@ namespace GGemCo2DSkill
                 damageApplyModeOverride: def.damageApplyMode,
                 useTickDamageIntervalOverride: def.useProjectileHitBehaviorOverride &&
                                                    def.damageApplyMode == ProjectileConstants.DamageApplyMode.PeriodicOverlap,
-                tickDamageIntervalOverride: Mathf.Max(0f, def.tickDamageIntervalSeconds));
+                tickDamageIntervalOverride: Mathf.Max(0f, def.tickDamageIntervalSeconds),
+                useEnvironmentHitPolicyOverride: def.useEnvironmentHitPolicyOverride,
+                environmentHitPolicyOverride: def.environmentHitPolicy,
+                useEnvironmentHitLayerMaskOverride: def.useEnvironmentHitPolicyOverride &&
+                                                    !def.useDefaultGroundWallEnvironmentLayers,
+                environmentHitLayerMaskOverride: def.customEnvironmentHitLayerMask.value);
 
             casterChar.LaunchProjectile(meta);
         }
