@@ -56,6 +56,10 @@ namespace GGemCo2DSkill
                         context.SnapshotGroundPoint);
                     break;
 
+                case ConfigCommonSkill.SkillEventType.PlayAudio:
+                    executor.HandlePlayAudio(targetContext, payload);
+                    break;
+
                 case ConfigCommonSkill.SkillEventType.Lunge:
                     executor.HandleLunge(context.Skill, targetContext, payload, context.EventDurationSeconds);
                     break;

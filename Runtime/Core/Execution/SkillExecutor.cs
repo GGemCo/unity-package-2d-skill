@@ -273,6 +273,16 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 오디오 이벤트 정의를 바탕으로 스킬 사운드를 재생합니다.
+        /// </summary>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">Bake된 오디오 이벤트 정의입니다.</param>
+        internal void HandlePlayAudio(SkillTargetContext ctx, UnityEngine.Object payloadObj)
+        {
+            SkillPlayAudioEventHandler.Handle(ctx, payloadObj);
+        }
+
+        /// <summary>
         /// 위치 고정 이벤트를 전용 핸들러로 위임합니다.
         /// </summary>
         /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
