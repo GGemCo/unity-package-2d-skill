@@ -53,6 +53,28 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// 타겟 앵커 기반 VFX의 생성 이후 결합 방식을 정의합니다.
+    /// </summary>
+    public enum VfxTargetBindingPolicy
+    {
+        /// <summary>
+        /// 기존 데이터 호환 모드입니다.
+        /// Target 앵커는 타겟 부착으로 취급하고, attachToTarget 플래그도 함께 해석합니다.
+        /// </summary>
+        Legacy = 0,
+
+        /// <summary>
+        /// 타겟 위치에 생성한 뒤 타겟 Transform에 부착하여 함께 이동합니다.
+        /// </summary>
+        AttachToTarget = 1,
+
+        /// <summary>
+        /// 이벤트 시점의 타겟 위치에만 1회 생성하고, 타겟을 추적하거나 하위에 붙이지 않습니다.
+        /// </summary>
+        SpawnAtTargetPositionOnly = 2
+    }
+
+    /// <summary>
     /// 스킬 런타임에서 VFX 이벤트 하나를 실행하기 위한 설정입니다.
     /// </summary>
     public sealed class VfxEventDefinition : ScriptableObject
@@ -67,6 +89,9 @@ namespace GGemCo2DSkill
         [Header("Spawn Rule")]
         [Tooltip("이 VFX를 생성할 월드 위치 기준점입니다.")]
         public VfxSpawnAnchor spawnAnchor = VfxSpawnAnchor.Caster;
+
+        [Tooltip("타겟 앵커 기반 VFX의 생성 후 결합 정책입니다. Legacy는 기존 규칙을 유지합니다.")]
+        public VfxTargetBindingPolicy targetBindingPolicy = VfxTargetBindingPolicy.Legacy;
 
         [Tooltip("레거시 타겟 부착 플래그입니다. true이면 Target 앵커처럼 처리하고 생성 후 타겟 Transform에 부착합니다.")]
         public bool attachToTarget;

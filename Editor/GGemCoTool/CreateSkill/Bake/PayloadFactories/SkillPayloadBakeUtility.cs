@@ -61,6 +61,23 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
+        /// Timeline VFX 클립의 타겟 결합 정책 값을 런타임 VFX 결합 정책으로 변환합니다.
+        /// </summary>
+        /// <param name="policyRaw">Timeline 클립에 저장된 타겟 결합 정책 enum 원시 값입니다.</param>
+        /// <returns>런타임에서 사용할 타겟 결합 정책입니다.</returns>
+        public static VfxTargetBindingPolicy ConvertVfxTargetBindingPolicy(int policyRaw)
+        {
+            switch ((SkillSpawnVfxClip.TargetBindingPolicy)policyRaw)
+            {
+                case SkillSpawnVfxClip.TargetBindingPolicy.SpawnAtTargetPositionOnly:
+                    return VfxTargetBindingPolicy.SpawnAtTargetPositionOnly;
+                case SkillSpawnVfxClip.TargetBindingPolicy.AttachToTarget:
+                default:
+                    return VfxTargetBindingPolicy.AttachToTarget;
+            }
+        }
+
+        /// <summary>
         /// 레이저 데미지 활성 지속 시간을 런타임 이벤트 정의에서 사용하는 값으로 보정합니다.
         /// </summary>
         /// <param name="value">타임라인 클립에 저장된 데미지 활성 지속 시간입니다.</param>

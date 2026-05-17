@@ -54,9 +54,13 @@ namespace GGemCo2DSkillEditor
         {
             var def = ScriptableObject.CreateInstance<VfxEventDefinition>();
             var spawnAnchor = SkillPayloadBakeUtility.ConvertVfxSpawnAnchor(fx.Anchor);
+            var targetBindingPolicy = SkillPayloadBakeUtility.ConvertVfxTargetBindingPolicy(fx.TargetBindingPolicyRaw);
             def.vfxUid = fx.VFXUid;
             def.spawnAnchor = spawnAnchor;
-            def.attachToTarget = spawnAnchor == VfxSpawnAnchor.Target;
+            def.targetBindingPolicy = targetBindingPolicy;
+            def.attachToTarget =
+                spawnAnchor == VfxSpawnAnchor.Target &&
+                targetBindingPolicy == VfxTargetBindingPolicy.AttachToTarget;
             def.localOffset = new Vector3(fx.Offset.x, fx.Offset.y, 0f);
             def.positionAnchorWrite = fx.PositionAnchorWrite;
             def.lifetimeMode = fx.LifetimeMode;

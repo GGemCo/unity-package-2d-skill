@@ -37,6 +37,22 @@ namespace GGemCo2DSkillEditor
             Ground = 2
         }
 
+        /// <summary>
+        /// 타겟 기준 스폰 시, 생성 이후 타겟 Transform 결합 방식을 정의합니다.
+        /// </summary>
+        public enum TargetBindingPolicy
+        {
+            /// <summary>
+            /// 타겟 위치에 생성한 뒤 타겟 Transform에 부착하여 함께 이동합니다.
+            /// </summary>
+            AttachToTarget = 0,
+
+            /// <summary>
+            /// 이벤트 시점의 타겟 위치에만 1회 생성하고, 타겟을 추적하거나 하위로 붙이지 않습니다.
+            /// </summary>
+            SpawnAtTargetPositionOnly = 1
+        }
+
         [Header("Vfx")]
 
         [Tooltip("생성할 이펙트 리소스의 UID입니다. vfx 테이블 또는 Addressables Vfx 식별자와 매칭됩니다.")]
@@ -47,6 +63,11 @@ namespace GGemCo2DSkillEditor
 
         [Tooltip("기준 위치로부터 적용할 로컬 오프셋입니다.")]
         [SerializeField] private Vector2 offset;
+
+        [Header("Spawn Policy")]
+
+        [Tooltip("Anchor가 Target일 때 생성 이후 타겟 결합 방식을 지정합니다.")]
+        [SerializeField] private TargetBindingPolicy targetBindingPolicy = TargetBindingPolicy.AttachToTarget;
 
         [Header("Position Anchor")]
 
@@ -98,6 +119,14 @@ namespace GGemCo2DSkillEditor
         /// 기준 위치에 적용할 이펙트 오프셋을 반환합니다.
         /// </summary>
         public Vector2 Offset => offset;
+
+        /// <summary>
+        /// 타겟 기준 생성 시 사용할 결합 정책(enum)을 정수 값으로 반환합니다.
+        /// </summary>
+        /// <remarks>
+        /// Bake 단계에서 런타임 이벤트 정의의 정책 enum으로 변환할 때 사용됩니다.
+        /// </remarks>
+        public int TargetBindingPolicyRaw => (int)targetBindingPolicy;
 
         /// <summary>
         /// 스킬 VFX가 계산한 최종 생성 위치를 이후 이벤트에서 참조하도록 저장할 설정을 반환합니다.

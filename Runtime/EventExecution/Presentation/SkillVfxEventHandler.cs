@@ -255,7 +255,7 @@ namespace GGemCo2DSkill
             if (def == null)
                 return VfxSpawnAnchor.Caster;
 
-            if (def.attachToTarget)
+            if (def.targetBindingPolicy == VfxTargetBindingPolicy.Legacy && def.attachToTarget)
                 return VfxSpawnAnchor.Target;
 
             return def.spawnAnchor;
@@ -338,7 +338,24 @@ namespace GGemCo2DSkill
         /// <returns>타겟에 부착해야 하면 <see langword="true"/>입니다.</returns>
         private static bool ShouldAttachVfxToTarget(VfxEventDefinition def)
         {
-            return ResolveVfxSpawnAnchor(def) == VfxSpawnAnchor.Target;
+            if (def == null)
+                return false;
+
+            VfxSpawnAnchor anchor = ResolveVfxSpawnAnchor(def);
+            if (anchor != VfxSpawnAnchor.Target)
+                return false;
+
+            switch (def.targetBindingPolicy)
+            {
+                case VfxTargetBindingPolicy.SpawnAtTargetPositionOnly:
+                    return false;
+                case VfxTargetBindingPolicy.AttachToTarget:
+                    return true;
+                case VfxTargetBindingPolicy.Legacy:
+                default:
+                    // 레거시 규칙: Target 기준 스폰은 생성 후 타겟에 부착한다.
+                    return true;
+            }
         }
     }
 }
