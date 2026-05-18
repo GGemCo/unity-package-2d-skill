@@ -143,7 +143,7 @@ namespace GGemCo2DSkill
                 startPositionOverride: resolvedStartPositionOverride,
                 startPointUpdateMode: resolvedStartPointUpdateMode,
                 useCasterFlipStartOffsetX: def.startAnchor == LaserStartAnchor.Caster && def.useCasterFlipStartOffsetX);
-
+#if UNITY_EDITOR
             RegisterLaserDebugGizmo(
                 casterChar,
                 targetChar,
@@ -153,7 +153,7 @@ namespace GGemCo2DSkill
                 laserInfo,
                 def,
                 meta);
-
+#endif
             casterChar.LaunchLaser(meta);
         }
 
@@ -309,7 +309,8 @@ namespace GGemCo2DSkill
             worldPoint = hitArea.transform.TransformPoint(localPoint);
             return true;
         }
-
+        
+#if UNITY_EDITOR
         /// <summary>
         /// Skill 테스트 허브에 레이저 예상 범위 기즈모를 등록합니다.
         /// 실제 LaserBeam과 동일한 조준 정책을 사용하여 Raycast 선분과 시각 회전 가이드를 함께 기록합니다.
@@ -366,7 +367,8 @@ namespace GGemCo2DSkill
                 visualDirection,
                 vfxAngleSyncMode);
         }
-
+#endif
+        
         /// <summary>
         /// 레이저 프리뷰용 Raycast 방향 벡터를 계산합니다.
         /// 실제 LaserBeam과 동일하게 RaycastDirectionMode, RaycastAngleDeg, 타겟/좌표 오버라이드 우선순위를 따릅니다.
