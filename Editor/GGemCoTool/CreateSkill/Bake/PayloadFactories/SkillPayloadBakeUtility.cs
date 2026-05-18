@@ -61,19 +61,39 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
-        /// Timeline VFX 클립의 타겟 결합 정책 값을 런타임 VFX 결합 정책으로 변환합니다.
+        /// Timeline VFX 클립의 결합 정책 값을 런타임 결합 정책으로 변환합니다.
         /// </summary>
         /// <param name="policyRaw">Timeline 클립에 저장된 타겟 결합 정책 enum 원시 값입니다.</param>
-        /// <returns>런타임에서 사용할 타겟 결합 정책입니다.</returns>
+        /// <returns>런타임에서 사용할 결합 정책입니다.</returns>
         public static VfxTargetBindingPolicy ConvertVfxTargetBindingPolicy(int policyRaw)
         {
             switch ((SkillSpawnVfxClip.TargetBindingPolicy)policyRaw)
             {
-                case SkillSpawnVfxClip.TargetBindingPolicy.SpawnAtTargetPositionOnly:
-                    return VfxTargetBindingPolicy.SpawnAtTargetPositionOnly;
+                case SkillSpawnVfxClip.TargetBindingPolicy.None:
+                    return VfxTargetBindingPolicy.None;
+                case SkillSpawnVfxClip.TargetBindingPolicy.AttachToCaster:
+                    return VfxTargetBindingPolicy.AttachToCaster;
                 case SkillSpawnVfxClip.TargetBindingPolicy.AttachToTarget:
-                default:
                     return VfxTargetBindingPolicy.AttachToTarget;
+                default:
+                    return VfxTargetBindingPolicy.None;
+            }
+        }
+
+        /// <summary>
+        /// Timeline VFX 클립의 Offset 좌표계 정책 값을 런타임 Offset 좌표계 정책으로 변환합니다.
+        /// </summary>
+        /// <param name="offsetSpaceRaw">Timeline 클립에 저장된 Offset 좌표계 enum 원시 값입니다.</param>
+        /// <returns>런타임에서 사용할 Offset 좌표계 정책입니다.</returns>
+        public static VfxOffsetSpace ConvertVfxOffsetSpace(int offsetSpaceRaw)
+        {
+            switch ((SkillSpawnVfxClip.OffsetSpacePolicy)offsetSpaceRaw)
+            {
+                case SkillSpawnVfxClip.OffsetSpacePolicy.ParentLocal:
+                    return VfxOffsetSpace.ParentLocal;
+                case SkillSpawnVfxClip.OffsetSpacePolicy.World:
+                default:
+                    return VfxOffsetSpace.World;
             }
         }
 

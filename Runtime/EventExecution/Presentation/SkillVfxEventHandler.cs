@@ -44,8 +44,9 @@ namespace GGemCo2DSkill
                 groundPoint = snapshotGroundPoint;
             }
 
-            Vector3 spawnPos = ResolveVfxSpawnPosition(skill, ctx, def, casterPos, targetPos, groundPoint);
-            spawnPos += def.localOffset;
+            Vector3 anchorSpawnPos = ResolveVfxSpawnPosition(skill, ctx, def, casterPos, targetPos, groundPoint);
+            Transform bindingParent = ResolveVfxBindingParentTransform(def, ctx);
+            Vector3 spawnPos = ResolveFinalVfxSpawnPosition(def, anchorSpawnPos, bindingParent);
 
             Vector2 resolvedForward = SkillDirectionResolver.ResolveForward2D(ctx.caster, ctx.forward);
             SaveVfxPositionAnchorIfNeeded(
@@ -63,16 +64,12 @@ namespace GGemCo2DSkill
             SceneGame sceneGame = SceneGame.Instance;
             if (sceneGame != null && sceneGame.VfxManager != null)
             {
-                vfx = sceneGame.VfxManager.CreateVfx(BuildVfxSpawnRequest(def, spawnPos, visualDirection, resolvedForward));
+                vfx = sceneGame.VfxManager.CreateVfx(
+                    BuildVfxSpawnRequest(def, spawnPos, visualDirection, resolvedForward, bindingParent));
             }
 
             if (vfx == null)
                 return;
-
-            if (ShouldAttachVfxToTarget(def) && ctx.lockedTarget != null)
-            {
-                vfx.transform.SetParent(ctx.lockedTarget.transform, worldPositionStays: true);
-            }
 
             vfx.transform.position = spawnPos;
             ownedVfxTracker?.Register(vfx);
@@ -113,12 +110,14 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="def">스킬 Timeline에서 Bake된 VFX 이벤트 정의입니다.</param>
         /// <param name="spawnPos">타겟팅 규칙과 오프셋을 반영한 월드 생성 위치입니다.</param>
+        /// <param name="parent">생성된 VFX를 결합할 부모 Transform입니다.</param>
         /// <returns>VFX 매니저에 전달할 생성 요청입니다.</returns>
         private static VfxSpawnRequest BuildVfxSpawnRequest(
             VfxEventDefinition def,
             Vector3 spawnPos,
             Vector2 visualDirection,
-            Vector2 sourceDirection)
+            Vector2 sourceDirection,
+            Transform parent)
         {
             TryResolveVfxDuration(def, out float vfxDuration);
             bool hasDirection = visualDirection.sqrMagnitude > 0.0001f || sourceDirection.sqrMagnitude > 0.0001f;
@@ -131,6 +130,7 @@ namespace GGemCo2DSkill
                 UseDirection = hasDirection,
                 Direction = visualDirection,
                 SourceDirection = sourceDirection,
+                Parent = parent,
                 SortingLayerOverride = def != null && def.overrideSortingLayer
                     ? def.sortingLayerOverride
                     : (ConfigSortingLayer.Keys?)null,
@@ -255,9 +255,6 @@ namespace GGemCo2DSkill
             if (def == null)
                 return VfxSpawnAnchor.Caster;
 
-            if (def.targetBindingPolicy == VfxTargetBindingPolicy.Legacy && def.attachToTarget)
-                return VfxSpawnAnchor.Target;
-
             return def.spawnAnchor;
         }
 
@@ -332,30 +329,53 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 생성된 VFX를 타겟 Transform에 부착해야 하는지 확인합니다.
+        /// 결합 정책에 따라 VFX의 부모 Transform을 해석합니다.
         /// </summary>
         /// <param name="def">VFX 이벤트 정의입니다.</param>
-        /// <returns>타겟에 부착해야 하면 <see langword="true"/>입니다.</returns>
-        private static bool ShouldAttachVfxToTarget(VfxEventDefinition def)
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <returns>결합할 부모 Transform입니다. 결합하지 않으면 <see langword="null"/>입니다.</returns>
+        private static Transform ResolveVfxBindingParentTransform(VfxEventDefinition def, SkillTargetContext ctx)
         {
             if (def == null)
-                return false;
-
-            VfxSpawnAnchor anchor = ResolveVfxSpawnAnchor(def);
-            if (anchor != VfxSpawnAnchor.Target)
-                return false;
+                return null;
 
             switch (def.targetBindingPolicy)
             {
-                case VfxTargetBindingPolicy.SpawnAtTargetPositionOnly:
-                    return false;
+                case VfxTargetBindingPolicy.AttachToCaster:
+                    return ctx.caster != null ? ctx.caster.transform : null;
                 case VfxTargetBindingPolicy.AttachToTarget:
-                    return true;
-                case VfxTargetBindingPolicy.Legacy:
+                    return ctx.lockedTarget != null ? ctx.lockedTarget.transform : null;
+                case VfxTargetBindingPolicy.None:
                 default:
-                    // 레거시 규칙: Target 기준 스폰은 생성 후 타겟에 부착한다.
-                    return true;
+                    return null;
             }
+        }
+
+        /// <summary>
+        /// Anchor 위치와 결합 정책이 결정된 뒤 Offset까지 반영한 최종 월드 생성 위치를 계산합니다.
+        /// </summary>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <param name="anchorSpawnPos">Anchor 규칙으로 계산된 기본 월드 위치입니다.</param>
+        /// <param name="bindingParent">결합할 부모 Transform입니다.</param>
+        /// <returns>Offset이 반영된 최종 월드 위치입니다.</returns>
+        private static Vector3 ResolveFinalVfxSpawnPosition(
+            VfxEventDefinition def,
+            Vector3 anchorSpawnPos,
+            Transform bindingParent)
+        {
+            if (def == null)
+                return anchorSpawnPos;
+
+            Vector3 offset = def.localOffset;
+            if (def.offsetSpace == VfxOffsetSpace.ParentLocal && bindingParent != null)
+            {
+                Vector3 localBase = bindingParent.InverseTransformPoint(anchorSpawnPos);
+                Vector3 localWithOffset = localBase + offset;
+                return bindingParent.TransformPoint(localWithOffset);
+            }
+
+            // ParentLocal인데 부모가 없는 경우에는 안전하게 월드 오프셋으로 처리한다.
+            return anchorSpawnPos + offset;
         }
     }
 }

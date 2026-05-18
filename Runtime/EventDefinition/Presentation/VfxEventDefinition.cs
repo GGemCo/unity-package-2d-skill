@@ -1,5 +1,4 @@
-﻿using UnityEngine;
-
+using UnityEngine;
 using GGemCo2DCore;
 
 namespace GGemCo2DSkill
@@ -36,42 +35,44 @@ namespace GGemCo2DSkill
     /// </summary>
     public enum VfxSpawnAnchor
     {
-        /// <summary>
-        /// 시전자 위치를 기준으로 이펙트를 생성합니다.
-        /// </summary>
+        /// <summary>시전자 위치를 기준으로 이펙트를 생성합니다.</summary>
         Caster = 0,
 
-        /// <summary>
-        /// 잠금 타겟 위치를 기준으로 이펙트를 생성합니다.
-        /// </summary>
+        /// <summary>잠금 타겟 위치를 기준으로 이펙트를 생성합니다.</summary>
         Target = 1,
 
-        /// <summary>
-        /// 지면 좌표 또는 스냅샷 지면 기준점을 기준으로 이펙트를 생성합니다.
-        /// </summary>
+        /// <summary>지면 좌표 또는 스냅샷 지면 기준점을 기준으로 이펙트를 생성합니다.</summary>
         Ground = 2
     }
 
     /// <summary>
-    /// 타겟 앵커 기반 VFX의 생성 이후 결합 방식을 정의합니다.
+    /// 생성된 VFX를 어떤 Transform 하위에 둘지 정의합니다.
     /// </summary>
     public enum VfxTargetBindingPolicy
     {
-        /// <summary>
-        /// 기존 데이터 호환 모드입니다.
-        /// Target 앵커는 타겟 부착으로 취급하고, attachToTarget 플래그도 함께 해석합니다.
-        /// </summary>
-        Legacy = 0,
+        /// <summary>어떤 Transform에도 하위 결합하지 않습니다.</summary>
+        None = 0,
+
+        /// <summary>생성된 VFX를 Caster Transform 하위에 둡니다.</summary>
+        AttachToCaster = 1,
+
+        /// <summary>생성된 VFX를 Target Transform 하위에 둡니다.</summary>
+        AttachToTarget = 2
+    }
+
+    /// <summary>
+    /// Offset 적용 좌표계를 정의합니다.
+    /// </summary>
+    public enum VfxOffsetSpace
+    {
+        /// <summary>Offset을 월드 좌표계로 적용합니다.</summary>
+        World = 0,
 
         /// <summary>
-        /// 타겟 위치에 생성한 뒤 타겟 Transform에 부착하여 함께 이동합니다.
+        /// Offset을 부모 Transform 로컬 좌표계로 적용합니다.
+        /// 부모가 없으면 월드 좌표계와 동일하게 처리합니다.
         /// </summary>
-        AttachToTarget = 1,
-
-        /// <summary>
-        /// 이벤트 시점의 타겟 위치에만 1회 생성하고, 타겟을 추적하거나 하위에 붙이지 않습니다.
-        /// </summary>
-        SpawnAtTargetPositionOnly = 2
+        ParentLocal = 1
     }
 
     /// <summary>
@@ -90,12 +91,14 @@ namespace GGemCo2DSkill
         [Tooltip("이 VFX를 생성할 월드 위치 기준점입니다.")]
         public VfxSpawnAnchor spawnAnchor = VfxSpawnAnchor.Caster;
 
-        [Tooltip("타겟 앵커 기반 VFX의 생성 후 결합 정책입니다. Legacy는 기존 규칙을 유지합니다.")]
-        public VfxTargetBindingPolicy targetBindingPolicy = VfxTargetBindingPolicy.Legacy;
+        [Tooltip("생성된 VFX를 어떤 Transform 하위에 둘지 결정합니다.")]
+        public VfxTargetBindingPolicy targetBindingPolicy = VfxTargetBindingPolicy.None;
 
-        [Tooltip("레거시 타겟 부착 플래그입니다. true이면 Target 앵커처럼 처리하고 생성 후 타겟 Transform에 부착합니다.")]
-        public bool attachToTarget;
+        [Tooltip("Anchor/Binding 계산 이후 적용할 오프셋 값입니다.")]
         public Vector3 localOffset;
+
+        [Tooltip("Offset을 월드 기준 또는 부모 로컬 기준으로 적용할지 지정합니다.")]
+        public VfxOffsetSpace offsetSpace = VfxOffsetSpace.World;
 
         [Header("Position Anchor")]
         [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 안에 저장합니다.")]

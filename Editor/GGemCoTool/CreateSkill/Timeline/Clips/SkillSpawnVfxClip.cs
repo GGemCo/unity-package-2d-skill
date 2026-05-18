@@ -7,160 +7,138 @@ using UnityEngine;
 namespace GGemCo2DSkillEditor
 {
     /// <summary>
-    /// 스킬 실행 중 이펙트(Vfx)를 생성하는 Timeline 이벤트 클립입니다.
+    /// 스킬 실행 중 VFX를 생성하는 Timeline 이벤트 클립입니다.
     /// </summary>
     /// <remarks>
-    /// 이 클립은 Bake 과정에서 런타임 이벤트(<c>SkillRuntimeEvent</c>)로 변환되며,
-    /// 지정된 Anchor 위치를 기준으로 이펙트를 생성합니다.
+    /// 이 클립은 Bake 단계에서 런타임 이벤트 정의(<c>VfxEventDefinition</c>)로 변환됩니다.
     /// </remarks>
     [Serializable]
     public sealed class SkillSpawnVfxClip : SkillEventClipBase
     {
         /// <summary>
-        /// 이펙트를 생성할 기준 위치 유형입니다.
+        /// VFX를 생성할 기준 위치를 정의합니다.
         /// </summary>
         public enum AnchorType
         {
-            /// <summary>
-            /// 스킬 시전자 위치를 기준으로 생성합니다.
-            /// </summary>
+            /// <summary>시전자 위치를 기준으로 생성합니다.</summary>
             Caster = 0,
 
-            /// <summary>
-            /// 스킬 대상(Target) 위치를 기준으로 생성합니다.
-            /// </summary>
+            /// <summary>타겟 위치를 기준으로 생성합니다.</summary>
             Target = 1,
 
-            /// <summary>
-            /// 월드 좌표 또는 지정된 지면 위치에 생성합니다.
-            /// </summary>
+            /// <summary>지면 기준점 위치를 기준으로 생성합니다.</summary>
             Ground = 2
         }
 
         /// <summary>
-        /// 타겟 기준 스폰 시, 생성 이후 타겟 Transform 결합 방식을 정의합니다.
+        /// 생성된 VFX를 어떤 Transform 하위에 둘지 결정합니다.
         /// </summary>
         public enum TargetBindingPolicy
         {
-            /// <summary>
-            /// 타겟 위치에 생성한 뒤 타겟 Transform에 부착하여 함께 이동합니다.
-            /// </summary>
-            AttachToTarget = 0,
+            /// <summary>어떤 Transform에도 하위 결합하지 않습니다.</summary>
+            None = 0,
+
+            /// <summary>생성된 VFX를 Caster Transform 하위에 둡니다.</summary>
+            AttachToCaster = 1,
+
+            /// <summary>생성된 VFX를 Target Transform 하위에 둡니다.</summary>
+            AttachToTarget = 2
+        }
+
+        /// <summary>
+        /// Offset을 어떤 좌표계로 적용할지 정의합니다.
+        /// </summary>
+        public enum OffsetSpacePolicy
+        {
+            /// <summary>Offset을 월드 좌표계로 적용합니다.</summary>
+            World = 0,
 
             /// <summary>
-            /// 이벤트 시점의 타겟 위치에만 1회 생성하고, 타겟을 추적하거나 하위로 붙이지 않습니다.
+            /// Offset을 부모 Transform 로컬 좌표계로 적용합니다.
+            /// 부모가 없으면 월드 좌표계와 동일하게 처리됩니다.
             /// </summary>
-            SpawnAtTargetPositionOnly = 1
+            ParentLocal = 1
         }
 
         [Header("Vfx")]
-
-        [Tooltip("생성할 이펙트 리소스의 UID입니다. vfx 테이블 또는 Addressables Vfx 식별자와 매칭됩니다.")]
+        [Tooltip("생성할 VFX UID입니다. vfx 테이블 또는 Addressables 항목과 연결됩니다.")]
         [SerializeField] private int vfxUid;
 
-        [Tooltip("이펙트를 생성할 기준 위치입니다. (Caster / Target / Ground)")]
+        [Tooltip("VFX 생성의 기준 위치입니다. (Caster / Target / Ground)")]
         [SerializeField] private AnchorType anchor = AnchorType.Caster;
 
-        [Tooltip("기준 위치로부터 적용할 로컬 오프셋입니다.")]
+        [Tooltip("Anchor/Binding 계산 이후 적용할 오프셋 값입니다.")]
         [SerializeField] private Vector2 offset;
 
         [Header("Spawn Policy")]
+        [Tooltip("생성된 VFX를 어떤 Transform 하위에 둘지 지정합니다.")]
+        [SerializeField] private TargetBindingPolicy targetBindingPolicy = TargetBindingPolicy.None;
 
-        [Tooltip("Anchor가 Target일 때 생성 이후 타겟 결합 방식을 지정합니다.")]
-        [SerializeField] private TargetBindingPolicy targetBindingPolicy = TargetBindingPolicy.AttachToTarget;
+        [Tooltip("Offset을 월드 기준 또는 부모 로컬 기준으로 적용할지 지정합니다.")]
+        [SerializeField] private OffsetSpacePolicy offsetSpacePolicy = OffsetSpacePolicy.World;
 
         [Header("Position Anchor")]
-
-        [Tooltip("켜면 이 VFX가 계산한 최종 생성 위치를 같은 스킬 실행 안에 저장합니다.")]
+        [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 내에 저장합니다.")]
         [SerializeField] private SkillPositionAnchorWriteOptions positionAnchorWrite;
 
         [Header("Sorting")]
-
-        [Tooltip("켜면 이 VFX의 Sorting Layer를 스킬 이벤트 설정값으로 덮어씁니다.")]
+        [Tooltip("켜면 VFX Sorting Layer를 이벤트 값으로 덮어씁니다.")]
         [SerializeField] private bool overrideSortingLayer;
 
-        [Tooltip("overrideSortingLayer가 켜져 있을 때 적용할 Sorting Layer입니다.")]
+        [Tooltip("overrideSortingLayer가 켜졌을 때 적용할 Sorting Layer입니다.")]
         [SerializeField] private ConfigSortingLayer.Keys sortingLayerOverride = ConfigSortingLayer.Keys.CharacterTop;
 
-        [Tooltip("켜면 이 VFX의 Sorting Order를 스킬 이벤트 설정값으로 고정합니다.")]
+        [Tooltip("켜면 VFX Sorting Order를 이벤트 값으로 고정합니다.")]
         [SerializeField] private bool overrideSortingOrder;
 
-        [Tooltip("overrideSortingOrder가 켜져 있을 때 적용할 Sorting Order입니다.")]
+        [Tooltip("overrideSortingOrder가 켜졌을 때 적용할 Sorting Order입니다.")]
         [SerializeField] private int sortingOrderOverride;
 
         [Header("Lifetime")]
-
-        [Tooltip("이펙트 지속시간 해석 정책입니다.")]
+        [Tooltip("이펙트의 지속시간 정책입니다.")]
         [SerializeField] private VfxLifetimeMode lifetimeMode = VfxLifetimeMode.FixedDuration;
 
-        [Tooltip("FixedDuration일 때 사용할 유지 시간(초)입니다.")]
+        [Tooltip("FixedDuration 모드에서 사용할 유지 시간(초)입니다.")]
         [Min(0f)]
         [SerializeField] private float lifetimeSeconds = 2f;
 
-        /// <summary>
-        /// 이 클립이 생성하는 스킬 이벤트 유형입니다.
-        /// </summary>
+        /// <summary>클립이 생성하는 스킬 이벤트 타입입니다.</summary>
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.SpawnVfx;
 
-        /// <summary>
-        /// 생성할 이펙트의 UID를 반환합니다.
-        /// </summary>
+        /// <summary>생성할 VFX UID입니다.</summary>
         public int VFXUid => vfxUid;
 
-        /// <summary>
-        /// 이펙트 생성 기준 위치 타입을 정수 값으로 반환합니다.
-        /// </summary>
-        /// <remarks>
-        /// Bake 또는 런타임 시스템에서 enum 대신 정수 기반 이벤트 데이터를 사용할 때 활용됩니다.
-        /// </remarks>
+        /// <summary>VFX 생성 기준 위치(enum)의 원시 값입니다.</summary>
         public int Anchor => (int)anchor;
 
-        /// <summary>
-        /// 기준 위치에 적용할 이펙트 오프셋을 반환합니다.
-        /// </summary>
+        /// <summary>Anchor 기준점에 적용할 오프셋입니다.</summary>
         public Vector2 Offset => offset;
 
-        /// <summary>
-        /// 타겟 기준 생성 시 사용할 결합 정책(enum)을 정수 값으로 반환합니다.
-        /// </summary>
-        /// <remarks>
-        /// Bake 단계에서 런타임 이벤트 정의의 정책 enum으로 변환할 때 사용됩니다.
-        /// </remarks>
+        /// <summary>부모 결합 정책(enum)의 원시 값입니다.</summary>
         public int TargetBindingPolicyRaw => (int)targetBindingPolicy;
 
-        /// <summary>
-        /// 스킬 VFX가 계산한 최종 생성 위치를 이후 이벤트에서 참조하도록 저장할 설정을 반환합니다.
-        /// </summary>
+        /// <summary>Offset 좌표계 정책(enum)의 원시 값입니다.</summary>
+        public int OffsetSpacePolicyRaw => (int)offsetSpacePolicy;
+
+        /// <summary>최종 생성 위치 저장 옵션입니다.</summary>
         public SkillPositionAnchorWriteOptions PositionAnchorWrite => positionAnchorWrite;
 
-        /// <summary>
-        /// 스킬 VFX 생성 시 Sorting Layer를 명시적으로 덮어쓸지 여부를 반환합니다.
-        /// </summary>
+        /// <summary>Sorting Layer 강제 덮어쓰기 여부입니다.</summary>
         public bool OverrideSortingLayer => overrideSortingLayer;
 
-        /// <summary>
-        /// 스킬 VFX 생성 시 적용할 Sorting Layer 값을 반환합니다.
-        /// </summary>
+        /// <summary>덮어쓸 Sorting Layer 값입니다.</summary>
         public ConfigSortingLayer.Keys SortingLayerOverride => sortingLayerOverride;
 
-        /// <summary>
-        /// 스킬 VFX 생성 시 Sorting Order를 명시적으로 고정할지 여부를 반환합니다.
-        /// </summary>
+        /// <summary>Sorting Order 강제 고정 여부입니다.</summary>
         public bool OverrideSortingOrder => overrideSortingOrder;
 
-        /// <summary>
-        /// 스킬 VFX 생성 시 적용할 Sorting Order 값을 반환합니다.
-        /// </summary>
+        /// <summary>고정할 Sorting Order 값입니다.</summary>
         public int SortingOrderOverride => sortingOrderOverride;
 
-        /// <summary>
-        /// 이펙트 지속시간 정책을 반환합니다.
-        /// </summary>
+        /// <summary>이펙트 지속시간 정책입니다.</summary>
         public VfxLifetimeMode LifetimeMode => lifetimeMode;
 
-        /// <summary>
-        /// 이펙트 유지 시간을 반환합니다.
-        /// </summary>
+        /// <summary>이펙트 유지 시간(초)입니다.</summary>
         public float LifetimeSeconds => lifetimeSeconds;
     }
 }
