@@ -55,6 +55,13 @@ namespace GGemCo2DSkill
         [Tooltip("PeriodicOverlap일 때 몇 초 간격으로 데미지를 적용할지 설정합니다.")]
         public float tickDamageIntervalSeconds = 0.25f;
 
+        [Header("Projectile Arrival Override")]
+        [Tooltip("프로젝타일이 목표 지점 도달 시 제거 정책을 이벤트 단위로 덮어쓸지 여부입니다.")]
+        public bool useArrivalPolicyOverride = false;
+
+        [Tooltip("프로젝타일이 목표 지점에 도달했을 때 제거할지, 계속 이동할지 결정합니다.")]
+        public ProjectileConstants.ArrivalPolicy arrivalPolicy = ProjectileConstants.ArrivalPolicy.DestroyOnArrived;
+
         [Header("Environment Hit Effect")]
         [Tooltip("타겟이 아닌 Ground/Wall 환경 Collider와 충돌했을 때 Hit VFX를 출력할지 여부입니다.")]
         public bool useEnvironmentHitPolicyOverride = false;

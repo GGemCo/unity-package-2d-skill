@@ -316,6 +316,8 @@ namespace GGemCo2DSkillEditor
             def.hitLifetimeMode = proj.HitLifetimeMode;
             def.damageApplyMode = proj.DamageApplyMode;
             def.tickDamageIntervalSeconds = Mathf.Max(0f, proj.TickDamageIntervalSeconds);
+            def.useArrivalPolicyOverride = proj.UseArrivalPolicyOverride;
+            def.arrivalPolicy = proj.ArrivalPolicy;
             def.useEnvironmentHitPolicyOverride = proj.UseEnvironmentHitPolicyOverride;
             def.environmentHitPolicy = proj.EnvironmentHitPolicy;
             def.useDefaultGroundWallEnvironmentLayers = proj.UseDefaultGroundWallEnvironmentLayers;

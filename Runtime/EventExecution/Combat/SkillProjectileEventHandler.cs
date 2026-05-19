@@ -111,6 +111,8 @@ namespace GGemCo2DSkill
                 useTickDamageIntervalOverride: def.useProjectileHitBehaviorOverride &&
                                                    def.damageApplyMode == ProjectileConstants.DamageApplyMode.PeriodicOverlap,
                 tickDamageIntervalOverride: Mathf.Max(0f, def.tickDamageIntervalSeconds),
+                useArrivalPolicyOverride: def.useArrivalPolicyOverride,
+                arrivalPolicyOverride: def.arrivalPolicy,
                 useEnvironmentHitPolicyOverride: def.useEnvironmentHitPolicyOverride,
                 environmentHitPolicyOverride: def.environmentHitPolicy,
                 useEnvironmentHitLayerMaskOverride: def.useEnvironmentHitPolicyOverride &&

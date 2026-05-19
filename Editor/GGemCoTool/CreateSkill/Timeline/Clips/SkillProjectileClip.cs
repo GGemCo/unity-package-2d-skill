@@ -55,7 +55,7 @@ namespace GGemCo2DSkillEditor
 
         [Header("Targeting Overrides")]
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
-        [SerializeField] private GGemCo2DSkill.TargetingOverride targetingOverride;
+        [SerializeField] private TargetingOverride targetingOverride;
 
         [Header("타겟 지점 정책")]
         [Tooltip("프로젝타일 조준에 사용할 고정 타겟 지점을 계산하는 방식입니다. UseDefaultTargeting은 기존 동작을 유지합니다.")]
@@ -79,6 +79,13 @@ namespace GGemCo2DSkillEditor
 
         [Tooltip("PeriodicOverlap일 때 몇 초 간격으로 데미지를 적용할지 설정합니다.")]
         [SerializeField] private float tickDamageIntervalSeconds = 0.25f;
+
+        [Header("Projectile Arrival Override")]
+        [Tooltip("프로젝타일이 목표 지점 도달 시 제거 정책을 이벤트 단위로 덮어쓸지 여부입니다.")]
+        [SerializeField] private bool useArrivalPolicyOverride = false;
+
+        [Tooltip("프로젝타일이 목표 지점에 도달했을 때 제거할지, 계속 이동할지 결정합니다.")]
+        [SerializeField] private ProjectileConstants.ArrivalPolicy arrivalPolicy = ProjectileConstants.ArrivalPolicy.DestroyOnArrived;
 
         [Header("Environment Hit Effect")]
         [Tooltip("타겟이 아닌 Ground/Wall 환경 Collider와 충돌했을 때 Hit VFX를 출력할지 여부입니다.")]
@@ -150,7 +157,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 프로젝타일의 타게팅 규칙을 보정하는 오버라이드 설정입니다.
         /// </summary>
-        public GGemCo2DSkill.TargetingOverride TargetingOverride => targetingOverride;
+        public TargetingOverride TargetingOverride => targetingOverride;
 
         /// <summary>
         /// 프로젝타일 목표점 고정 정책입니다.
@@ -186,6 +193,16 @@ namespace GGemCo2DSkillEditor
         /// PeriodicOverlap일 때 사용할 틱 데미지 간격(초)입니다.
         /// </summary>
         public float TickDamageIntervalSeconds => tickDamageIntervalSeconds;
+
+        /// <summary>
+        /// 프로젝타일 도착 정책을 이벤트 단위로 덮어쓸지 여부입니다.
+        /// </summary>
+        public bool UseArrivalPolicyOverride => useArrivalPolicyOverride;
+
+        /// <summary>
+        /// 프로젝타일이 목표 지점에 도달했을 때 적용할 제거/지속 정책입니다.
+        /// </summary>
+        public ProjectileConstants.ArrivalPolicy ArrivalPolicy => arrivalPolicy;
 
         /// <summary>
         /// 환경 Collider Hit VFX 정책을 이벤트 단위로 덮어쓸지 여부입니다.
