@@ -4,104 +4,120 @@ using UnityEngine;
 namespace GGemCo2DSkill
 {
     /// <summary>
-    /// 돌진 이동 거리 해석 방식입니다.
+    /// 런지 이동 거리 해석 방식입니다.
     /// </summary>
     public enum SkillLungeResolveMode
     {
         /// <summary>항상 고정 거리만큼 이동합니다.</summary>
         FixedDistance = 0,
 
-        /// <summary>고정 타겟이 있으면 타겟 앞까지 이동합니다. 타겟이 없으면 이동하지 않습니다.</summary>
+        /// <summary>잠금 타겟이 있으면 타겟 기준으로 이동하고, 없으면 이동하지 않습니다.</summary>
         ToLockedTarget = 1,
 
-        /// <summary>고정 타겟이 해석 가능 거리 안에 있을 때만 타겟 앞까지 이동합니다.</summary>
+        /// <summary>잠금 타겟이 해석 범위 안에 있을 때만 타겟 기준 이동합니다.</summary>
         ToLockedTargetIfWithinResolveRange = 2,
 
-        /// <summary>고정 타겟이 해석 가능 거리 안에 있으면 타겟 앞까지, 아니면 고정 거리만큼 이동합니다.</summary>
+        /// <summary>잠금 타겟이 범위 안이면 타겟 기준, 아니면 고정 거리로 이동합니다.</summary>
         ToLockedTargetElseFixedDistance = 3,
     }
 
-
-
     /// <summary>
-    /// 고정 타겟을 기준으로 돌진 종착 관계를 해석하는 방식입니다.
+    /// 잠금 타겟 기준으로 런지 종료 지점을 해석하는 방식입니다.
     /// </summary>
     public enum SkillLungeTargetRelationMode
     {
         /// <summary>타겟과 겹치지 않도록 앞에서 멈춥니다.</summary>
         StopBeforeTarget = 0,
 
-        /// <summary>타겟 중심까지 정확히 이동합니다.</summary>
+        /// <summary>타겟 중심까지 이동합니다.</summary>
         ReachTargetCenter = 1,
 
-        /// <summary>타겟 중심을 지난 뒤 추가 거리만큼 더 이동합니다.</summary>
+        /// <summary>타겟 중심을 지나 추가 거리만큼 더 이동합니다.</summary>
         PassThroughTarget = 2,
     }
 
     /// <summary>
-    /// 돌진 중 타겟과의 충돌 처리 정책입니다.
+    /// 런지 중 잠금 타겟과의 충돌 처리 정책입니다.
     /// </summary>
     public enum SkillLungeCollisionPolicy
     {
-        /// <summary>기본 충돌 정책을 유지합니다.</summary>
+        /// <summary>기본 충돌 정책을 사용합니다.</summary>
         Default = 0,
 
-        /// <summary>돌진 중 고정 타겟 캐릭터와의 충돌을 일시적으로 무시합니다.</summary>
+        /// <summary>런지 중 잠금 타겟 캐릭터와의 충돌을 일시적으로 무시합니다.</summary>
         IgnoreLockedTargetCharacter = 1,
     }
 
     /// <summary>
-    /// 전진(러시/대시) 이벤트 정의.
-    /// - 스킬 타임라인(이벤트 구간)과 이동 구간을 정밀하게 동기화하기 위한 Payload 입니다.
-    /// - Speed 기반이 아니라 "거리(Distance)" 기반으로 설계하여, 클립 시간에 따라 일관된 이동감을 제공합니다.
-    /// - Arc 계열 모션은 ArcLungeEventDefinition 으로 분리되었으며, 이 정의는 선형(Linear) 돌진 전용입니다.
+    /// 런지 최종 도착 지점을 화면 경계 기준으로 보정하는 정책입니다.
+    /// </summary>
+    public enum SkillLungeScreenClampPolicy
+    {
+        /// <summary>화면 경계 보정을 적용하지 않습니다.</summary>
+        None = 0,
+
+        /// <summary>최종 도착 위치가 화면 밖이면 화면 가장자리까지만 이동합니다.</summary>
+        ClampToViewportEdge = 1,
+    }
+
+    /// <summary>
+    /// 직선 런지(대시/백스텝) 이벤트 정의입니다.
+    /// 스킬 타임라인 이벤트 구간을 런타임 이동 요청으로 변환할 때 사용됩니다.
     /// </summary>
     public sealed class LungeEventDefinition : ScriptableObject
     {
         [Header("Motion")]
-        [Tooltip("이 이벤트(클립) 구간 동안 이동할 총 거리(월드 단위)")]
+        [Tooltip("이벤트 구간 동안 이동할 총 거리(월드 단위)입니다.")]
         public float distance = 2.5f;
 
-        [Tooltip("지속시간 오버라이드(<=0 이면 이벤트 구간(Start~End)을 사용)")]
+        [Tooltip("지속 시간 오버라이드(초)입니다. 0 이하면 이벤트 구간 길이를 사용합니다.")]
         public float durationOverrideSeconds = -1f;
 
-        [Tooltip("시간→진행률 Easing (Core의 Easing 클래스를 사용)")]
+        [Tooltip("시간 대비 거리 진행 곡선(Easing)입니다.")]
         public Easing.EaseType easing = Easing.EaseType.Linear;
 
         [Header("Resolve")]
-        [Tooltip("고정 거리 / 타겟 추적 중 어떤 방식으로 실제 이동 거리를 계산할지 결정합니다.")]
+        [Tooltip("고정 거리 또는 잠금 타겟 기준 이동 해석 방식을 지정합니다.")]
         public SkillLungeResolveMode resolveMode = SkillLungeResolveMode.FixedDistance;
 
-        [Tooltip("타겟 추적을 허용할 최대 거리(<=0 이면 CastRange, 그것도 없으면 Distance를 사용).")]
+        [Tooltip("타겟 해석 최대 거리입니다. 0 이하면 CastRange, 없으면 distance를 사용합니다.")]
         public float targetResolveRange = -1f;
 
-        [Tooltip("타겟 종착 관계를 해석하는 방식입니다. StopBeforeTarget은 앞에서 멈추고, ReachTargetCenter는 중심까지, PassThroughTarget은 타겟을 지나갑니다.")]
+        [Tooltip("타겟과의 종단 관계(앞에서 멈춤/중심 도달/관통)를 설정합니다.")]
         public SkillLungeTargetRelationMode targetRelationMode = SkillLungeTargetRelationMode.StopBeforeTarget;
 
-        [Tooltip("StopBeforeTarget일 때 타겟과 겹치지 않도록 남길 거리입니다.")]
+        [Tooltip("StopBeforeTarget 모드에서 타겟과 겹치지 않기 위한 여유 거리입니다.")]
         public float stopOffset = 0.2f;
 
-        [Tooltip("PassThroughTarget일 때 타겟 중심을 지난 뒤 추가로 이동할 거리입니다.")]
+        [Tooltip("PassThroughTarget 모드에서 타겟 중심 이후 추가 이동 거리입니다.")]
         public float passThroughExtraDistance = 0.5f;
 
-        [Tooltip("true면 X축 기준으로만 타겟 접근 거리를 계산합니다.")]
+        [Tooltip("true면 X축 기준으로만 타겟 거리를 계산합니다.")]
         public bool horizontalOnly = true;
 
-        [Tooltip("돌진 중 타겟과의 충돌 처리 정책입니다. 타겟을 지나가는 연출이 필요할 때 사용할 수 있습니다.")]
+        [Tooltip("런지 중 잠금 타겟 충돌 처리 정책입니다.")]
         public SkillLungeCollisionPolicy collisionPolicy = SkillLungeCollisionPolicy.Default;
 
+        [Header("Screen Clamp")]
+        [Tooltip("최종 도착 위치가 카메라 화면을 벗어나면 화면 가장자리까지만 이동하도록 보정합니다.")]
+        public SkillLungeScreenClampPolicy screenClampPolicy = SkillLungeScreenClampPolicy.None;
+
+        [Tooltip("화면 경계 안쪽으로 유지할 여유 거리(월드 단위)입니다.")]
+        [Min(0f)]
+        public float screenEdgePadding = 0f;
+
         [Header("Direction")]
-        [Tooltip("true면 스킬 발동 시점의 전방(캐스터 스냅샷)을 사용합니다.")]
+        [Tooltip("true면 스킬 발동 시점 Forward(캐스트 방향)를 우선 사용합니다.")]
         public bool useSnapshotForward = true;
 
-        [Tooltip("true면 최종 이동 방향을 반전합니다(예: 뒤로 회피).")]
+        [Tooltip("true면 최종 이동 방향을 반전합니다.")]
         public bool invertForward = false;
 
         [Header("Rigidbody2D")]
         [Tooltip("Kinematic이면 MovePosition 기반 이동을 사용합니다.")]
         public bool useMovePosition = true;
 
-        [Tooltip("종료 시 정지(velocity 기반 구현에서 유효)")]
+        [Tooltip("종료 시 정지 처리 여부입니다.")]
         public bool stopAtEnd = true;
 
         [Header("Policy")]

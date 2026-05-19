@@ -62,6 +62,7 @@ namespace GGemCo2DSkill
                 return;
 
             resolvedDirection = ApplyDirectionPolicy(ctx.caster, resolvedDirection, def.invertForward, def.horizontalOnly);
+            resolvedDistance = ApplyScreenClampDistancePolicy(def, ctx.caster, resolvedDirection, resolvedDistance);
             if (resolvedDistance <= 0f)
                 return;
 
@@ -217,6 +218,112 @@ namespace GGemCo2DSkill
                 direction.Normalize();
 
             return direction;
+        }
+
+        /// <summary>
+        /// 화면 경계 클램프 정책이 활성화된 경우, 런지 최종 도착 위치가 화면을 벗어나지 않도록 이동 거리를 보정합니다.
+        /// </summary>
+        /// <param name="def">직선 런지 이벤트 정의입니다.</param>
+        /// <param name="caster">현재 런지를 수행하는 캐스터 오브젝트입니다.</param>
+        /// <param name="direction">정책 적용이 끝난 최종 이동 방향입니다.</param>
+        /// <param name="distance">정책 적용 전 이동 거리입니다.</param>
+        /// <returns>화면 경계 정책이 반영된 이동 거리입니다.</returns>
+        private static float ApplyScreenClampDistancePolicy(
+            LungeEventDefinition def,
+            GameObject caster,
+            Vector2 direction,
+            float distance)
+        {
+            if (def == null || caster == null || distance <= 0f)
+                return distance;
+
+            if (def.screenClampPolicy != SkillLungeScreenClampPolicy.ClampToViewportEdge)
+                return distance;
+
+            if (!TryGetCameraWorldRect(caster.transform.position.z, Mathf.Max(0f, def.screenEdgePadding), out Rect screenRect))
+                return distance;
+
+            if (!TryClampDistanceToScreenRect(caster.transform.position, direction, distance, screenRect, out float clampedDistance))
+                return distance;
+
+            return clampedDistance;
+        }
+
+        /// <summary>
+        /// 현재 메인 카메라 기준으로 월드 공간의 화면 경계 사각형을 계산합니다.
+        /// </summary>
+        /// <param name="worldZ">보정할 오브젝트의 월드 Z 좌표입니다.</param>
+        /// <param name="padding">화면 경계 안쪽으로 유지할 여유 거리입니다.</param>
+        /// <param name="rect">계산된 화면 경계 Rect입니다.</param>
+        /// <returns>경계 계산에 성공하면 <see langword="true"/>입니다.</returns>
+        private static bool TryGetCameraWorldRect(float worldZ, float padding, out Rect rect)
+        {
+            rect = default;
+
+            Camera camera = SceneGame.Instance != null && SceneGame.Instance.mainCamera != null
+                ? SceneGame.Instance.mainCamera
+                : Camera.main;
+            if (camera == null)
+                return false;
+
+            float z = Mathf.Abs(camera.transform.position.z - worldZ);
+            Vector3 min = camera.ViewportToWorldPoint(new Vector3(0f, 0f, z));
+            Vector3 max = camera.ViewportToWorldPoint(new Vector3(1f, 1f, z));
+
+            float minX = Mathf.Min(min.x, max.x) + padding;
+            float maxX = Mathf.Max(min.x, max.x) - padding;
+            float minY = Mathf.Min(min.y, max.y) + padding;
+            float maxY = Mathf.Max(min.y, max.y) - padding;
+            if (maxX < minX || maxY < minY)
+                return false;
+
+            rect = Rect.MinMaxRect(minX, minY, maxX, maxY);
+            return true;
+        }
+
+        /// <summary>
+        /// 시작 위치가 화면 안쪽일 때, 지정한 방향으로 이동 가능한 최대 거리를 화면 경계 기준으로 계산합니다.
+        /// </summary>
+        /// <param name="startPosition">캐스터 시작 월드 위치입니다.</param>
+        /// <param name="direction">정규화 전 이동 방향입니다.</param>
+        /// <param name="distance">원래 이동 거리입니다.</param>
+        /// <param name="screenRect">월드 공간 화면 경계입니다.</param>
+        /// <param name="clampedDistance">화면 경계가 반영된 이동 거리입니다.</param>
+        /// <returns>거리 축소가 필요하면 <see langword="true"/>입니다.</returns>
+        private static bool TryClampDistanceToScreenRect(
+            Vector2 startPosition,
+            Vector2 direction,
+            float distance,
+            Rect screenRect,
+            out float clampedDistance)
+        {
+            clampedDistance = distance;
+            if (distance <= 0f || direction.sqrMagnitude <= 1e-6f)
+                return false;
+
+            if (!screenRect.Contains(startPosition))
+                return false;
+
+            Vector2 normalizedDirection = direction.normalized;
+            float maxAllowedDistance = distance;
+            const float epsilon = 1e-6f;
+
+            if (normalizedDirection.x > epsilon)
+                maxAllowedDistance = Mathf.Min(maxAllowedDistance, (screenRect.xMax - startPosition.x) / normalizedDirection.x);
+            else if (normalizedDirection.x < -epsilon)
+                maxAllowedDistance = Mathf.Min(maxAllowedDistance, (screenRect.xMin - startPosition.x) / normalizedDirection.x);
+
+            if (normalizedDirection.y > epsilon)
+                maxAllowedDistance = Mathf.Min(maxAllowedDistance, (screenRect.yMax - startPosition.y) / normalizedDirection.y);
+            else if (normalizedDirection.y < -epsilon)
+                maxAllowedDistance = Mathf.Min(maxAllowedDistance, (screenRect.yMin - startPosition.y) / normalizedDirection.y);
+
+            maxAllowedDistance = Mathf.Max(0f, maxAllowedDistance);
+            if (maxAllowedDistance >= distance)
+                return false;
+
+            clampedDistance = maxAllowedDistance;
+            return true;
         }
 
         /// <summary>
