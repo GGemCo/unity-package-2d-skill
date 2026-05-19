@@ -77,6 +77,9 @@ namespace GGemCo2DSkillEditor
         [Tooltip("Offset을 월드 기준 또는 부모 로컬 기준으로 적용할지 지정합니다.")]
         [SerializeField] private OffsetSpacePolicy offsetSpacePolicy = OffsetSpacePolicy.World;
 
+        [Tooltip("Caster가 좌우 반전된 상태일 때 Offset의 X 값을 반전할지 여부입니다.")]
+        [SerializeField] private bool useCasterFlipOffsetX = false;
+
         [Header("Position Anchor")]
         [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 내에 저장합니다.")]
         [SerializeField] private SkillPositionAnchorWriteOptions positionAnchorWrite;
@@ -119,6 +122,9 @@ namespace GGemCo2DSkillEditor
 
         /// <summary>Offset 좌표계 정책(enum)의 원시 값입니다.</summary>
         public int OffsetSpacePolicyRaw => (int)offsetSpacePolicy;
+
+        /// <summary>Caster 좌우 반전 상태에 따라 Offset X를 반전할지 여부입니다.</summary>
+        public bool UseCasterFlipOffsetX => useCasterFlipOffsetX;
 
         /// <summary>최종 생성 위치 저장 옵션입니다.</summary>
         public SkillPositionAnchorWriteOptions PositionAnchorWrite => positionAnchorWrite;

@@ -46,7 +46,7 @@ namespace GGemCo2DSkill
 
             Vector3 anchorSpawnPos = ResolveVfxSpawnPosition(skill, ctx, def, casterPos, targetPos, groundPoint);
             Transform bindingParent = ResolveVfxBindingParentTransform(def, ctx);
-            Vector3 spawnPos = ResolveFinalVfxSpawnPosition(def, anchorSpawnPos, bindingParent);
+            Vector3 spawnPos = ResolveFinalVfxSpawnPosition(def, anchorSpawnPos, bindingParent, ctx.caster);
 
             Vector2 resolvedForward = SkillDirectionResolver.ResolveForward2D(ctx.caster, ctx.forward);
             SaveVfxPositionAnchorIfNeeded(
@@ -357,16 +357,18 @@ namespace GGemCo2DSkill
         /// <param name="def">VFX 이벤트 정의입니다.</param>
         /// <param name="anchorSpawnPos">Anchor 규칙으로 계산된 기본 월드 위치입니다.</param>
         /// <param name="bindingParent">결합할 부모 Transform입니다.</param>
+        /// <param name="caster">현재 이벤트를 실행한 캐스터 오브젝트입니다.</param>
         /// <returns>Offset이 반영된 최종 월드 위치입니다.</returns>
         private static Vector3 ResolveFinalVfxSpawnPosition(
             VfxEventDefinition def,
             Vector3 anchorSpawnPos,
-            Transform bindingParent)
+            Transform bindingParent,
+            GameObject caster)
         {
             if (def == null)
                 return anchorSpawnPos;
 
-            Vector3 offset = def.localOffset;
+            Vector3 offset = ResolveCasterFlipOffsetXIfNeeded(def, def.localOffset, caster);
             if (def.offsetSpace == VfxOffsetSpace.ParentLocal && bindingParent != null)
             {
                 Vector3 localBase = bindingParent.InverseTransformPoint(anchorSpawnPos);
@@ -376,6 +378,49 @@ namespace GGemCo2DSkill
 
             // ParentLocal인데 부모가 없는 경우에는 안전하게 월드 오프셋으로 처리한다.
             return anchorSpawnPos + offset;
+        }
+
+        /// <summary>
+        /// 캐스터 좌우 반전 정책에 따라 Offset의 X 값을 보정합니다.
+        /// - 정책이 꺼져 있으면 원본 Offset을 그대로 사용합니다.
+        /// - 정책이 켜져 있고 캐스터가 좌우 반전 상태이면 X 부호를 반전합니다.
+        /// </summary>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <param name="offset">원본 오프셋입니다.</param>
+        /// <param name="caster">좌우 반전 상태를 확인할 캐스터 오브젝트입니다.</param>
+        /// <returns>좌우 반전 정책이 반영된 오프셋입니다.</returns>
+        private static Vector3 ResolveCasterFlipOffsetXIfNeeded(
+            VfxEventDefinition def,
+            Vector3 offset,
+            GameObject caster)
+        {
+            if (def == null || !def.useCasterFlipOffsetX)
+                return offset;
+
+            if (!IsCasterFlipped(caster))
+                return offset;
+
+            offset.x *= -1f;
+            return offset;
+        }
+
+        /// <summary>
+        /// 캐스터가 기본 방향 대비 좌우 반전된 상태인지 확인합니다.
+        /// - CharacterBase가 있으면 <see cref="CharacterBase.IsFlipped"/>를 우선 사용합니다.
+        /// - CharacterBase가 없으면 Transform의 localScale.x 부호를 보조 기준으로 사용합니다.
+        /// </summary>
+        /// <param name="caster">판정할 캐스터 오브젝트입니다.</param>
+        /// <returns>좌우 반전 상태로 판단되면 <see langword="true"/>입니다.</returns>
+        private static bool IsCasterFlipped(GameObject caster)
+        {
+            if (caster == null)
+                return false;
+
+            CharacterBase characterBase = caster.GetComponent<CharacterBase>();
+            if (characterBase != null)
+                return characterBase.IsFlipped();
+
+            return caster.transform.localScale.x < 0f;
         }
     }
 }

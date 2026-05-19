@@ -100,6 +100,9 @@ namespace GGemCo2DSkill
         [Tooltip("Offset을 월드 기준 또는 부모 로컬 기준으로 적용할지 지정합니다.")]
         public VfxOffsetSpace offsetSpace = VfxOffsetSpace.World;
 
+        [Tooltip("Caster가 좌우 반전된 상태일 때 Offset의 X 값을 반전할지 여부입니다.")]
+        public bool useCasterFlipOffsetX = false;
+
         [Header("Position Anchor")]
         [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 안에 저장합니다.")]
         public SkillPositionAnchorWriteOptions positionAnchorWrite;
