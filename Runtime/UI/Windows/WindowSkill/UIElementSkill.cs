@@ -9,7 +9,7 @@ namespace GGemCo2DSkill
     /// <summary>
     /// 플레이어 스킬 윈도우 - 스킬 리스트 element
     /// </summary>
-    public class UIElementSkill : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler 
+    public class UIElementSkill : MonoBehaviour, IPointerEnterHandler, IPointerExitHandler, IPointerClickHandler
     {
         public Vector3 iconPosition;
         public TextMeshProUGUI textName;
@@ -18,7 +18,7 @@ namespace GGemCo2DSkill
         public TextMeshProUGUI textNeedCurrency;
         public Button buttonLearn;
         public Button buttonLevelUp;
-        
+
         private UIWindowSkill _uiWindowSkill;
         private UIWindowSkillInfo _uiWindowSkillInfo;
         private StruckTableSkill _struckTableSkill;
@@ -27,7 +27,7 @@ namespace GGemCo2DSkill
         private int _slotIndex;
 
         private LocalizationManagerSkill _localizationManagerSkill;
-        
+
         /// <summary>
         /// 초기화
         /// </summary>
@@ -43,6 +43,7 @@ namespace GGemCo2DSkill
                 buttonLearn.gameObject.SetActive(false);
                 buttonLearn.onClick.AddListener(OnClickLearn);
             }
+
             if (buttonLevelUp != null)
             {
                 buttonLevelUp.gameObject.SetActive(false);
@@ -52,14 +53,14 @@ namespace GGemCo2DSkill
             _uiWindowSkill = uiWindowSkill;
             _tableSkill = TableLoaderManagerSkill.Instance.TableSkill;
             _localizationManagerSkill = LocalizationManagerSkill.Instance;
-            
+
             if (textName != null) textName.text = _struckTableSkill.Name;
-            
+
             // todo. 정리 필요
             textNeedLevel.gameObject.SetActive(false);
             textNeedCurrency.gameObject.SetActive(false);
         }
-        
+
         private void Start()
         {
             _uiWindowSkillInfo =
@@ -87,12 +88,13 @@ namespace GGemCo2DSkill
                 {
                     icon.SetIconLock(true);
                 }
+
                 if (buttonLearn)
                     buttonLearn.gameObject.SetActive(true);
             }
-            return;
 
             // todo. 정리 필요
+            /*
             int level = saveDataIcon?.Level ?? 1;
             if (textLevel != null) textLevel.text = $"Lv.{level}";
             if (textNeedLevel != null)
@@ -110,7 +112,7 @@ namespace GGemCo2DSkill
                 //     textNeedCurrency.gameObject.SetActive(false);
                 // }
             }
-            
+
             // 최대 레벨
             int maxLevel = 1; //_struckTableSkill.MaxLevel;
             if (saveDataIcon != null && _struckTableSkill != null && saveDataIcon.Level >= maxLevel)
@@ -142,7 +144,7 @@ namespace GGemCo2DSkill
                     string text = LocalizationManagerSkill.Instance.GetUIWindowSkillInfoByKey("Text_NeedLevel");
                     textNeedLevel.text = string.Format(text, infoNextLevel.NeedPlayerLevel);
                 }
-                
+
                 // 필요 재화
                 if (textNeedCurrency != null)
                 {
@@ -152,15 +154,17 @@ namespace GGemCo2DSkill
                         textNeedCurrency.gameObject.SetActive(false);
                     }
                 }
-                */
+                /
             }
             else
             {
                 textNeedLevel.gameObject.SetActive(true);
                 buttonLearn.gameObject.SetActive(true);
-                buttonLevelUp.gameObject.SetActive(false); 
+                buttonLevelUp.gameObject.SetActive(false);
             }
+            */
         }
+
         /// <summary>
         /// 레벨업
         /// </summary>
@@ -197,6 +201,7 @@ namespace GGemCo2DSkill
             _uiWindowSkill.SetIcons(result2);
             */
         }
+
         /// <summary>
         /// 레벨, 재화 체크
         /// </summary>
@@ -204,7 +209,8 @@ namespace GGemCo2DSkill
         /// <param name="needCurrencyType"></param>
         /// <param name="needCurrencyValue"></param>
         /// <returns></returns>
-        private bool CheckLevelCurrency(int needPlayerLevel, CurrencyConstants.Type needCurrencyType, int needCurrencyValue)
+        private bool CheckLevelCurrency(int needPlayerLevel, CurrencyConstants.Type needCurrencyType,
+            int needCurrencyValue)
         {
             if (!SceneGame.Instance || !SceneGame.Instance.player) return false;
             // 레벨 체크
@@ -213,11 +219,14 @@ namespace GGemCo2DSkill
             // 재화 체크
             if (needCurrencyType != CurrencyConstants.Type.None)
             {
-                var checkNeedCurrency = SceneGame.Instance.saveDataManager.Player.CheckNeedCurrency(needCurrencyType, needCurrencyValue);
+                var checkNeedCurrency =
+                    SceneGame.Instance.saveDataManager.Player.CheckNeedCurrency(needCurrencyType, needCurrencyValue);
                 if (checkNeedCurrency.Result == ResultCommon.ResultType.Fail) return false;
             }
+
             return true;
         }
+
         /// <summary>
         /// 필요 재화 처리
         /// </summary>
@@ -228,10 +237,12 @@ namespace GGemCo2DSkill
         {
             if (needCurrencyType == CurrencyConstants.Type.None) return true;
             // 재화 빼주기
-            var minusCurrency = SceneGame.Instance.saveDataManager.Player.MinusCurrency(needCurrencyType, needCurrencyValue);
+            var minusCurrency =
+                SceneGame.Instance.saveDataManager.Player.MinusCurrency(needCurrencyType, needCurrencyValue);
             if (minusCurrency.Result == ResultCommon.ResultType.Fail) return false;
             return true;
         }
+
         /// <summary>
         /// 배우기
         /// </summary>
@@ -242,16 +253,20 @@ namespace GGemCo2DSkill
             //     _struckTableSkill.NeedCurrencyValue);
             // if (!result) return;
 
-            var result2 = SkillPackageManager.Instance.SaveDataManagerSkill.Skill.SetSkillLearn(_slotIndex, _struckTableSkill.Uid, 1, 1, true);
+            var result2 =
+                SkillPackageManager.Instance.SaveDataManagerSkill.Skill.SetSkillLearn(_slotIndex, _struckTableSkill.Uid,
+                    1, 1, true);
             if (result2.Result == ResultCommon.ResultType.Success)
             {
                 // MinusNeedCurrency(_struckTableSkill.NeedCurrencyType, _struckTableSkill.NeedCurrencyValue);
             }
+
             var icon = _uiWindowSkill.GetIconByIndex(_slotIndex);
             if (icon)
             {
                 icon.SetIconLock(false);
             }
+
             if (buttonLearn)
                 buttonLearn.gameObject.SetActive(false);
             _uiWindowSkill.SetIcons(result2);
@@ -272,6 +287,7 @@ namespace GGemCo2DSkill
         public void OnPointerClick(PointerEventData eventData)
         {
         }
+
         public Vector3 GetIconPosition() => iconPosition;
     }
 }
