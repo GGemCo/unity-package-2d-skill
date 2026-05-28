@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -131,6 +131,12 @@ namespace GGemCo2DSkill
                     HasPendingAfterDamageCrowdControl = hasPendingAfterDamageCrowdControl,
                     DamageCameraShakePreset = def.useCameraShakeOnHit ? def.cameraShakePreset : null,
                     DamageCameraShakeDirectionMode = def.cameraShakeDirectionMode,
+                    GuardInteractionMode = def.guardInteractionMode,
+                    GuardBreakJustGuardPolicy = def.guardBreakJustGuardPolicy,
+                    GuardBreakDamageMultiplier = def.guardBreakDamageMultiplier,
+                    GuardBreakStaminaCost = def.guardBreakStaminaCost,
+                    GuardBreakVfxUid = def.guardBreakVfxUid,
+                    GuardBreakFeedbackText = def.guardBreakFeedbackText,
                 };
 
                 bool didApplyDamage = ShouldApplyDamageByFacingPolicy(def, castCharacterBase, target, ownerObject);

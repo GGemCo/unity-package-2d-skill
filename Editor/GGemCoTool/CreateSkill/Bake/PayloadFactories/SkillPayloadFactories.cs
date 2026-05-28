@@ -1,4 +1,4 @@
-﻿using GGemCo2DSkill;
+using GGemCo2DSkill;
 using UnityEngine;
 
 namespace GGemCo2DSkillEditor
@@ -27,6 +27,12 @@ namespace GGemCo2DSkillEditor
             def.isGroundOnly = dmg.IsGroundOnly;
             def.isAirOnly = dmg.IsAirOnly;
             def.facingDamagePolicy = dmg.FacingDamagePolicy;
+            def.guardInteractionMode = dmg.GuardInteractionMode;
+            def.guardBreakJustGuardPolicy = dmg.GuardBreakJustGuardPolicy;
+            def.guardBreakDamageMultiplier = dmg.GuardBreakDamageMultiplier;
+            def.guardBreakStaminaCost = dmg.GuardBreakStaminaCost;
+            def.guardBreakVfxUid = dmg.GuardBreakVfxUid;
+            def.guardBreakFeedbackText = dmg.GuardBreakFeedbackText;
             def.onHitAffects = dmg.OnHitAffects;
             def.onHitCrowdControls = dmg.OnHitCrowdControls;
             def.onHitElementGauges = dmg.OnHitElementGauges;
