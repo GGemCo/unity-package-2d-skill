@@ -47,24 +47,34 @@ namespace GGemCo2DSkill
         [Tooltip("데미지 적용 시 캐스터/타겟 바라보기 판정을 따를지 무시할지 결정합니다.")]
         public DamageFacingPolicy facingDamagePolicy = DamageFacingPolicy.RespectFacing;
 
-        [Header("Guard Break")]
-        [Tooltip("이 공격이 대상의 가드와 상호작용하는 방식입니다.")]
+        [Header("Guard")]
+        [Tooltip("이 공격이 가드 설정에서 어떤 공격 방어 타입으로 처리될지 지정합니다.")]
+        public GuardAttackType guardAttackType = GuardAttackType.Normal;
+
+        [Header("Guard Break Legacy")]
+        [Tooltip("이 공격이 대상의 가드와 상호작용하는 방식입니다. 신규 스킬은 guardAttackType + GGemCoPlayerGuardSettings 타입별 규칙 사용을 권장합니다.")]
+        [HideInInspector]
         public GuardInteractionMode guardInteractionMode = GuardInteractionMode.Normal;
 
         [Tooltip("가드 브레이크 공격이 저스트 가드 타이밍에 들어왔을 때의 처리 정책입니다.")]
+        [HideInInspector]
         public GuardBreakJustGuardPolicy guardBreakJustGuardPolicy = GuardBreakJustGuardPolicy.JustGuardCanBlock;
 
         [Tooltip("가드 브레이크 시 실제 HP에 적용할 데미지 배율입니다. 0=HP 피해 없음, 1=원래 데미지 모두 적용")]
         [Range(0f, 1f)]
+        [HideInInspector]
         public float guardBreakDamageMultiplier = 0f;
 
         [Tooltip("가드 브레이크 시 추가로 차감할 스태미나입니다. 0이면 방어 설정 기본값을 사용합니다.")]
+        [HideInInspector]
         public long guardBreakStaminaCost = 0;
 
         [Tooltip("가드 브레이크 시 우선 재생할 VFX UID입니다. 0이면 방어 설정 기본 VFX를 사용합니다.")]
+        [HideInInspector]
         public int guardBreakVfxUid = 0;
 
         [Tooltip("가드 브레이크 시 표시할 피드백 텍스트입니다. 비어 있으면 방어 설정 기본 텍스트를 사용합니다.")]
+        [HideInInspector]
         public string guardBreakFeedbackText = string.Empty;
 
         [Header("OnHit Affect")]

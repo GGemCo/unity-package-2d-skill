@@ -131,6 +131,7 @@ namespace GGemCo2DSkill
                     HasPendingAfterDamageCrowdControl = hasPendingAfterDamageCrowdControl,
                     DamageCameraShakePreset = def.useCameraShakeOnHit ? def.cameraShakePreset : null,
                     DamageCameraShakeDirectionMode = def.cameraShakeDirectionMode,
+                    GuardAttackType = def.guardAttackType,
                     GuardInteractionMode = def.guardInteractionMode,
                     GuardBreakJustGuardPolicy = def.guardBreakJustGuardPolicy,
                     GuardBreakDamageMultiplier = def.guardBreakDamageMultiplier,

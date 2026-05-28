@@ -128,26 +128,9 @@ namespace GGemCo2DSkillEditor
         [Tooltip("[바라보기 판정] 켜면 기존 바라보기 규칙을 따르고, 끄면 바라보기 상태를 무시하고 데미지를 적용합니다.")]
         [SerializeField] private DamageFacingPolicy facingDamagePolicy = DamageFacingPolicy.RespectFacing;
 
-        [Header("Guard Break")]
-        [Tooltip("[가드 상호작용] 이 공격이 가드를 어떻게 처리할지 지정합니다. Normal=기존 가드, IgnoreGuard=가드 무시, BreakGuard=가드 브레이크")]
-        [SerializeField] private GuardInteractionMode guardInteractionMode = GuardInteractionMode.Normal;
-
-        [Tooltip("[저스트 가드 정책] 가드 브레이크 공격이 저스트 가드 타이밍에 들어왔을 때의 처리 방식입니다.")]
-        [SerializeField] private GuardBreakJustGuardPolicy guardBreakJustGuardPolicy = GuardBreakJustGuardPolicy.JustGuardCanBlock;
-
-        [Tooltip("[브레이크 피해 배율] 가드 브레이크 시 HP에 적용할 데미지 배율. 0=피해 없음, 1=원래 데미지 모두 적용")]
-        [Range(0f, 1f)]
-        [SerializeField] private float guardBreakDamageMultiplier = 0f;
-
-        [Tooltip("[브레이크 스태미나] 가드 브레이크 시 추가 차감할 스태미나. 0이면 방어 설정 기본값 사용")]
-        [SerializeField] private long guardBreakStaminaCost = 0;
-
-        [Tooltip("[브레이크 VFX] 가드 브레이크 시 우선 재생할 vfx_effect 테이블 Uid. 0이면 방어 설정 기본 VFX 사용")]
-        [SerializeField] private int guardBreakVfxUid = 0;
-
-        [Tooltip("[브레이크 텍스트] 가드 브레이크 시 표시할 피드백 텍스트. 비우면 방어 설정 기본 텍스트 사용")]
-        [SerializeField] private string guardBreakFeedbackText = string.Empty;
-
+        [Header("Guard")]
+        [Tooltip("[공격 방어 타입] GGemCoPlayerGuardSettings에서 가드 성공/브레이크/추가 CC를 결정할 때 사용하는 타입입니다.")]
+        [SerializeField] private GuardAttackType guardAttackType = GuardAttackType.Normal;
 
         [Header("Camera Shake")]
         [Tooltip("[카메라 Shake 사용] 이 타격이 실제 데미지를 확정했을 때 카메라 Shake를 재생합니다.")]
@@ -265,34 +248,9 @@ namespace GGemCo2DSkillEditor
         public DamageFacingPolicy FacingDamagePolicy => facingDamagePolicy;
 
         /// <summary>
-        /// 이 공격이 가드와 상호작용하는 방식을 반환합니다.
+        /// 이 공격이 가드 설정에서 어떤 공격 방어 타입으로 처리될지 반환합니다.
         /// </summary>
-        public GuardInteractionMode GuardInteractionMode => guardInteractionMode;
-
-        /// <summary>
-        /// 가드 브레이크 공격이 저스트 가드 타이밍에 들어왔을 때의 처리 정책을 반환합니다.
-        /// </summary>
-        public GuardBreakJustGuardPolicy GuardBreakJustGuardPolicy => guardBreakJustGuardPolicy;
-
-        /// <summary>
-        /// 가드 브레이크 시 HP에 적용할 데미지 배율을 반환합니다.
-        /// </summary>
-        public float GuardBreakDamageMultiplier => guardBreakDamageMultiplier;
-
-        /// <summary>
-        /// 가드 브레이크 시 추가 차감할 스태미나를 반환합니다.
-        /// </summary>
-        public long GuardBreakStaminaCost => guardBreakStaminaCost;
-
-        /// <summary>
-        /// 가드 브레이크 시 우선 재생할 VFX UID를 반환합니다.
-        /// </summary>
-        public int GuardBreakVfxUid => guardBreakVfxUid;
-
-        /// <summary>
-        /// 가드 브레이크 시 표시할 피드백 텍스트를 반환합니다.
-        /// </summary>
-        public string GuardBreakFeedbackText => guardBreakFeedbackText;
+        public GuardAttackType GuardAttackType => guardAttackType;
 
         /// <summary>
         /// 이 타격에서 캐스터에게 경직을 사용할지 여부를 반환합니다.

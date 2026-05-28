@@ -27,12 +27,7 @@ namespace GGemCo2DSkillEditor
             def.isGroundOnly = dmg.IsGroundOnly;
             def.isAirOnly = dmg.IsAirOnly;
             def.facingDamagePolicy = dmg.FacingDamagePolicy;
-            def.guardInteractionMode = dmg.GuardInteractionMode;
-            def.guardBreakJustGuardPolicy = dmg.GuardBreakJustGuardPolicy;
-            def.guardBreakDamageMultiplier = dmg.GuardBreakDamageMultiplier;
-            def.guardBreakStaminaCost = dmg.GuardBreakStaminaCost;
-            def.guardBreakVfxUid = dmg.GuardBreakVfxUid;
-            def.guardBreakFeedbackText = dmg.GuardBreakFeedbackText;
+            def.guardAttackType = dmg.GuardAttackType;
             def.onHitAffects = dmg.OnHitAffects;
             def.onHitCrowdControls = dmg.OnHitCrowdControls;
             def.onHitElementGauges = dmg.OnHitElementGauges;
