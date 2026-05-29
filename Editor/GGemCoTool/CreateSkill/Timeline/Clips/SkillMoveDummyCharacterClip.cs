@@ -29,6 +29,13 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private Vector3 localOffset;
         [SerializeField] private bool useSnapshotCenter;
 
+        [Header("Screen Clamp")]
+        [Tooltip("최종 표시 위치가 카메라 화면을 벗어나면 화면 가장자리 안쪽으로 목표 지면 좌표를 보정합니다.")]
+        [SerializeField] private SkillLungeScreenClampPolicy screenClampPolicy = SkillLungeScreenClampPolicy.None;
+        [Tooltip("화면 경계 안쪽으로 유지할 여유 거리(월드 단위)입니다.")]
+        [Min(0f)]
+        [SerializeField] private float screenEdgePadding = 0f;
+
         [Header("Motion")]
         [SerializeField] private float durationSeconds = 0.35f;
         [SerializeField] private Easing.EaseType easing = GGemCo2DCore.Easing.EaseType.Linear;
@@ -91,6 +98,16 @@ namespace GGemCo2DSkillEditor
         /// 스냅샷 중심 사용 여부를 반환합니다.
         /// </summary>
         public bool UseSnapshotCenter => useSnapshotCenter;
+
+        /// <summary>
+        /// 화면 경계 기준 목표 위치 보정 정책을 반환합니다.
+        /// </summary>
+        public SkillLungeScreenClampPolicy ScreenClampPolicy => screenClampPolicy;
+
+        /// <summary>
+        /// 화면 경계 안쪽으로 유지할 여유 거리(월드 단위)를 반환합니다.
+        /// </summary>
+        public float ScreenEdgePadding => screenEdgePadding;
 
         /// <summary>
         /// 이동 지속 시간(초)을 반환합니다.

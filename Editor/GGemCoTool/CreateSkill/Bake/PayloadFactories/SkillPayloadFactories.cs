@@ -427,6 +427,8 @@ namespace GGemCo2DSkillEditor
             def.targetFrontDistance = moveDummy.TargetFrontDistance;
             def.localOffset = moveDummy.LocalOffset;
             def.useSnapshotCenter = moveDummy.UseSnapshotCenter;
+            def.screenClampPolicy = moveDummy.ScreenClampPolicy;
+            def.screenEdgePadding = Mathf.Max(0f, moveDummy.ScreenEdgePadding);
             def.durationSeconds = Mathf.Max(0f, moveDummy.DurationSeconds);
             def.easing = moveDummy.Easing;
             def.useMovePosition = moveDummy.UseMovePosition;

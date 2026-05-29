@@ -34,6 +34,14 @@ namespace GGemCo2DSkill
         [Tooltip("true이면 목표 위치 계산에 현재 시점 대신 스킬 시작 스냅샷(target/ground)을 사용합니다.")]
         public bool useSnapshotCenter;
 
+        [Header("Screen Clamp")]
+        [Tooltip("최종 표시 위치가 카메라 화면을 벗어나면 화면 가장자리 안쪽으로 목표 지면 좌표를 보정합니다.")]
+        public SkillLungeScreenClampPolicy screenClampPolicy = SkillLungeScreenClampPolicy.None;
+
+        [Tooltip("화면 경계 안쪽으로 유지할 여유 거리(월드 단위)입니다.")]
+        [Min(0f)]
+        public float screenEdgePadding = 0f;
+
         [Header("Motion")]
         [Tooltip("이동 지속 시간(초)입니다.")]
         public float durationSeconds = 0.35f;

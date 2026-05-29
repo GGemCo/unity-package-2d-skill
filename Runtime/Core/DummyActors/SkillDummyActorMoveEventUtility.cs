@@ -114,8 +114,37 @@ namespace GGemCo2DSkill
                 return false;
 
             moveTarget += def.localOffset;
+            moveTarget = ApplyScreenClampPolicy(handle, def, moveTarget);
             ResolveLookTarget(ctx, def, targetPos, out lookTargetTransform, out fallbackLookTargetPosition);
             return true;
+        }
+
+        /// <summary>
+        /// 화면 경계 보정 정책이 활성화된 경우, 더미의 최종 표시 위치가 화면을 벗어나지 않도록 목표 지면 좌표를 보정합니다.
+        /// </summary>
+        /// <param name="handle">이동 대상 더미 핸들입니다.</param>
+        /// <param name="def">더미 이동 이벤트 정의입니다.</param>
+        /// <param name="moveTarget">정책 적용 전 목표 지면 좌표입니다.</param>
+        /// <returns>화면 경계 정책이 반영된 목표 지면 좌표입니다.</returns>
+        private static Vector3 ApplyScreenClampPolicy(
+            SkillDummyActorHandle handle,
+            MoveDummyCharacterEventDefinition def,
+            Vector3 moveTarget)
+        {
+            if (handle == null || def == null)
+                return moveTarget;
+
+            if (def.screenClampPolicy != SkillLungeScreenClampPolicy.ClampToViewportEdge)
+                return moveTarget;
+
+            if (!SkillScreenClampUtility.TryClampGroundPositionWithAirHeight(
+                    moveTarget,
+                    handle.AirHeight,
+                    Mathf.Max(0f, def.screenEdgePadding),
+                    out Vector3 clampedGroundPosition))
+                return moveTarget;
+
+            return clampedGroundPosition;
         }
 
         /// <summary>
