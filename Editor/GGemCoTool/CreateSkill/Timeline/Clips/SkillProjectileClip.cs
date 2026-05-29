@@ -67,6 +67,16 @@ namespace GGemCo2DSkillEditor
         [Tooltip("targetPointPolicy가 FixedNormalizedPointInTargetHitArea일 때, 타겟 HitArea 내부에서 사용할 정규화된 지점입니다. (0,0)=좌측 하단, (1,1)=우측 상단")]
         [SerializeField] private Vector2 fixedTargetHitAreaNormalized = new(0.5f, 0.5f);
 
+        [Header("Hit VFX Position")]
+        [Tooltip("발사체가 타겟에 적중했을 때 Hit VFX를 출력할 위치 정책입니다. enum 0번은 기존 동작을 보존하는 CollisionPoint입니다.")]
+        [SerializeField] private ProjectileConstants.HitVfxPositionPolicy hitVfxPositionPolicy = ProjectileConstants.HitVfxPositionPolicy.CollisionPoint;
+
+        [Tooltip("Hit VFX 위치 계산 후 더할 월드 오프셋입니다. TargetOffset 정책에서는 타겟 중심 기준 보정값으로 사용됩니다.")]
+        [SerializeField] private Vector2 hitVfxOffset = Vector2.zero;
+
+        [Tooltip("hitVfxPositionPolicy가 TargetHitAreaNormalized일 때, 타겟 HitArea 내부에서 사용할 정규화된 지점입니다. (0,0)=좌측 하단, (1,1)=우측 상단")]
+        [SerializeField] private Vector2 hitVfxHitAreaNormalized = new(0.5f, 0.5f);
+
         [Header("Projectile Hit Behavior Override")]
         [Tooltip("프로젝타일의 적중 생명 주기와 데미지 방식을 이벤트 단위로 덮어쓸지 여부입니다.")]
         [SerializeField] private bool useProjectileHitBehaviorOverride = false;
@@ -173,6 +183,21 @@ namespace GGemCo2DSkillEditor
         /// 타겟 HitArea 정규화 좌표(0~1)입니다.
         /// </summary>
         public Vector2 FixedTargetHitAreaNormalized => fixedTargetHitAreaNormalized;
+
+        /// <summary>
+        /// 타겟 적중 시 Hit VFX를 출력할 위치 정책입니다.
+        /// </summary>
+        public ProjectileConstants.HitVfxPositionPolicy HitVfxPositionPolicy => hitVfxPositionPolicy;
+
+        /// <summary>
+        /// Hit VFX 위치 계산 후 더할 월드 오프셋입니다.
+        /// </summary>
+        public Vector2 HitVfxOffset => hitVfxOffset;
+
+        /// <summary>
+        /// Hit VFX용 타겟 HitArea 정규화 좌표(0~1)입니다.
+        /// </summary>
+        public Vector2 HitVfxHitAreaNormalized => hitVfxHitAreaNormalized;
 
         /// <summary>
         /// 프로젝타일 적중 생명 주기와 데미지 방식을 덮어쓸지 여부입니다.

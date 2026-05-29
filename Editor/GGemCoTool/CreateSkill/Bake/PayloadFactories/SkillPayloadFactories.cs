@@ -316,6 +316,9 @@ namespace GGemCo2DSkillEditor
             def.targetPointPolicy = proj.TargetPointPolicy;
             def.fixedTargetOffset = proj.FixedTargetOffset;
             def.fixedTargetHitAreaNormalized = proj.FixedTargetHitAreaNormalized;
+            def.hitVfxPositionPolicy = proj.HitVfxPositionPolicy;
+            def.hitVfxOffset = proj.HitVfxOffset;
+            def.hitVfxHitAreaNormalized = proj.HitVfxHitAreaNormalized;
             def.useProjectileHitBehaviorOverride = proj.UseProjectileHitBehaviorOverride;
             def.hitLifetimeMode = proj.HitLifetimeMode;
             def.damageApplyMode = proj.DamageApplyMode;

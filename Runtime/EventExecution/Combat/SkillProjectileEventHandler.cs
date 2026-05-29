@@ -117,7 +117,10 @@ namespace GGemCo2DSkill
                 environmentHitPolicyOverride: def.environmentHitPolicy,
                 useEnvironmentHitLayerMaskOverride: def.useEnvironmentHitPolicyOverride &&
                                                     !def.useDefaultGroundWallEnvironmentLayers,
-                environmentHitLayerMaskOverride: def.customEnvironmentHitLayerMask.value);
+                environmentHitLayerMaskOverride: def.customEnvironmentHitLayerMask.value,
+                hitVfxPositionPolicy: def.hitVfxPositionPolicy,
+                hitVfxOffset: def.hitVfxOffset,
+                hitVfxHitAreaNormalized: def.hitVfxHitAreaNormalized);
 
             casterChar.LaunchProjectile(meta);
         }
