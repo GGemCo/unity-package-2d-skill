@@ -186,6 +186,9 @@ namespace GGemCo2DSkill
         /// <summary>VFX Follow 모드입니다.</summary>
         public VfxConstants.FollowMode VfxFollowMode;
 
+        /// <summary>VFX Follow 위치 기준 정책입니다.</summary>
+        public VfxConstants.FollowAnchorMode VfxFollowAnchorMode;
+
         /// <summary>VFX Y 오프셋 방식입니다.</summary>
         public ConfigCommon.PositionYType VfxPositionYType;
 
@@ -223,6 +226,7 @@ namespace GGemCo2DSkill
                 EndDurationSeconds = System.Math.Max(0f, row.EndDurationSeconds),
                 VfxUid = System.Math.Max(0, row.VfxUid),
                 VfxFollowMode = row.VfxFollowMode,
+                VfxFollowAnchorMode = row.VfxFollowAnchorMode,
                 VfxPositionYType = row.VfxPositionYType,
                 VfxPositionY = row.VfxPositionY,
                 VfxScale = System.Math.Max(0f, row.VfxScale),

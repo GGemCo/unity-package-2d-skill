@@ -46,6 +46,9 @@ namespace GGemCo2DSkill
         /// <summary>VFX를 캐스터에 붙여 따라가게 할지 결정하는 Follow 모드입니다.</summary>
         public VfxConstants.FollowMode VfxFollowMode;
 
+        /// <summary>VFX가 Follow 중 유지할 위치 기준 정책입니다.</summary>
+        public VfxConstants.FollowAnchorMode VfxFollowAnchorMode;
+
         /// <summary>VFX Y 오프셋 계산 방식입니다.</summary>
         public ConfigCommon.PositionYType VfxPositionYType;
 
@@ -98,6 +101,7 @@ namespace GGemCo2DSkill
                 EndDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("EndDurationSeconds", "0"))),
                 VfxUid = System.Math.Max(0, MathHelper.ParseInt(data.GetValueOrDefault("VfxUid", "0"))),
                 VfxFollowMode = EnumHelper.ConvertEnum<VfxConstants.FollowMode>(data.GetValueOrDefault("VfxFollowMode", nameof(VfxConstants.FollowMode.Position))),
+                VfxFollowAnchorMode = EnumHelper.ConvertEnum<VfxConstants.FollowAnchorMode>(data.GetValueOrDefault("VfxFollowAnchorMode", nameof(VfxConstants.FollowAnchorMode.FollowTargetOrigin))),
                 VfxPositionYType = EnumHelper.ConvertEnum<ConfigCommon.PositionYType>(data.GetValueOrDefault("VfxPositionYType", nameof(ConfigCommon.PositionYType.None))),
                 VfxPositionY = MathHelper.ParseFloat(data.GetValueOrDefault("VfxPositionY", "0")),
                 VfxScale = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("VfxScale", "0"))),

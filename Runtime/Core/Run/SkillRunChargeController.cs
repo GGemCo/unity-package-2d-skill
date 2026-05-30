@@ -742,6 +742,7 @@ namespace GGemCo2DSkill
                 PositionY = stage.VfxPositionY,
                 PositionYType = stage.VfxPositionYType,
                 FollowModeOverride = stage.VfxFollowMode,
+                FollowAnchorModeOverride = stage.VfxFollowAnchorMode,
             };
 
             _activeChargeVfx = sceneGame.VfxManager.CreateVfx(request);

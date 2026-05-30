@@ -41,6 +41,7 @@ namespace GGemCo2DSkillEditor
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.EndDurationSeconds)] = "End Duration Seconds";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxUid)] = "VFX Uid";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxFollowMode)] = "VFX Follow Mode";
+            options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxFollowAnchorMode)] = "VFX Follow Anchor Mode";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxPositionYType)] = "VFX Position Y Type";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxPositionY)] = "VFX Position Y";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxScale)] = "VFX Scale";
@@ -298,6 +299,7 @@ namespace GGemCo2DSkillEditor
                 EndDurationSeconds = 0f,
                 VfxUid = 0,
                 VfxFollowMode = VfxConstants.FollowMode.Position,
+                VfxFollowAnchorMode = VfxConstants.FollowAnchorMode.FollowTargetOrigin,
                 VfxPositionYType = ConfigCommon.PositionYType.None,
                 VfxPositionY = 0f,
                 VfxScale = 0f,
@@ -400,7 +402,7 @@ namespace GGemCo2DSkillEditor
                 if (!string.IsNullOrWhiteSpace(directory))
                     Directory.CreateDirectory(directory);
 
-                const string header = "Uid	SkillUid	OwnerType	StageIndex	StartClip	StartDurationSeconds	DurationSeconds	LoopClip	EndClip	EndDurationSeconds	VfxUid	VfxFollowMode	VfxPositionYType	VfxPositionY	VfxScale	Memo";
+                const string header = "Uid	SkillUid	OwnerType	StageIndex	StartClip	StartDurationSeconds	DurationSeconds	LoopClip	EndClip	EndDurationSeconds	VfxUid	VfxFollowMode	VfxFollowAnchorMode	VfxPositionYType	VfxPositionY	VfxScale	Memo";
                 File.WriteAllText(fullPath, header + "\n", new UTF8Encoding(false));
                 AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
                 AssetDatabase.Refresh();
