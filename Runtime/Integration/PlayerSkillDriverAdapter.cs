@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
@@ -10,7 +11,7 @@ namespace GGemCo2DSkill
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler
+    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier
     {
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
@@ -33,6 +34,16 @@ namespace GGemCo2DSkill
         private int _currentRunningSkillUid;
         private bool _chainUnlockedByConfirmedDamage;
         private bool _chainConsumed;
+
+        /// <summary>
+        /// 현재 실행 중인 스킬이 확정 타격으로 다음 스킬 체인을 받을 수 있을 때 발생합니다.
+        /// </summary>
+        public event Action<int> SkillChainReady;
+
+        /// <summary>
+        /// 현재 실행 중인 스킬을 다음 스킬로 체인 취소할 수 있는 상태인지 반환합니다.
+        /// </summary>
+        public bool IsSkillChainReady => CanStartNextSkillByConfirmedDamage();
 
         /// <summary>
         /// 컴포넌트 초기화 시 동일한 게임 오브젝트에서 <see cref="SkillExecutor"/>를 찾아 연결합니다.
@@ -205,6 +216,7 @@ namespace GGemCo2DSkill
 
             _chainUnlockedByConfirmedDamage = true;
             _skillChainReadyFeedback?.PlaySkillChainReady();
+            NotifySkillChainReady(_currentRunningSkillUid);
         }
 
         private void OnExecutionFinished(SkillExecutionReport report)
@@ -213,6 +225,18 @@ namespace GGemCo2DSkill
                 return;
 
             ResetChainState();
+        }
+
+        /// <summary>
+        /// 확정 타격으로 스킬 체인 입력 가능 상태가 열렸음을 외부 구독자에게 알립니다.
+        /// </summary>
+        /// <param name="skillUid">현재 실행 중인 스킬 UID입니다.</param>
+        private void NotifySkillChainReady(int skillUid)
+        {
+            if (skillUid <= 0)
+                return;
+
+            SkillChainReady?.Invoke(skillUid);
         }
 
         private bool CanStartNextSkillByConfirmedDamage()

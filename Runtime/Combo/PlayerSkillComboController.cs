@@ -30,8 +30,10 @@ namespace GGemCo2DSkill
         private IPlayerSkillComboLoadoutProvider _loadoutProvider;
         private ICharacterSkillDriver _skillDriver;
         private IPlayerSkillTargetingProvider _targetingProvider;
+        private ISkillChainReadyNotifier _chainReadyNotifier;
         private SkillExecutor _skillExecutor;
         private bool _isInputWindowArmed;
+        private bool _hasBufferedMainInput;
         private float _inputWindowExpireTime = InputWindowDisabledTime;
 
         /// <summary>
@@ -75,8 +77,8 @@ namespace GGemCo2DSkill
         /// 현재 공격 입력으로 다음 콤보 스킬을 받을 수 있는 상태인지 반환합니다.
         /// </summary>
         /// <remarks>
-        /// 스킬끼리 이어지는 B안은 이전 스킬이 끝난 뒤에만 다음 입력을 받기 때문에,
-        /// 스킬 실행 중에는 콤보 상태가 살아 있어도 입력 대기 상태로 보지 않습니다.
+        /// 기본적으로 이전 스킬 종료 후 열리는 체인 입력 창에서 true가 됩니다.
+        /// 단, Skill 패키지의 확정 타격 체인 기능이 열리면 스킬 종료 전에도 true가 될 수 있습니다.
         /// </remarks>
         public bool CanAcceptComboInput
         {
@@ -84,6 +86,18 @@ namespace GGemCo2DSkill
             {
                 ResetExpiredComboIfNeeded();
                 return _state.IsActive && _isInputWindowArmed;
+            }
+        }
+
+        /// <summary>
+        /// 현재 공격 입력을 선입력 버퍼로 저장할 수 있는 콤보 진행 상태인지 반환합니다.
+        /// </summary>
+        public bool CanBufferComboInput
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive && !_isInputWindowArmed && CanResolveBufferedMainNode();
             }
         }
 
@@ -102,6 +116,7 @@ namespace GGemCo2DSkill
         {
             CacheComponents();
             SubscribeSkillExecutor();
+            SubscribeSkillChainReadyNotifier();
         }
 
         /// <summary>
@@ -110,6 +125,7 @@ namespace GGemCo2DSkill
         private void OnDisable()
         {
             UnsubscribeSkillExecutor();
+            UnsubscribeSkillChainReadyNotifier();
         }
 
         /// <summary>
@@ -163,6 +179,7 @@ namespace GGemCo2DSkill
         {
             CacheComponents();
             SubscribeSkillExecutor();
+            SubscribeSkillChainReadyNotifier();
         }
 
         /// <summary>
@@ -196,6 +213,7 @@ namespace GGemCo2DSkill
         {
             _state.Reset();
             ClearInputWindow();
+            ClearBufferedMainInput();
         }
 
         /// <summary>
@@ -256,6 +274,26 @@ namespace GGemCo2DSkill
             SkillComboOpenResult openResult = SkillComboOpenResult.Opened(entryMainNode, entryLastNode, entryTrigger);
             NotifyComboOpenedForUi(openResult);
             return openResult;
+        }
+
+        /// <summary>
+        /// 현재 공격 입력을 다음 메인 콤보 스킬 선입력으로 저장합니다.
+        /// </summary>
+        /// <remarks>
+        /// 콤보는 진행 중이지만 아직 체인 입력 창이 열리지 않은 상태에서 호출됩니다.
+        /// 이후 확정 타격으로 체인 게이트가 열리거나 현재 스킬이 정상 종료되면 저장된 입력을 즉시 실행합니다.
+        /// </remarks>
+        /// <returns>공격 입력을 선입력으로 저장했으면 <see langword="true"/>입니다.</returns>
+        public bool TryBufferMainInput()
+        {
+            if (ResetExpiredComboIfNeeded())
+                return false;
+
+            if (!_state.IsActive || _isInputWindowArmed || !CanResolveBufferedMainNode())
+                return false;
+
+            _hasBufferedMainInput = true;
+            return true;
         }
 
         /// <summary>
@@ -409,6 +447,7 @@ namespace GGemCo2DSkill
                     skillUseResult.FailReason);
             }
 
+            ClearBufferedMainInput();
             ClearInputWindow();
 
             if (node.IsLast)
@@ -505,6 +544,40 @@ namespace GGemCo2DSkill
         {
             _isInputWindowArmed = false;
             _inputWindowExpireTime = InputWindowDisabledTime;
+        }
+
+        /// <summary>
+        /// 저장된 메인 콤보 선입력을 제거합니다.
+        /// </summary>
+        private void ClearBufferedMainInput()
+        {
+            _hasBufferedMainInput = false;
+        }
+
+        /// <summary>
+        /// 체인 입력 창이 열린 상태라면 저장된 메인 콤보 선입력을 즉시 실행합니다.
+        /// </summary>
+        /// <returns>저장된 입력으로 다음 스킬 실행이 시작되면 <see langword="true"/>입니다.</returns>
+        private bool TryConsumeBufferedMainInputIfReady()
+        {
+            if (!_hasBufferedMainInput || !CanAcceptComboInput)
+                return false;
+
+            _hasBufferedMainInput = false;
+            SkillComboUseResult result = TryUseMain();
+            return result.IsStarted;
+        }
+
+        /// <summary>
+        /// 현재 콤보 상태에서 메인 선입력이 실제 다음 노드로 해석될 수 있는지 확인합니다.
+        /// </summary>
+        /// <returns>다음 메인 콤보 노드가 있으면 <see langword="true"/>입니다.</returns>
+        private bool CanResolveBufferedMainNode()
+        {
+            return TryResolveNextNode(
+                SkillComboCommand.Main,
+                out _,
+                out _);
         }
 
         /// <summary>
@@ -645,6 +718,54 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 확정 타격으로 스킬 체인 가능 상태가 열렸을 때 받을 알림 포트를 갱신합니다.
+        /// </summary>
+        private void SubscribeSkillChainReadyNotifier()
+        {
+            ISkillChainReadyNotifier notifier = GetComponent<ISkillChainReadyNotifier>();
+            if (ReferenceEquals(_chainReadyNotifier, notifier))
+                return;
+
+            UnsubscribeSkillChainReadyNotifier();
+            _chainReadyNotifier = notifier;
+
+            if (_chainReadyNotifier == null)
+                return;
+
+            _chainReadyNotifier.SkillChainReady += OnSkillChainReady;
+            if (_chainReadyNotifier.IsSkillChainReady && _state.IsActive)
+                OnSkillChainReady(_state.CurrentSkillUid);
+        }
+
+        /// <summary>
+        /// 확정 타격 체인 가능 상태 알림 구독을 해제합니다.
+        /// </summary>
+        private void UnsubscribeSkillChainReadyNotifier()
+        {
+            if (_chainReadyNotifier == null)
+                return;
+
+            _chainReadyNotifier.SkillChainReady -= OnSkillChainReady;
+            _chainReadyNotifier = null;
+        }
+
+        /// <summary>
+        /// 확정 타격으로 현재 스킬의 체인 게이트가 열리면 콤보 입력 창을 즉시 엽니다.
+        /// </summary>
+        /// <param name="skillUid">확정 타격으로 체인을 연 현재 실행 스킬 UID입니다.</param>
+        private void OnSkillChainReady(int skillUid)
+        {
+            if (!_state.IsActive || _state.IsEntryGateActive || skillUid != _state.CurrentSkillUid)
+                return;
+
+            if (chainInputWindowSeconds <= 0f)
+                return;
+
+            ArmInputWindow(chainInputWindowSeconds);
+            TryConsumeBufferedMainInputIfReady();
+        }
+
+        /// <summary>
         /// 스킬 실행 종료 이벤트를 구독할 실행기를 갱신합니다.
         /// </summary>
         private void SubscribeSkillExecutor()
@@ -681,6 +802,12 @@ namespace GGemCo2DSkill
             if (!_state.IsActive || report.SkillUid != _state.CurrentSkillUid)
                 return;
 
+            if (report.State == MonsterSkillExecutionState.Canceled &&
+                report.CancelReason == SkillCancelReason.ComboChain)
+            {
+                return;
+            }
+
             if (report.State != MonsterSkillExecutionState.Succeeded)
             {
                 CancelCombo(SkillComboCancelReason.SkillExecutionFailed);
@@ -694,6 +821,7 @@ namespace GGemCo2DSkill
             }
 
             ArmInputWindow(chainInputWindowSeconds);
+            TryConsumeBufferedMainInputIfReady();
         }
     }
 }

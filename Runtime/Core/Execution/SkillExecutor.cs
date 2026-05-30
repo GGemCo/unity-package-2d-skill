@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine;
@@ -709,7 +709,12 @@ namespace GGemCo2DSkill
                 _groundSlamAnimationController,
                 _arcLungeAnimationController);
 
-            _pendingFinishReport = new SkillExecutionReport(run.SkillUid, MonsterSkillExecutionState.Canceled, ++_executionSequence, Time.time);
+            _pendingFinishReport = new SkillExecutionReport(
+                run.SkillUid,
+                MonsterSkillExecutionState.Canceled,
+                ++_executionSequence,
+                Time.time,
+                reason);
             _hasPendingFinishReport = true;
 
             run.Cancel(reason);
