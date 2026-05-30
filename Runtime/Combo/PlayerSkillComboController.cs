@@ -1,3 +1,4 @@
+using System;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -37,6 +38,26 @@ namespace GGemCo2DSkill
         /// 현재 플레이어 콤보 진행 상태입니다.
         /// </summary>
         public SkillComboState State => _state;
+
+        /// <summary>
+        /// 콤보 진입 조건이 충족되어 UI가 첫 입력 안내를 표시할 수 있을 때 호출됩니다.
+        /// </summary>
+        public event Action<SkillComboOpenResult> ComboOpenedForUi;
+
+        /// <summary>
+        /// 콤보 입력으로 스킬 실행이 실제 시작되어 UI가 진행 상태를 갱신할 수 있을 때 호출됩니다.
+        /// </summary>
+        public event Action<SkillComboUseResult> ComboSkillStartedForUi;
+
+        /// <summary>
+        /// 콤보가 마무리 스킬이 아닌 사유로 취소되어 UI를 닫거나 초기화해야 할 때 호출됩니다.
+        /// </summary>
+        public event Action<SkillComboCancelEvent> ComboCanceledForUi;
+
+        /// <summary>
+        /// 마무리 스킬 사용으로 콤보가 정상 종료되어 UI가 완료 연출을 표시할 수 있을 때 호출됩니다.
+        /// </summary>
+        public event Action<SkillComboUseResult> ComboFinishedByLastSkillForUi;
 
         /// <summary>
         /// 현재 이어갈 수 있는 콤보가 열려 있는지 반환합니다.
@@ -134,6 +155,30 @@ namespace GGemCo2DSkill
         /// </summary>
         public void ResetCombo()
         {
+            ResetComboInternal();
+        }
+
+        /// <summary>
+        /// 진행 중인 콤보를 지정한 사유로 취소하고 UI 구독자에게 취소 상태를 알립니다.
+        /// </summary>
+        /// <param name="reason">콤보가 취소된 사유입니다.</param>
+        public void CancelCombo(SkillComboCancelReason reason)
+        {
+            if (!_state.IsActive && !_isInputWindowArmed)
+            {
+                return;
+            }
+
+            SkillComboCancelEvent cancelEvent = CreateCancelEvent(reason);
+            ResetComboInternal();
+            NotifyComboCanceledForUi(cancelEvent);
+        }
+
+        /// <summary>
+        /// 콤보 상태와 입력 대기 시간을 이벤트 없이 초기화합니다.
+        /// </summary>
+        private void ResetComboInternal()
+        {
             _state.Reset();
             ClearInputWindow();
         }
@@ -192,7 +237,10 @@ namespace GGemCo2DSkill
 
             _state.OpenEntryGate(entryTrigger, confirmedSkillUid);
             ArmInputWindow(entryInputWindowSeconds);
-            return SkillComboOpenResult.Opened(entryMainNode, entryLastNode, entryTrigger);
+
+            SkillComboOpenResult openResult = SkillComboOpenResult.Opened(entryMainNode, entryLastNode, entryTrigger);
+            NotifyComboOpenedForUi(openResult);
+            return openResult;
         }
 
         /// <summary>
@@ -348,13 +396,79 @@ namespace GGemCo2DSkill
 
             ClearInputWindow();
 
-            bool comboEnded = node.IsLast;
-            if (comboEnded)
-                ResetCombo();
-            else
-                _state.Activate(node);
+            if (node.IsLast)
+            {
+                return FinishComboByLastSkill(node);
+            }
 
-            return SkillComboUseResult.Started(node, comboEnded);
+            _state.Activate(node);
+            SkillComboUseResult useResult = SkillComboUseResult.Started(node, false);
+            NotifyComboSkillStartedForUi(useResult);
+            return useResult;
+        }
+
+        /// <summary>
+        /// 마무리 스킬 사용으로 콤보를 정상 종료하고 UI 구독자에게 완료 상태를 알립니다.
+        /// </summary>
+        /// <param name="lastNode">실행을 시작한 마무리 콤보 노드입니다.</param>
+        /// <returns>마무리 스킬 사용 결과입니다.</returns>
+        private SkillComboUseResult FinishComboByLastSkill(RuntimeSkillComboNode lastNode)
+        {
+            SkillComboUseResult useResult = SkillComboUseResult.Started(lastNode, true);
+            NotifyComboSkillStartedForUi(useResult);
+            ResetComboInternal();
+            NotifyComboFinishedByLastSkillForUi(useResult);
+            return useResult;
+        }
+
+        /// <summary>
+        /// 현재 콤보 상태를 기준으로 취소 이벤트 데이터를 생성합니다.
+        /// </summary>
+        /// <param name="reason">콤보 취소 사유입니다.</param>
+        /// <returns>UI에 전달할 콤보 취소 이벤트 데이터입니다.</returns>
+        private SkillComboCancelEvent CreateCancelEvent(SkillComboCancelReason reason)
+        {
+            return new SkillComboCancelEvent(
+                reason,
+                _state.CurrentSkillUid,
+                _state.CurrentNodeIndex,
+                _state.EntryTrigger);
+        }
+
+        /// <summary>
+        /// 콤보 진입 UI 이벤트를 발행합니다.
+        /// </summary>
+        /// <param name="result">콤보 열기 결과입니다.</param>
+        private void NotifyComboOpenedForUi(SkillComboOpenResult result)
+        {
+            ComboOpenedForUi?.Invoke(result);
+        }
+
+        /// <summary>
+        /// 콤보 스킬 시작 UI 이벤트를 발행합니다.
+        /// </summary>
+        /// <param name="result">콤보 스킬 사용 결과입니다.</param>
+        private void NotifyComboSkillStartedForUi(SkillComboUseResult result)
+        {
+            ComboSkillStartedForUi?.Invoke(result);
+        }
+
+        /// <summary>
+        /// 콤보 취소 UI 이벤트를 발행합니다.
+        /// </summary>
+        /// <param name="cancelEvent">콤보 취소 이벤트 데이터입니다.</param>
+        private void NotifyComboCanceledForUi(SkillComboCancelEvent cancelEvent)
+        {
+            ComboCanceledForUi?.Invoke(cancelEvent);
+        }
+
+        /// <summary>
+        /// 마무리 스킬 종료 UI 이벤트를 발행합니다.
+        /// </summary>
+        /// <param name="result">마무리 스킬 사용 결과입니다.</param>
+        private void NotifyComboFinishedByLastSkillForUi(SkillComboUseResult result)
+        {
+            ComboFinishedByLastSkillForUi?.Invoke(result);
         }
 
         /// <summary>
@@ -390,7 +504,7 @@ namespace GGemCo2DSkill
             if (Time.time <= _inputWindowExpireTime)
                 return false;
 
-            ResetCombo();
+            CancelCombo(SkillComboCancelReason.Expired);
             return true;
         }
 
@@ -554,13 +668,13 @@ namespace GGemCo2DSkill
 
             if (report.State != MonsterSkillExecutionState.Succeeded)
             {
-                ResetCombo();
+                CancelCombo(SkillComboCancelReason.SkillExecutionFailed);
                 return;
             }
 
             if (chainInputWindowSeconds <= 0f)
             {
-                ResetCombo();
+                CancelCombo(SkillComboCancelReason.ChainInputWindowDisabled);
                 return;
             }
 
