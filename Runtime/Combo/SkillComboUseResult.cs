@@ -76,6 +76,11 @@ namespace GGemCo2DSkill
         /// 콤보 노드는 해석되었지만 실제 스킬 실행이 거절되었습니다.
         /// </summary>
         SkillUseRejected = 13,
+
+        /// <summary>
+        /// 콤보 입력 가능 시간이 만료되었습니다.
+        /// </summary>
+        Expired = 14,
     }
 
     /// <summary>

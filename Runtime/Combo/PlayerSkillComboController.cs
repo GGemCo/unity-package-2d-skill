@@ -16,11 +16,22 @@ namespace GGemCo2DSkill
         [SerializeField, Tooltip("현재 장착된 콤보 정의를 제공하는 선택적 컴포넌트입니다.")]
         private MonoBehaviour loadoutProviderBehaviour;
 
+        [Header("Combo Input Window")]
+        [SerializeField, Min(0f), Tooltip("외부 진입 조건으로 콤보가 열린 뒤 첫 입력을 기다릴 시간입니다. 0이면 만료 시간을 사용하지 않습니다.")]
+        private float entryInputWindowSeconds = 1f;
+
+        [SerializeField, Min(0f), Tooltip("스킬 종료 후 다음 콤보 입력을 기다릴 시간입니다. 0이면 기존처럼 스킬 종료 시 콤보를 초기화합니다.")]
+        private float chainInputWindowSeconds;
+
+        private const float InputWindowDisabledTime = -1f;
+
         private readonly SkillComboState _state = new();
         private IPlayerSkillComboLoadoutProvider _loadoutProvider;
         private ICharacterSkillDriver _skillDriver;
         private IPlayerSkillTargetingProvider _targetingProvider;
         private SkillExecutor _skillExecutor;
+        private bool _isInputWindowArmed;
+        private float _inputWindowExpireTime = InputWindowDisabledTime;
 
         /// <summary>
         /// 현재 플레이어 콤보 진행 상태입니다.
@@ -30,7 +41,30 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 현재 이어갈 수 있는 콤보가 열려 있는지 반환합니다.
         /// </summary>
-        public bool IsComboActive => _state.IsActive;
+        public bool IsComboActive
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive;
+            }
+        }
+
+        /// <summary>
+        /// 현재 공격 입력으로 다음 콤보 스킬을 받을 수 있는 상태인지 반환합니다.
+        /// </summary>
+        /// <remarks>
+        /// 스킬끼리 이어지는 B안은 이전 스킬이 끝난 뒤에만 다음 입력을 받기 때문에,
+        /// 스킬 실행 중에는 콤보 상태가 살아 있어도 입력 대기 상태로 보지 않습니다.
+        /// </remarks>
+        public bool CanAcceptComboInput
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive && _isInputWindowArmed;
+            }
+        }
 
         /// <summary>
         /// 필요한 컴포넌트 참조를 초기화합니다.
@@ -58,6 +92,25 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 콤보 입력 가능 시간이 만료되었는지 매 프레임 확인합니다.
+        /// </summary>
+        private void Update()
+        {
+            ResetExpiredComboIfNeeded();
+        }
+
+        /// <summary>
+        /// 외부에서 콤보 입력 대기 시간을 설정합니다.
+        /// </summary>
+        /// <param name="entryWindowSeconds">외부 진입 후 첫 입력을 기다릴 시간입니다. 0이면 만료 시간을 사용하지 않습니다.</param>
+        /// <param name="chainWindowSeconds">스킬 종료 후 다음 입력을 기다릴 시간입니다. 0이면 스킬 종료 시 초기화합니다.</param>
+        public void SetInputWindows(float entryWindowSeconds, float chainWindowSeconds)
+        {
+            entryInputWindowSeconds = Mathf.Max(0f, entryWindowSeconds);
+            chainInputWindowSeconds = Mathf.Max(0f, chainWindowSeconds);
+        }
+
+        /// <summary>
         /// 외부에서 콤보 장착 정보 제공자를 직접 지정합니다.
         /// </summary>
         /// <param name="provider">사용할 콤보 장착 정보 제공자입니다.</param>
@@ -82,6 +135,7 @@ namespace GGemCo2DSkill
         public void ResetCombo()
         {
             _state.Reset();
+            ClearInputWindow();
         }
 
         /// <summary>
@@ -137,6 +191,7 @@ namespace GGemCo2DSkill
             }
 
             _state.OpenEntryGate(entryTrigger, confirmedSkillUid);
+            ArmInputWindow(entryInputWindowSeconds);
             return SkillComboOpenResult.Opened(entryMainNode, entryLastNode, entryTrigger);
         }
 
@@ -165,6 +220,9 @@ namespace GGemCo2DSkill
         /// <returns>콤보 명령 처리 결과입니다.</returns>
         public SkillComboUseResult TryUseComboCommand(SkillComboCommand command)
         {
+            if (ResetExpiredComboIfNeeded())
+                return SkillComboUseResult.Fail(SkillComboUseFailReason.Expired);
+
             if (!TryResolveNextNode(command, out RuntimeSkillComboNode node, out SkillComboUseFailReason failReason))
                 return SkillComboUseResult.Fail(failReason);
 
@@ -182,6 +240,9 @@ namespace GGemCo2DSkill
         /// <returns>콤보 명령 처리 결과입니다.</returns>
         public SkillComboUseResult TryUseComboCommand(SkillComboCommand command, in SkillDriverRequest request)
         {
+            if (ResetExpiredComboIfNeeded())
+                return SkillComboUseResult.Fail(SkillComboUseFailReason.Expired);
+
             if (!TryResolveNextNode(command, out RuntimeSkillComboNode node, out SkillComboUseFailReason failReason))
                 return SkillComboUseResult.Fail(failReason);
 
@@ -285,13 +346,52 @@ namespace GGemCo2DSkill
                     skillUseResult.FailReason);
             }
 
+            ClearInputWindow();
+
             bool comboEnded = node.IsLast;
             if (comboEnded)
-                _state.Reset();
+                ResetCombo();
             else
                 _state.Activate(node);
 
             return SkillComboUseResult.Started(node, comboEnded);
+        }
+
+        /// <summary>
+        /// 지정한 시간 동안 다음 콤보 입력을 기다리도록 만료 시간을 설정합니다.
+        /// </summary>
+        /// <param name="windowSeconds">입력을 기다릴 시간입니다. 0 이하이면 만료를 사용하지 않습니다.</param>
+        private void ArmInputWindow(float windowSeconds)
+        {
+            _isInputWindowArmed = true;
+            _inputWindowExpireTime = windowSeconds > 0f
+                ? Time.time + windowSeconds
+                : InputWindowDisabledTime;
+        }
+
+        /// <summary>
+        /// 현재 설정된 콤보 입력 만료 시간을 해제합니다.
+        /// </summary>
+        private void ClearInputWindow()
+        {
+            _isInputWindowArmed = false;
+            _inputWindowExpireTime = InputWindowDisabledTime;
+        }
+
+        /// <summary>
+        /// 콤보 입력 대기 시간이 만료되었으면 콤보 상태를 초기화합니다.
+        /// </summary>
+        /// <returns>이번 호출에서 만료로 초기화되었으면 <see langword="true"/>입니다.</returns>
+        private bool ResetExpiredComboIfNeeded()
+        {
+            if (!_state.IsActive || !_isInputWindowArmed || _inputWindowExpireTime <= 0f)
+                return false;
+
+            if (Time.time <= _inputWindowExpireTime)
+                return false;
+
+            ResetCombo();
+            return true;
         }
 
         /// <summary>
@@ -444,18 +544,27 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 현재 메인 콤보 스킬이 종료되면 콤보 진행 상태를 초기화합니다.
+        /// 현재 메인 콤보 스킬이 종료되면 다음 입력 대기 시간을 열거나 콤보를 초기화합니다.
         /// </summary>
         /// <param name="report">스킬 실행 종료 리포트입니다.</param>
         private void OnSkillExecutionFinished(SkillExecutionReport report)
         {
-            if (_state.IsExternalEntry)
-                return;
-
             if (!_state.IsActive || report.SkillUid != _state.CurrentSkillUid)
                 return;
 
-            _state.Reset();
+            if (report.State != MonsterSkillExecutionState.Succeeded)
+            {
+                ResetCombo();
+                return;
+            }
+
+            if (chainInputWindowSeconds <= 0f)
+            {
+                ResetCombo();
+                return;
+            }
+
+            ArmInputWindow(chainInputWindowSeconds);
         }
     }
 }
