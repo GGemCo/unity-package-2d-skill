@@ -151,6 +151,21 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 뒤늦게 부착되거나 교체된 런타임 의존성을 다시 확인하고 이벤트 구독을 갱신합니다.
+        /// </summary>
+        /// <remarks>
+        /// 캐릭터 스폰 시 여러 패키지의 부트스트랩이 독립적으로 컴포넌트를 추가하므로,
+        /// 이 컨트롤러가 <see cref="SkillExecutor"/> 또는 스킬 드라이버보다 먼저 활성화될 수 있습니다.
+        /// 그 경우 첫 스킬 종료 이벤트를 받지 못해 다음 체인 입력 대기 시간이 열리지 않으므로,
+        /// 외부 부트스트랩 또는 입력 처리 직전에 이 메서드로 참조와 구독 상태를 보정합니다.
+        /// </remarks>
+        public void RefreshRuntimeReferences()
+        {
+            CacheComponents();
+            SubscribeSkillExecutor();
+        }
+
+        /// <summary>
         /// 현재 콤보 진행 상태를 초기화합니다.
         /// </summary>
         public void ResetCombo()
@@ -382,7 +397,7 @@ namespace GGemCo2DSkill
         /// <returns>콤보 명령 처리 결과입니다.</returns>
         private SkillComboUseResult TryUseResolvedNode(RuntimeSkillComboNode node, in SkillDriverRequest request)
         {
-            CacheSkillDriver();
+            RefreshRuntimeReferences();
             if (_skillDriver == null)
                 return SkillComboUseResult.Fail(SkillComboUseFailReason.MissingSkillDriver);
 

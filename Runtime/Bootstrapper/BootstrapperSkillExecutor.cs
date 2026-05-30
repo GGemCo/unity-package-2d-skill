@@ -84,6 +84,11 @@ namespace GGemCo2DSkill
                     ch.gameObject.AddComponent<PlayerSkillTargetingProvider>();
 
                 playerSkillDriverAdapter.SetSkillExecutor(skillExecutor);
+
+                // TimingBattle 등 상위 프로젝트 부트스트랩이 콤보 컨트롤러를 먼저 붙인 경우,
+                // SkillExecutor 생성 후 종료 이벤트 구독을 다시 보장합니다.
+                PlayerSkillComboController comboController = ch.gameObject.GetComponent<PlayerSkillComboController>();
+                comboController?.RefreshRuntimeReferences();
             }
             else if (ch.IsMonster())
             {
