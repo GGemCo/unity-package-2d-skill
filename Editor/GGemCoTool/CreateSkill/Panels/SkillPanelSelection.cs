@@ -70,7 +70,7 @@ namespace GGemCo2DSkillEditor
                     onSelected: (idx, opt) =>
                     {
                         _selectedData = opt.Data;
-                        CacheRow();
+                        CacheRow(true);
                         Repaint();
                     },
                     defaultSearchMode: SearchableDropdownUtility.SearchMode.Both);

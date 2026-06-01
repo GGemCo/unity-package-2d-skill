@@ -20,6 +20,16 @@ namespace GGemCo2DSkillEditor
         /// Bake 대상 타임라인 에셋입니다.
         /// </summary>
         private TimelineAsset _timelineField;
+
+        /// <summary>
+        /// Timeline 자동 선택 결과 안내 메시지입니다.
+        /// </summary>
+        private string _timelineAutoSelectMessage;
+
+        /// <summary>
+        /// Timeline 자동 선택 결과 안내 메시지 타입입니다.
+        /// </summary>
+        private MessageType _timelineAutoSelectMessageType = MessageType.None;
         
         /// <summary>
         /// 타임라인 Bake UI를 그리고, 선택한 타임라인을 런타임 시퀀스로 생성 및 등록하는 기능을 제공합니다.
@@ -30,9 +40,41 @@ namespace GGemCo2DSkillEditor
             {
                 EditorGUILayout.LabelField("타임라인 Bake", EditorStyles.boldLabel);
 
-                _timelineField =
-                    (TimelineAsset)EditorGUILayout.ObjectField("타임라인 파일 지정", _timelineField, typeof(TimelineAsset),
-                        false);
+                DrawExpectedTimelinePath();
+
+                EditorGUI.BeginChangeCheck();
+                var selectedTimeline = (TimelineAsset)EditorGUILayout.ObjectField(
+                    "타임라인 파일 지정",
+                    _timelineField,
+                    typeof(TimelineAsset),
+                    false);
+                if (EditorGUI.EndChangeCheck())
+                {
+                    _timelineField = selectedTimeline;
+                    ClearTimelineAutoSelectMessage();
+                }
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    using (new EditorGUI.DisabledScope(GetSelectedUid() <= 0))
+                    {
+                        if (GUILayout.Button("자동 선택", GUILayout.Width(90)))
+                        {
+                            AutoSelectTimelineForSelectedSkill(true);
+                        }
+                    }
+
+                    using (new EditorGUI.DisabledScope(_timelineField == null))
+                    {
+                        if (GUILayout.Button("Project 창에서 선택", GUILayout.Width(130)))
+                        {
+                            Selection.activeObject = _timelineField;
+                            EditorGUIUtility.PingObject(_timelineField);
+                        }
+                    }
+                }
+
+                DrawTimelineAutoSelectMessage();
 
                 using (new EditorGUI.DisabledScope(!_timelineField))
                 {
@@ -51,6 +93,104 @@ namespace GGemCo2DSkillEditor
                     }
                 }
             }
+        }
+
+
+        /// <summary>
+        /// 현재 선택된 스킬의 권장 Timeline 원본 에셋 경로를 UI에 표시합니다.
+        /// </summary>
+        private void DrawExpectedTimelinePath()
+        {
+            int selectedUid = GetSelectedUid();
+            if (selectedUid <= 0)
+            {
+                EditorGUILayout.HelpBox("스킬을 선택하면 권장 Timeline 경로가 표시됩니다.", MessageType.Info);
+                return;
+            }
+
+            string expectedPath = SkillTimelineAuthoringPath.GetAssetPath(_selectedSource, selectedUid);
+            EditorGUILayout.LabelField("권장 Timeline 경로");
+            EditorGUILayout.SelectableLabel(expectedPath, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
+        }
+
+        /// <summary>
+        /// 현재 선택된 스킬 UID와 소스에 맞는 Timeline 원본 에셋을 자동으로 찾아 Bake 대상 필드에 지정합니다.
+        /// </summary>
+        /// <param name="pingTimelineObject">찾은 Timeline 에셋을 Project 창에서 강조 표시할지 여부입니다.</param>
+        private void AutoSelectTimelineForSelectedSkill(bool pingTimelineObject)
+        {
+            int selectedUid = GetSelectedUid();
+            if (selectedUid <= 0)
+            {
+                _timelineField = null;
+                SetTimelineAutoSelectMessage("선택된 스킬이 없어 Timeline을 자동 선택하지 않았습니다.", MessageType.Info);
+                return;
+            }
+
+            if (SkillTimelineAuthoringPath.TryFindTimeline(
+                    _selectedSource,
+                    selectedUid,
+                    out var timeline,
+                    out var assetPath,
+                    out int candidateCount))
+            {
+                _timelineField = timeline;
+                SetTimelineAutoSelectMessage($"Timeline 자동 선택 완료: {assetPath}", MessageType.Info);
+
+                if (pingTimelineObject)
+                {
+                    Selection.activeObject = timeline;
+                    EditorGUIUtility.PingObject(timeline);
+                }
+
+                return;
+            }
+
+            _timelineField = null;
+
+            string expectedPath = SkillTimelineAuthoringPath.GetAssetPath(_selectedSource, selectedUid);
+            if (candidateCount > 1)
+            {
+                SetTimelineAutoSelectMessage(
+                    $"동일한 Timeline 후보가 {candidateCount}개 발견되어 자동 선택하지 않았습니다. 권장 경로에 하나만 유지하세요. 권장 경로: {expectedPath}",
+                    MessageType.Warning);
+                return;
+            }
+
+            SetTimelineAutoSelectMessage(
+                $"규칙에 맞는 Timeline 파일을 찾지 못했습니다. 권장 경로: {expectedPath}",
+                MessageType.Warning);
+        }
+
+        /// <summary>
+        /// Timeline 자동 선택 결과 메시지를 UI에 표시합니다.
+        /// </summary>
+        private void DrawTimelineAutoSelectMessage()
+        {
+            if (string.IsNullOrWhiteSpace(_timelineAutoSelectMessage) || _timelineAutoSelectMessageType == MessageType.None)
+                return;
+
+            EditorGUILayout.HelpBox(_timelineAutoSelectMessage, _timelineAutoSelectMessageType);
+        }
+
+        /// <summary>
+        /// Timeline 자동 선택 결과 메시지를 설정합니다.
+        /// </summary>
+        /// <param name="message">표시할 메시지입니다.</param>
+        /// <param name="messageType">메시지 표시 타입입니다.</param>
+        private void SetTimelineAutoSelectMessage(string message, MessageType messageType)
+        {
+            _timelineAutoSelectMessage = message;
+            _timelineAutoSelectMessageType = messageType;
+        }
+
+        /// <summary>
+        /// 사용자가 Timeline 필드를 직접 변경했을 때 자동 선택 결과 메시지를 제거합니다.
+        /// </summary>
+        private void ClearTimelineAutoSelectMessage()
+        {
+            _timelineAutoSelectMessage = null;
+            _timelineAutoSelectMessageType = MessageType.None;
         }
 
         /// <summary>

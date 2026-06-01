@@ -256,9 +256,10 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
-        /// 현재 선택된 데이터를 기준으로 원본 Row와 편집용 Row를 다시 캐시합니다.
+        /// 현재 선택된 데이터를 기준으로 원본 Row와 편집용 Row를 다시 캐시하고, 대응되는 Timeline 원본 에셋을 자동 선택합니다.
         /// </summary>
-        private void CacheRow()
+        /// <param name="pingTimelineObject">자동으로 찾은 Timeline 에셋을 Project 창에서 강조 표시할지 여부입니다.</param>
+        private void CacheRow(bool pingTimelineObject = false)
         {
             _cachedRow = null;
             _editingRow = null;
@@ -266,12 +267,21 @@ namespace GGemCo2DSkillEditor
 
             int selectedUid = GetSelectedUid();
             if (selectedUid <= 0)
+            {
+                AutoSelectTimelineForSelectedSkill(false);
                 return;
+            }
+
             if (!TryGetCurrentRowByUid(selectedUid, out var row) || row == null)
+            {
+                AutoSelectTimelineForSelectedSkill(false);
                 return;
+            }
 
             _cachedRow = row;
             _editingRow = CloneRow(row);
+
+            AutoSelectTimelineForSelectedSkill(pingTimelineObject);
         }
 
         /// <summary>
