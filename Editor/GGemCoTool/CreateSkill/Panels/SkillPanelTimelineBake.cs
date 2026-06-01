@@ -54,25 +54,25 @@ namespace GGemCo2DSkillEditor
                     ClearTimelineAutoSelectMessage();
                 }
 
-                using (new EditorGUILayout.HorizontalScope())
-                {
-                    using (new EditorGUI.DisabledScope(GetSelectedUid() <= 0))
-                    {
-                        if (GUILayout.Button("자동 선택", GUILayout.Width(90)))
-                        {
-                            AutoSelectTimelineForSelectedSkill(true);
-                        }
-                    }
-
-                    using (new EditorGUI.DisabledScope(_timelineField == null))
-                    {
-                        if (GUILayout.Button("Project 창에서 선택", GUILayout.Width(130)))
-                        {
-                            Selection.activeObject = _timelineField;
-                            EditorGUIUtility.PingObject(_timelineField);
-                        }
-                    }
-                }
+                // using (new EditorGUILayout.HorizontalScope())
+                // {
+                //     using (new EditorGUI.DisabledScope(GetSelectedUid() <= 0))
+                //     {
+                //         if (GUILayout.Button("자동 선택", GUILayout.Width(90)))
+                //         {
+                //             AutoSelectTimelineForSelectedSkill(true);
+                //         }
+                //     }
+                //
+                //     using (new EditorGUI.DisabledScope(_timelineField == null))
+                //     {
+                //         if (GUILayout.Button("Project 창에서 선택", GUILayout.Width(130)))
+                //         {
+                //             Selection.activeObject = _timelineField;
+                //             EditorGUIUtility.PingObject(_timelineField);
+                //         }
+                //     }
+                // }
 
                 DrawTimelineAutoSelectMessage();
 
@@ -108,9 +108,9 @@ namespace GGemCo2DSkillEditor
                 return;
             }
 
-            string expectedPath = SkillTimelineAuthoringPath.GetAssetPath(_selectedSource, selectedUid);
-            EditorGUILayout.LabelField("권장 Timeline 경로");
-            EditorGUILayout.SelectableLabel(expectedPath, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
+            // string expectedPath = SkillTimelineAuthoringPath.GetAssetPath(_selectedSource, selectedUid);
+            // EditorGUILayout.LabelField("권장 Timeline 경로");
+            // EditorGUILayout.SelectableLabel(expectedPath, EditorStyles.textField, GUILayout.Height(EditorGUIUtility.singleLineHeight));
         }
 
         /// <summary>

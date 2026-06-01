@@ -1,4 +1,4 @@
-using GGemCo2DCore;
+﻿using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using UnityEditor;
 using UnityEngine;
@@ -61,19 +61,21 @@ namespace GGemCo2DSkillEditor
                 string currentText = _selectedData != null
                     ? $"{prefix} {GetSelectedUid()} | {selectedDisplayName}"
                     : "선택...";
-                int selectIndex = GetSelectedUid();
+                int selectedUid = GetSelectedUid();
+                string selectedKey = selectedUid > 0 ? selectedUid.ToString() : string.Empty;
 
                 SearchableDropdownUtility.DrawButtonAndShow(
                     buttonText: currentText,
                     options: _dropDownOptions,
-                    selectedIndex: selectIndex,
+                    selectedIndex: -1,
                     onSelected: (idx, opt) =>
                     {
                         _selectedData = opt.Data;
                         CacheRow(true);
                         Repaint();
                     },
-                    defaultSearchMode: SearchableDropdownUtility.SearchMode.Both);
+                    defaultSearchMode: SearchableDropdownUtility.SearchMode.Both,
+                    selectedKey: selectedKey);
 
                 if (GUILayout.Button("리로드", GUILayout.Width(60)))
                 {
