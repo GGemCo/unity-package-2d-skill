@@ -27,6 +27,8 @@ namespace GGemCo2DSkill
         private bool _didCastLoop;
         private bool _didCastEnd;
         private bool _didUse;
+        private float _realUseElapsed;
+        private SkillRunTimingContext _timingContext = SkillRunTimingContext.Default;
 
         /// <summary>
         /// Use 애니메이션 기준으로 현재 스킬 이벤트 시퀀스가 진행된 시간입니다.
@@ -81,6 +83,8 @@ namespace GGemCo2DSkill
             _sequence = sequence;
             _nextEventIndex = 0;
             _time = 0f;
+            _realUseElapsed = 0f;
+            _timingContext = SkillRunTimingContext.Default;
         }
 
         /// <summary>
@@ -172,7 +176,12 @@ namespace GGemCo2DSkill
         /// <param name="dt">이번 프레임 경과 시간입니다.</param>
         private void TickRuntimeSequence(float dt)
         {
-            if (_didUse && _sequence != null && _sequence.Events != null)
+            if (!_didUse)
+                return;
+
+            _realUseElapsed += dt;
+
+            if (_sequence != null && _sequence.Events != null)
             {
                 while (_nextEventIndex < _sequence.Events.Length)
                 {
@@ -187,21 +196,25 @@ namespace GGemCo2DSkill
                         ev,
                         _snapshotCasterPositionProvider(),
                         _snapshotTargetPositionProvider(),
-                        _snapshotGroundPointProvider());
+                        _snapshotGroundPointProvider(),
+                        _timingContext);
                     _nextEventIndex++;
                 }
 
-                _time += dt;
+                _time += dt * _timingContext.TimelineRate;
 
-                if (_time >= _sequence.Duration && _nextEventIndex >= _sequence.Events.Length)
+                if (ShouldEndRuntimeSequence())
                 {
                     ShouldEndRun = true;
                 }
             }
-            else if (_didUse)
+            else
             {
                 _time += dt;
-                ShouldEndRun = _time >= 0.3f;
+                float fallbackDuration = _timingContext.RealUseDurationSeconds > 0f
+                    ? _timingContext.RealUseDurationSeconds
+                    : 0.3f;
+                ShouldEndRun = _realUseElapsed >= fallbackDuration;
             }
         }
 
@@ -268,7 +281,9 @@ namespace GGemCo2DSkill
             _didUse = true;
 
             _time = 0f;
+            _realUseElapsed = 0f;
             _nextEventIndex = 0;
+            _timingContext = BuildUseClipTimingContext();
 
             if (_actionController != null)
             {
@@ -282,8 +297,71 @@ namespace GGemCo2DSkill
                 _skill.Uid,
                 SkillAnimationPhase.Action,
                 loop: false,
-                timeScale: 1f,
+                timeScale: Mathf.Max(0.001f, _skill.UseClipTimeScale),
                 overrideAnimationName: string.IsNullOrEmpty(_skill.UseClip) ? null : _skill.UseClip));
+        }
+
+        /// <summary>
+        /// UseClip 설정과 RuntimeSequence 길이를 기준으로 실제 시간과 이벤트 논리 시간을 연결하는 보정 정보를 계산합니다.
+        /// </summary>
+        /// <returns>현재 스킬 실행에 사용할 시간 보정 컨텍스트입니다.</returns>
+        private SkillRunTimingContext BuildUseClipTimingContext()
+        {
+            var policy = _skill.UseClipTimingPolicy;
+            float sequenceDuration = _sequence != null ? Mathf.Max(0f, _sequence.Duration) : 0f;
+            float useClipTimeScale = Mathf.Max(0.001f, _skill.UseClipTimeScale);
+            float useClipDuration = ResolveUseClipDurationSeconds();
+            float realUseDuration = useClipDuration > 0f ? useClipDuration / useClipTimeScale : 0f;
+            float referenceDuration = _skill.UseClipReferenceDurationSeconds > 0f
+                ? _skill.UseClipReferenceDurationSeconds
+                : sequenceDuration;
+
+            float timelineRate = 1f;
+            if (policy == ConfigCommonSkill.SkillUseClipTimingPolicy.ScaleSequenceToUseClip &&
+                realUseDuration > 0f &&
+                referenceDuration > 0f)
+            {
+                timelineRate = referenceDuration / realUseDuration;
+            }
+
+            return new SkillRunTimingContext(policy, timelineRate, realUseDuration, sequenceDuration);
+        }
+
+        /// <summary>
+        /// UseClip 애니메이션 클립의 원본 길이를 초 단위로 조회합니다.
+        /// 클립이 비어 있거나 현재 캐릭터 애니메이터에 없으면 0을 반환합니다.
+        /// </summary>
+        /// <returns>UseClip 원본 애니메이션 길이(초)입니다.</returns>
+        private float ResolveUseClipDurationSeconds()
+        {
+            if (_animController == null || string.IsNullOrWhiteSpace(_skill.UseClip))
+                return 0f;
+
+            if (!_animController.HasAnimation(_skill.UseClip))
+                return 0f;
+
+            return Mathf.Max(0f, _animController.GetCharacterAnimationDuration(_skill.UseClip, isMilliseconds: false));
+        }
+
+        /// <summary>
+        /// 현재 시간 보정 정책에 따라 스킬 런 종료 조건이 충족되었는지 확인합니다.
+        /// </summary>
+        /// <returns>스킬 런을 종료할 수 있으면 <see langword="true"/>입니다.</returns>
+        private bool ShouldEndRuntimeSequence()
+        {
+            bool sequenceEnded = _sequence == null ||
+                                 (_time >= _sequence.Duration && _nextEventIndex >= _sequence.Events.Length);
+            bool useClipEnded = _timingContext.RealUseDurationSeconds > 0f &&
+                                _realUseElapsed >= _timingContext.RealUseDurationSeconds;
+
+            return _timingContext.Policy switch
+            {
+                ConfigCommonSkill.SkillUseClipTimingPolicy.EndByUseClip => useClipEnded ||
+                                                                           (_timingContext.RealUseDurationSeconds <= 0f && sequenceEnded),
+                ConfigCommonSkill.SkillUseClipTimingPolicy.EndByLonger => sequenceEnded &&
+                                                                          (_timingContext.RealUseDurationSeconds <= 0f || useClipEnded),
+                _ => sequenceEnded,
+            };
         }
 
         /// <summary>

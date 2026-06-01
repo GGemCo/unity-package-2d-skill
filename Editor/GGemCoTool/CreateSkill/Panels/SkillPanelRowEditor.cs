@@ -335,7 +335,11 @@ namespace GGemCo2DSkillEditor
                 case nameof(StruckTableSkill.ChargeGaugeDamagePerHit):
                 case nameof(StruckTableSkill.ChargeCompleteDurationSeconds):
                 case nameof(StruckTableSkill.ChargeFailDurationSeconds):
+                case nameof(StruckTableSkill.UseClipReferenceDurationSeconds):
                     ClampFloatMember(target, memberName);
+                    break;
+                case nameof(StruckTableSkill.UseClipTimeScale):
+                    ClampPositiveFloatMember(target, memberName, 0.001f);
                     break;
                 case nameof(StruckTableSkill.MaxTargets):
                 case nameof(StruckTableSkill.NeedPlayerLevel):
@@ -359,6 +363,8 @@ namespace GGemCo2DSkillEditor
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeGaugeDamagePerHit));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeCompleteDurationSeconds));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeFailDurationSeconds));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.UseClipTimeScale));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.UseClipReferenceDurationSeconds));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.MaxTargets));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.NeedPlayerLevel));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.NeedMp));
@@ -414,6 +420,25 @@ namespace GGemCo2DSkillEditor
                 return;
 
             SetMemberValue(target, memberName, 0f);
+        }
+
+        /// <summary>
+        /// float 멤버를 지정한 최소 양수 이상으로 보정합니다.
+        /// </summary>
+        /// <param name="target">보정 대상 객체입니다.</param>
+        /// <param name="memberName">보정할 멤버 이름입니다.</param>
+        /// <param name="minValue">허용할 최소값입니다.</param>
+        private static void ClampPositiveFloatMember(object target, string memberName, float minValue)
+        {
+            var rawValue = GetMemberValue(target, memberName);
+            if (rawValue == null)
+                return;
+
+            float value = Convert.ToSingle(rawValue);
+            if (value >= minValue)
+                return;
+
+            SetMemberValue(target, memberName, minValue);
         }
 
         /// <summary>

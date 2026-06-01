@@ -215,6 +215,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
+        /// <param name="timingContext">UseClip 재생 속도와 실제 길이를 반영한 이벤트 시간 보정 정보입니다.</param>
         public void ExecuteEvent(
             SkillRun run,
             RuntimeSkillDefinition skill,
@@ -223,7 +224,8 @@ namespace GGemCo2DSkill
             in SkillRuntimeEvent e,
             Vector3 snapshotCasterPos,
             Vector3 snapshotTargetPos,
-            Vector3 snapshotGroundPoint)
+            Vector3 snapshotGroundPoint,
+            SkillRunTimingContext timingContext)
         {
             if (!CanProcessEvent(run))
                 return;
@@ -236,7 +238,8 @@ namespace GGemCo2DSkill
                 in e,
                 snapshotCasterPos,
                 snapshotTargetPos,
-                snapshotGroundPoint);
+                snapshotGroundPoint,
+                timingContext);
             _eventDispatcher.Execute(this, in eventContext);
         }
 

@@ -29,7 +29,19 @@ namespace GGemCo2DSkill
         public string CastStartClip;
         public string CastLoopClip;
         public string CastEndClip;
+
+        /// <summary>스킬 사용 단계에서 재생할 애니메이션 클립 이름입니다.</summary>
         public string UseClip;
+
+        /// <summary>UseClip 애니메이션 재생 속도 배율입니다.</summary>
+        public float UseClipTimeScale = 1f;
+
+        /// <summary>UseClip 실제 재생 시간을 스킬 런타임 시퀀스에 반영하는 정책입니다.</summary>
+        public ConfigCommonSkill.SkillUseClipTimingPolicy UseClipTimingPolicy;
+
+        /// <summary>UseClip 시간 보정 기준이 되는 시퀀스 길이입니다. 0이면 RuntimeSequence.Duration을 사용합니다.</summary>
+        public float UseClipReferenceDurationSeconds;
+
         public ConfigCommonSkill.SkillFacingMode FacingMode;
 
         /// <summary>스킬 사용 전 차징 설정입니다.</summary>
@@ -56,6 +68,9 @@ namespace GGemCo2DSkill
                 CastLoopClip = row.CastLoopClip,
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
+                UseClipTimeScale = row.UseClipTimeScale,
+                UseClipTimingPolicy = row.UseClipTimingPolicy,
+                UseClipReferenceDurationSeconds = row.UseClipReferenceDurationSeconds,
                 FacingMode = row.FacingMode,
                 Charge = RuntimeSkillChargeDefinition.From(row, TableLoaderManagerSkill.Instance != null ? TableLoaderManagerSkill.Instance.TableSkillChargeStage : null),
             };
@@ -82,6 +97,9 @@ namespace GGemCo2DSkill
                 CastLoopClip = row.CastLoopClip,
                 CastEndClip = row.CastEndClip,
                 UseClip = row.UseClip,
+                UseClipTimeScale = row.UseClipTimeScale,
+                UseClipTimingPolicy = row.UseClipTimingPolicy,
+                UseClipReferenceDurationSeconds = row.UseClipReferenceDurationSeconds,
                 FacingMode = row.FacingMode,
                 Charge = RuntimeSkillChargeDefinition.From(row, TableLoaderManagerSkill.Instance != null ? TableLoaderManagerSkill.Instance.TableSkillChargeStage : null),
             };

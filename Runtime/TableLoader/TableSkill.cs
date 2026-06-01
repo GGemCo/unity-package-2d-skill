@@ -50,6 +50,15 @@ namespace GGemCo2DSkill
         /// <summary>애니메이션 클립 이름 규칙: 사용</summary>
         public string UseClip;
 
+        /// <summary>UseClip 애니메이션 재생 속도 배율입니다. 1보다 크면 빠르게, 1보다 작으면 느리게 재생합니다.</summary>
+        public float UseClipTimeScale;
+
+        /// <summary>UseClip 실제 재생 시간을 스킬 런타임 시퀀스에 반영하는 정책입니다.</summary>
+        public ConfigCommonSkill.SkillUseClipTimingPolicy UseClipTimingPolicy;
+
+        /// <summary>UseClip 시간 보정 기준이 되는 시퀀스 길이입니다. 0이면 RuntimeSequence.Duration을 사용합니다.</summary>
+        public float UseClipReferenceDurationSeconds;
+
 
         /// <summary>스킬 사용 전 차징 단계를 사용할지 여부입니다.</summary>
         public bool UseCharge;
@@ -120,8 +129,38 @@ namespace GGemCo2DSkill
                 ChargeFailClip = data.GetValueOrDefault("ChargeFailClip", string.Empty),
                 ChargeFailDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeFailDurationSeconds", "0"))),
                 UseClip = data["UseClip"],
+                UseClipTimeScale = System.Math.Max(0.001f, GetFloat(data, "UseClipTimeScale", 1f)),
+                UseClipTimingPolicy = GetEnum(data, "UseClipTimingPolicy", ConfigCommonSkill.SkillUseClipTimingPolicy.RuntimeSequence),
+                UseClipReferenceDurationSeconds = System.Math.Max(0f, GetFloat(data, "UseClipReferenceDurationSeconds", 0f)),
                 FacingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillFacingMode>(data["FacingMode"])
             };
+        }
+
+        /// <summary>
+        /// 선택 컬럼의 float 값을 읽습니다. 컬럼이 없거나 값이 비어 있으면 기본값을 반환합니다.
+        /// </summary>
+        /// <param name="data">테이블 Row 원본 데이터입니다.</param>
+        /// <param name="key">조회할 컬럼 이름입니다.</param>
+        /// <param name="fallback">컬럼이 없거나 비어 있을 때 사용할 기본값입니다.</param>
+        /// <returns>파싱된 float 값입니다.</returns>
+        private static float GetFloat(Dictionary<string, string> data, string key, float fallback)
+        {
+            string value = data.GetValueOrDefault(key, string.Empty);
+            return string.IsNullOrWhiteSpace(value) ? fallback : MathHelper.ParseFloat(value);
+        }
+
+        /// <summary>
+        /// 선택 컬럼의 enum 값을 읽습니다. 컬럼이 없거나 값이 비어 있으면 기본값을 반환합니다.
+        /// </summary>
+        /// <typeparam name="TEnum">변환할 enum 타입입니다.</typeparam>
+        /// <param name="data">테이블 Row 원본 데이터입니다.</param>
+        /// <param name="key">조회할 컬럼 이름입니다.</param>
+        /// <param name="fallback">컬럼이 없거나 비어 있을 때 사용할 기본값입니다.</param>
+        /// <returns>파싱된 enum 값입니다.</returns>
+        private static TEnum GetEnum<TEnum>(Dictionary<string, string> data, string key, TEnum fallback) where TEnum : struct, System.Enum
+        {
+            string value = data.GetValueOrDefault(key, string.Empty);
+            return string.IsNullOrWhiteSpace(value) ? fallback : EnumHelper.ConvertEnum<TEnum>(value);
         }
 
     }

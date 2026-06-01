@@ -53,7 +53,13 @@ namespace GGemCo2DSkill
         public Vector3 SnapshotGroundPoint { get; }
 
         /// <summary>
-        /// 이벤트 Timeline Clip 구간에서 계산한 지속 시간입니다.
+        /// UseClip 재생 속도와 실제 길이를 반영한 이벤트 시간 보정 정보입니다.
+        /// </summary>
+        public SkillRunTimingContext TimingContext { get; }
+
+        /// <summary>
+        /// 이벤트 Timeline Clip 구간에서 계산한 실제 런타임 지속 시간입니다.
+        /// UseClip 시간 보정 정책이 활성화되면 원본 Clip 구간 길이를 실제 시간으로 환산합니다.
         /// </summary>
         public float EventDurationSeconds { get; }
 
@@ -68,6 +74,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPosition">스냅샷 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPosition">스냅샷 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">스냅샷 지면 기준점입니다.</param>
+        /// <param name="timingContext">UseClip 재생 속도와 실제 길이를 반영한 이벤트 시간 보정 정보입니다.</param>
         public SkillEventExecutionContext(
             SkillRun run,
             RuntimeSkillDefinition skill,
@@ -76,7 +83,8 @@ namespace GGemCo2DSkill
             in SkillRuntimeEvent runtimeEvent,
             Vector3 snapshotCasterPosition,
             Vector3 snapshotTargetPosition,
-            Vector3 snapshotGroundPoint)
+            Vector3 snapshotGroundPoint,
+            SkillRunTimingContext timingContext)
         {
             Run = run;
             Skill = skill;
@@ -87,7 +95,8 @@ namespace GGemCo2DSkill
             SnapshotCasterPosition = snapshotCasterPosition;
             SnapshotTargetPosition = snapshotTargetPosition;
             SnapshotGroundPoint = snapshotGroundPoint;
-            EventDurationSeconds = Mathf.Max(0f, runtimeEvent.EndTime - runtimeEvent.StartTime);
+            TimingContext = timingContext;
+            EventDurationSeconds = timingContext.ScaleDuration(Mathf.Max(0f, runtimeEvent.EndTime - runtimeEvent.StartTime));
         }
     }
 }

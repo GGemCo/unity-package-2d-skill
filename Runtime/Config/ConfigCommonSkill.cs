@@ -188,6 +188,32 @@ namespace Config
         }
 
         /// <summary>
+        /// UseClip 애니메이션 길이와 재생 속도를 스킬 런타임 시퀀스에 반영하는 방식을 정의합니다.
+        /// </summary>
+        public enum SkillUseClipTimingPolicy
+        {
+            /// <summary>
+            /// RuntimeSequence에 Bake된 시간을 그대로 사용합니다. 기존 스킬과 동일한 기본 정책입니다.
+            /// </summary>
+            RuntimeSequence = 0,
+
+            /// <summary>
+            /// UseClip의 실제 재생 시간에 맞춰 RuntimeSequence의 이벤트 시작 시간과 이벤트 구간 길이를 함께 스케일합니다.
+            /// </summary>
+            ScaleSequenceToUseClip = 1,
+
+            /// <summary>
+            /// 이벤트 시간축은 그대로 유지하되, UseClip 실제 재생 시간이 끝나면 스킬 런을 종료합니다.
+            /// </summary>
+            EndByUseClip = 2,
+
+            /// <summary>
+            /// RuntimeSequence와 UseClip 실제 재생 시간 중 더 긴 쪽이 끝날 때 스킬 런을 종료합니다.
+            /// </summary>
+            EndByLonger = 3,
+        }
+
+        /// <summary>
         /// 범위 판정에 사용하는 영역 형태를 정의합니다.
         /// </summary>
         public enum SkillAreaShape
