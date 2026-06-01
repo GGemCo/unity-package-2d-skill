@@ -86,11 +86,23 @@ namespace GGemCo2DSkill
         [Tooltip("내려치기 시작 시 1회 재생할 애니메이션 이름입니다. 비어 있으면 즉시 Loop 단계로 진입합니다.")]
         public string startAnimationName;
 
+        [Tooltip("내려치기 시작 애니메이션 재생 속도입니다. 1이면 기본 속도입니다.")]
+        [Min(0.001f)]
+        public float startAnimationTimeScale = 1f;
+
         [Tooltip("내려오는 동안 반복 재생할 애니메이션 이름입니다.")]
         public string fallLoopAnimationName;
 
+        [Tooltip("하강 루프 애니메이션 재생 속도입니다. 1이면 기본 속도입니다.")]
+        [Min(0.001f)]
+        public float fallLoopAnimationTimeScale = 1f;
+
         [Tooltip("지면에 닿았을 때 1회 재생할 애니메이션 이름입니다.")]
         public string landEndAnimationName;
+
+        [Tooltip("착지 종료 애니메이션 재생 속도입니다. 1이면 기본 속도입니다.")]
+        [Min(0.001f)]
+        public float landEndAnimationTimeScale = 1f;
 
         [Tooltip("Ground Slam 진행률이 이 값 이상이 되면 Start 애니메이션에서 Fall Loop 애니메이션으로 전환합니다.")]
         [Range(0f, 1f)]

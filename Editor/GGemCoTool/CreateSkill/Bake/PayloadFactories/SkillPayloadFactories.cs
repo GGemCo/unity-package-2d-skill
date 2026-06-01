@@ -227,8 +227,11 @@ namespace GGemCo2DSkillEditor
             def.groundSnapDistance = Mathf.Max(0f, slam.GroundSnapDistance);
             def.groundLayerMask = slam.GroundLayerMask;
             def.startAnimationName = slam.StartAnimationName;
+            def.startAnimationTimeScale = Mathf.Max(0.001f, slam.StartAnimationTimeScale);
             def.fallLoopAnimationName = slam.FallLoopAnimationName;
+            def.fallLoopAnimationTimeScale = Mathf.Max(0.001f, slam.FallLoopAnimationTimeScale);
             def.landEndAnimationName = slam.LandEndAnimationName;
+            def.landEndAnimationTimeScale = Mathf.Max(0.001f, slam.LandEndAnimationTimeScale);
             def.startToLoopNormalizedTime = Mathf.Clamp01(slam.StartToLoopNormalizedTime);
             def.useSnapshotForward = slam.UseSnapshotForward;
             def.stopAtEnd = slam.StopAtEnd;

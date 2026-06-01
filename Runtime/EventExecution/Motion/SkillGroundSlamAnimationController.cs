@@ -8,6 +8,8 @@ namespace GGemCo2DSkill
     /// </summary>
     internal sealed class SkillGroundSlamAnimationController
     {
+        private const float MinAnimationTimeScale = 0.001f;
+
         private enum GroundSlamAnimationPhaseState
         {
             None = 0,
@@ -124,14 +126,14 @@ namespace GGemCo2DSkill
 
             if (!string.IsNullOrWhiteSpace(def.startAnimationName))
             {
-                PlayAnimation(anim, def.startAnimationName, loop: false);
+                PlayAnimation(anim, def.startAnimationName, loop: false, timeScale: def.startAnimationTimeScale);
                 _animationState.Phase = GroundSlamAnimationPhaseState.Start;
                 return;
             }
 
             if (!string.IsNullOrWhiteSpace(def.fallLoopAnimationName))
             {
-                PlayAnimation(anim, def.fallLoopAnimationName, loop: true);
+                PlayAnimation(anim, def.fallLoopAnimationName, loop: true, timeScale: def.fallLoopAnimationTimeScale);
                 _animationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
                 return;
             }
@@ -173,9 +175,9 @@ namespace GGemCo2DSkill
 
             if (!string.IsNullOrWhiteSpace(def.startAnimationName))
             {
-                PlayAnimation(anim, def.startAnimationName, loop: false);
+                PlayAnimation(anim, def.startAnimationName, loop: false, timeScale: def.startAnimationTimeScale);
                 _animationState.Phase = GroundSlamAnimationPhaseState.Start;
-                _animationState.PhaseRemainingSeconds = GetAnimationDurationSafe(anim, def.startAnimationName);
+                _animationState.PhaseRemainingSeconds = GetScaledAnimationDurationSafe(anim, def.startAnimationName, def.startAnimationTimeScale);
                 return;
             }
 
@@ -239,7 +241,7 @@ namespace GGemCo2DSkill
                 _animationState.MotionController = pending.MotionController;
                 _animationState.Definition = pending.Definition;
                 if (!string.IsNullOrWhiteSpace(pending.Definition.fallLoopAnimationName))
-                    PlayAnimation(_animationState.AnimationController, pending.Definition.fallLoopAnimationName, loop: true);
+                    PlayAnimation(_animationState.AnimationController, pending.Definition.fallLoopAnimationName, loop: true, timeScale: pending.Definition.fallLoopAnimationTimeScale);
 
                 _animationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
                 return;
@@ -292,9 +294,9 @@ namespace GGemCo2DSkill
 
             if (!string.IsNullOrWhiteSpace(def.landEndAnimationName))
             {
-                PlayAnimation(anim, def.landEndAnimationName, loop: false);
+                PlayAnimation(anim, def.landEndAnimationName, loop: false, timeScale: def.landEndAnimationTimeScale);
                 _animationState.Phase = GroundSlamAnimationPhaseState.LandEnd;
-                _animationState.PhaseRemainingSeconds = GetAnimationDurationSafe(anim, def.landEndAnimationName);
+                _animationState.PhaseRemainingSeconds = GetScaledAnimationDurationSafe(anim, def.landEndAnimationName, def.landEndAnimationTimeScale);
                 return;
             }
 
@@ -333,7 +335,7 @@ namespace GGemCo2DSkill
                 if (_animationState.Phase != GroundSlamAnimationPhaseState.LandEnd &&
                     !string.IsNullOrWhiteSpace(def.landEndAnimationName))
                 {
-                    PlayAnimation(anim, def.landEndAnimationName, loop: false);
+                    PlayAnimation(anim, def.landEndAnimationName, loop: false, timeScale: def.landEndAnimationTimeScale);
                     _animationState.Phase = GroundSlamAnimationPhaseState.LandEnd;
                 }
 
@@ -359,7 +361,7 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            PlayAnimation(anim, def.fallLoopAnimationName, loop: true);
+            PlayAnimation(anim, def.fallLoopAnimationName, loop: true, timeScale: def.fallLoopAnimationTimeScale);
             _animationState.Phase = GroundSlamAnimationPhaseState.FallLoop;
         }
 
@@ -392,12 +394,43 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 애니메이션 재생 속도를 반영한 실제 대기 시간을 계산합니다.
+        /// </summary>
+        /// <param name="anim">길이를 조회할 애니메이션 컨트롤러입니다.</param>
+        /// <param name="animationName">조회할 애니메이션 이름입니다.</param>
+        /// <param name="timeScale">애니메이션 재생 속도입니다.</param>
+        /// <returns>TimeScale이 적용된 실제 재생 시간(초)입니다.</returns>
+        private static float GetScaledAnimationDurationSafe(
+            ICharacterAnimationController anim,
+            string animationName,
+            float timeScale)
+        {
+            float duration = GetAnimationDurationSafe(anim, animationName);
+            return duration / NormalizeAnimationTimeScale(timeScale);
+        }
+
+        /// <summary>
+        /// 애니메이션 재생 속도를 런타임에서 사용할 수 있는 최소값 이상으로 보정합니다.
+        /// </summary>
+        /// <param name="timeScale">원본 재생 속도입니다.</param>
+        /// <returns>0에 가까운 값으로 인한 정지나 나누기 오류를 방지한 재생 속도입니다.</returns>
+        private static float NormalizeAnimationTimeScale(float timeScale)
+        {
+            return Mathf.Max(MinAnimationTimeScale, timeScale);
+        }
+
+        /// <summary>
         /// 지정한 캐릭터 애니메이션을 스킬 액션 단계로 재생합니다.
         /// </summary>
         /// <param name="anim">애니메이션을 재생할 컨트롤러입니다.</param>
         /// <param name="animationName">재생할 애니메이션 이름입니다.</param>
         /// <param name="loop">반복 재생 여부입니다.</param>
-        private static void PlayAnimation(ICharacterAnimationController anim, string animationName, bool loop)
+        /// <param name="timeScale">애니메이션 재생 속도입니다.</param>
+        private static void PlayAnimation(
+            ICharacterAnimationController anim,
+            string animationName,
+            bool loop,
+            float timeScale)
         {
             if (anim == null || string.IsNullOrWhiteSpace(animationName))
                 return;
@@ -406,7 +439,7 @@ namespace GGemCo2DSkill
                 skillUid: 0,
                 phase: SkillAnimationPhase.Action,
                 loop: loop,
-                timeScale: 1f,
+                timeScale: NormalizeAnimationTimeScale(timeScale),
                 overrideAnimationName: animationName));
         }
 
