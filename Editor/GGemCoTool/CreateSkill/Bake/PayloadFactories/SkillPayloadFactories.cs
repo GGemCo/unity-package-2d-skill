@@ -39,7 +39,9 @@ namespace GGemCo2DSkillEditor
             def.targetHitStopSeconds = dmg.TargetHitStopSeconds;
             def.useCameraShakeOnHit = dmg.UseCameraShakeOnHit;
             def.cameraShakePreset = dmg.CameraShakePreset;
-            def.cameraShakeDirectionMode = dmg.CameraShakeDirectionMode;
+            def.cameraShakeDirectionSource = dmg.CameraShakeDirectionSource;
+            def.cameraShakeFixedDirection = dmg.CameraShakeFixedDirection;
+            def.cameraShakeHorizontalOnly = dmg.CameraShakeHorizontalOnly;
             def.allowSkillChainOnConfirmedDamage = dmg.AllowSkillChainOnConfirmedDamage;
             return def;
         }

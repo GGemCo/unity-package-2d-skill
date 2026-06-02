@@ -139,8 +139,14 @@ namespace GGemCo2DSkillEditor
         [Tooltip("[카메라 Shake Preset] 적중 시 사용할 카메라 Shake Preset 입니다.")]
         [SerializeField] private CameraShakePreset cameraShakePreset;
 
-        [Tooltip("[카메라 방향 모드] 시전자/대상 기준 방향을 어떤 방식으로 Shake 방향에 반영할지 지정합니다.")]
-        [SerializeField] private DirectionalCameraShakeMode cameraShakeDirectionMode = DirectionalCameraShakeMode.PresetRaw;
+        [Tooltip("[카메라 방향 기준] 시전자/대상/고정 방향 중 어떤 기준으로 Shake 방향을 계산할지 지정합니다.")]
+        [SerializeField] private CameraShakeDirectionSource cameraShakeDirectionSource = CameraShakeDirectionSource.Preset;
+
+        [Tooltip("[카메라 고정 방향] 방향 기준이 FixedDirection 일 때 사용할 방향입니다.")]
+        [SerializeField] private Vector2 cameraShakeFixedDirection = Vector2.right;
+
+        [Tooltip("[카메라 좌우 방향만 사용] 켜면 계산된 방향에서 Y축을 제거하고 좌우 방향만 사용합니다.")]
+        [SerializeField] private bool cameraShakeHorizontalOnly = true;
 
         [Header("Hit Stop")]
         [Tooltip("[경직 사용] 이 타격이 실제 데미지를 확정했을 때 캐스터에게 경직을 적용합니다.")]
@@ -293,9 +299,19 @@ namespace GGemCo2DSkillEditor
         public CameraShakePreset CameraShakePreset => cameraShakePreset;
 
         /// <summary>
-        /// 카메라 Shake 방향 계산 모드를 반환합니다.
+        /// 카메라 Shake 방향 계산 기준을 반환합니다.
         /// </summary>
-        public DirectionalCameraShakeMode CameraShakeDirectionMode => cameraShakeDirectionMode;
+        public CameraShakeDirectionSource CameraShakeDirectionSource => cameraShakeDirectionSource;
+
+        /// <summary>
+        /// 고정 방향 카메라 Shake에서 사용할 방향을 반환합니다.
+        /// </summary>
+        public Vector2 CameraShakeFixedDirection => cameraShakeFixedDirection;
+
+        /// <summary>
+        /// 카메라 Shake 방향 계산 시 좌우 방향만 사용할지 여부를 반환합니다.
+        /// </summary>
+        public bool CameraShakeHorizontalOnly => cameraShakeHorizontalOnly;
 
         /// <summary>
         /// 실제 데미지 확정 시 다음 스킬 연계를 즉시 허용할지 여부를 반환합니다.
