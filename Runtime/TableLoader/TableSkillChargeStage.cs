@@ -87,25 +87,26 @@ namespace GGemCo2DSkill
         /// <returns>변환된 차징 단계 Row입니다.</returns>
         protected override StruckTableSkillChargeStage BuildRow(Dictionary<string, string> data)
         {
+            TableRowReader reader = ReadRow(data);
             return new StruckTableSkillChargeStage
             {
-                Uid = MathHelper.ParseInt(data.GetValueOrDefault("Uid")),
-                SkillUid = MathHelper.ParseInt(data.GetValueOrDefault("SkillUid")),
-                OwnerType = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillOwnerType>(data.GetValueOrDefault("OwnerType", nameof(ConfigCommonSkill.SkillOwnerType.Player))),
-                StageIndex = System.Math.Max(0, MathHelper.ParseInt(data.GetValueOrDefault("StageIndex"))),
-                StartClip = data.GetValueOrDefault("StartClip", string.Empty),
-                StartDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("StartDurationSeconds", "0"))),
-                DurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("DurationSeconds"))),
-                LoopClip = data.GetValueOrDefault("LoopClip", string.Empty),
-                EndClip = data.GetValueOrDefault("EndClip", string.Empty),
-                EndDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("EndDurationSeconds", "0"))),
-                VfxUid = System.Math.Max(0, MathHelper.ParseInt(data.GetValueOrDefault("VfxUid", "0"))),
-                VfxFollowMode = EnumHelper.ConvertEnum<VfxConstants.FollowMode>(data.GetValueOrDefault("VfxFollowMode", nameof(VfxConstants.FollowMode.Position))),
-                VfxFollowAnchorMode = EnumHelper.ConvertEnum<VfxConstants.FollowAnchorMode>(data.GetValueOrDefault("VfxFollowAnchorMode", nameof(VfxConstants.FollowAnchorMode.FollowTargetOrigin))),
-                VfxPositionYType = EnumHelper.ConvertEnum<ConfigCommon.PositionYType>(data.GetValueOrDefault("VfxPositionYType", nameof(ConfigCommon.PositionYType.None))),
-                VfxPositionY = MathHelper.ParseFloat(data.GetValueOrDefault("VfxPositionY", "0")),
-                VfxScale = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("VfxScale", "0"))),
-                Memo = data.GetValueOrDefault("Memo", string.Empty),
+                Uid = reader.Int("Uid"),
+                SkillUid = reader.Int("SkillUid"),
+                OwnerType = reader.Enum<ConfigCommonSkill.SkillOwnerType>("OwnerType", ConfigCommonSkill.SkillOwnerType.Player),
+                StageIndex = System.Math.Max(0, reader.Int("StageIndex")),
+                StartClip = reader.String("StartClip", string.Empty),
+                StartDurationSeconds = System.Math.Max(0f, reader.Float("StartDurationSeconds", 0f)),
+                DurationSeconds = System.Math.Max(0f, reader.Float("DurationSeconds")),
+                LoopClip = reader.String("LoopClip", string.Empty),
+                EndClip = reader.String("EndClip", string.Empty),
+                EndDurationSeconds = System.Math.Max(0f, reader.Float("EndDurationSeconds", 0f)),
+                VfxUid = System.Math.Max(0, reader.Int("VfxUid", 0)),
+                VfxFollowMode = reader.Enum<VfxConstants.FollowMode>("VfxFollowMode", VfxConstants.FollowMode.Position),
+                VfxFollowAnchorMode = reader.Enum<VfxConstants.FollowAnchorMode>("VfxFollowAnchorMode", VfxConstants.FollowAnchorMode.FollowTargetOrigin),
+                VfxPositionYType = reader.Enum<ConfigCommon.PositionYType>("VfxPositionYType", ConfigCommon.PositionYType.None),
+                VfxPositionY = reader.Float("VfxPositionY", 0f),
+                VfxScale = System.Math.Max(0f, reader.Float("VfxScale", 0f)),
+                Memo = reader.String("Memo", string.Empty),
             };
         }
 

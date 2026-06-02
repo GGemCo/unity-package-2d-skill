@@ -73,8 +73,9 @@ namespace GGemCo2DSkill
 
         protected override StruckTableSkillPassiveOption BuildRow(Dictionary<string, string> data)
         {
-            int uid = MathHelper.ParseInt(data.GetValueOrDefault("Uid", "0"));
-            string name = data.GetValueOrDefault("Name");
+            TableRowReader reader = ReadRow(data);
+            int uid = reader.Int("Uid", 0);
+            string name = reader.String("Name");
             if (string.IsNullOrWhiteSpace(name))
             {
                 name = $"SkillPassiveOption_{uid}";
@@ -84,14 +85,14 @@ namespace GGemCo2DSkill
             {
                 Uid = uid,
                 Name = name,
-                SkillPassiveUid = MathHelper.ParseInt(data.GetValueOrDefault("SkillPassiveUid", "0")),
-                Order = MathHelper.ParseInt(data.GetValueOrDefault("Order", "0")),
-                Level = MathHelper.ParseInt(data.GetValueOrDefault("Level", "0")),
-                Kind = EnumHelper.ConvertEnum<SkillOptionKind>(data.GetValueOrDefault("Kind", "None")),
-                TargetId = data.GetValueOrDefault("TargetId"),
-                Op = EnumHelper.ConvertEnum<ConfigCommon.SuffixType>(data.GetValueOrDefault("Op", "None")),
-                Value = MathHelper.ParseFloat(data.GetValueOrDefault("Value", "0")),
-                Duration = MathHelper.ParseFloat(data.GetValueOrDefault("Duration", "0")),
+                SkillPassiveUid = reader.Int("SkillPassiveUid", 0),
+                Order = reader.Int("Order", 0),
+                Level = reader.Int("Level", 0),
+                Kind = reader.Enum<SkillOptionKind>("Kind", EnumHelper.ConvertEnum<SkillOptionKind>("None")),
+                TargetId = reader.String("TargetId"),
+                Op = reader.Enum<ConfigCommon.SuffixType>("Op", EnumHelper.ConvertEnum<ConfigCommon.SuffixType>("None")),
+                Value = reader.Float("Value", 0f),
+                Duration = reader.Float("Duration", 0f),
             };
         }
 

@@ -89,63 +89,39 @@ namespace GGemCo2DSkill
         
         protected override StruckTableSkillMonster BuildRow(Dictionary<string, string> data)
         {
-            int uid = MathHelper.ParseInt(data.GetValueOrDefault("Uid"));
+            TableRowReader reader = ReadRow(data);
+            int uid = reader.Int("Uid");
             
             return new StruckTableSkillMonster
             {
                 Uid = uid,
-                Name = data.GetValueOrDefault("Name", ""),
-                SoFileName = data["SoFileName"],
+                Name = reader.String("Name", ""),
+                SoFileName = reader.String("SoFileName"),
                 SkillKind = ConfigCommonSkill.SkillKind.Active,
-                CastTime = MathHelper.ParseFloat(data["CastTime"]),
-                CoolTime = MathHelper.ParseFloat(data["CoolTime"]),
-                TargetingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillTargetingMode>(data["TargetingMode"]),
-                CastRange = MathHelper.ParseFloat(data["CastRange"]),
-                PlacementRange = MathHelper.ParseFloat(data["PlacementRange"]),
-                MaxTargets = MathHelper.ParseInt(data["MaxTargets"]),
-                CastStartClip = data["CastStartClip"],
-                CastLoopClip = data["CastLoopClip"],
-                CastEndClip = data["CastEndClip"],
-                UseCharge = ConvertBoolean(data.GetValueOrDefault("UseCharge", "N")),
-                ChargeGaugeMax = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeGaugeMax", "0"))),
-                ChargeGaugeDamagePerHit = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeGaugeDamagePerHit", "1"))),
-                ChargeCompleteClip = data.GetValueOrDefault("ChargeCompleteClip", string.Empty),
-                ChargeCompleteDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeCompleteDurationSeconds", "0"))),
-                ChargeFailClip = data.GetValueOrDefault("ChargeFailClip", string.Empty),
-                ChargeFailDurationSeconds = System.Math.Max(0f, MathHelper.ParseFloat(data.GetValueOrDefault("ChargeFailDurationSeconds", "0"))),
-                UseClip = data["UseClip"],
-                UseClipTimeScale = System.Math.Max(0.001f, GetFloat(data, "UseClipTimeScale", 1f)),
-                UseClipTimingPolicy = GetEnum(data, "UseClipTimingPolicy", ConfigCommonSkill.SkillUseClipTimingPolicy.RuntimeSequence),
-                UseClipReferenceDurationSeconds = System.Math.Max(0f, GetFloat(data, "UseClipReferenceDurationSeconds", 0f)),
-                FacingMode = EnumHelper.ConvertEnum<ConfigCommonSkill.SkillFacingMode>(data["FacingMode"])
+                CastTime = reader.Float("CastTime"),
+                CoolTime = reader.Float("CoolTime"),
+                TargetingMode = reader.Enum<ConfigCommonSkill.SkillTargetingMode>("TargetingMode"),
+                CastRange = reader.Float("CastRange"),
+                PlacementRange = reader.Float("PlacementRange"),
+                MaxTargets = reader.Int("MaxTargets"),
+                CastStartClip = reader.String("CastStartClip"),
+                CastLoopClip = reader.String("CastLoopClip"),
+                CastEndClip = reader.String("CastEndClip"),
+                UseCharge = reader.BoolYN("UseCharge"),
+                ChargeGaugeMax = System.Math.Max(0f, reader.Float("ChargeGaugeMax", 0f)),
+                ChargeGaugeDamagePerHit = System.Math.Max(0f, reader.Float("ChargeGaugeDamagePerHit", 1f)),
+                ChargeCompleteClip = reader.String("ChargeCompleteClip", string.Empty),
+                ChargeCompleteDurationSeconds = System.Math.Max(0f, reader.Float("ChargeCompleteDurationSeconds", 0f)),
+                ChargeFailClip = reader.String("ChargeFailClip", string.Empty),
+                ChargeFailDurationSeconds = System.Math.Max(0f, reader.Float("ChargeFailDurationSeconds", 0f)),
+                UseClip = reader.String("UseClip"),
+                UseClipTimeScale = System.Math.Max(0.001f, reader.Float("UseClipTimeScale", 1f)),
+                UseClipTimingPolicy = reader.Enum<ConfigCommonSkill.SkillUseClipTimingPolicy>("UseClipTimingPolicy", ConfigCommonSkill.SkillUseClipTimingPolicy.RuntimeSequence),
+                UseClipReferenceDurationSeconds = System.Math.Max(0f, reader.Float("UseClipReferenceDurationSeconds", 0f)),
+                FacingMode = reader.Enum<ConfigCommonSkill.SkillFacingMode>("FacingMode")
             };
         }
 
-        /// <summary>
-        /// 선택 컬럼의 float 값을 읽습니다. 컬럼이 없거나 값이 비어 있으면 기본값을 반환합니다.
-        /// </summary>
-        /// <param name="data">테이블 Row 원본 데이터입니다.</param>
-        /// <param name="key">조회할 컬럼 이름입니다.</param>
-        /// <param name="fallback">컬럼이 없거나 비어 있을 때 사용할 기본값입니다.</param>
-        /// <returns>파싱된 float 값입니다.</returns>
-        private static float GetFloat(Dictionary<string, string> data, string key, float fallback)
-        {
-            string value = data.GetValueOrDefault(key, string.Empty);
-            return string.IsNullOrWhiteSpace(value) ? fallback : MathHelper.ParseFloat(value);
-        }
 
-        /// <summary>
-        /// 선택 컬럼의 enum 값을 읽습니다. 컬럼이 없거나 값이 비어 있으면 기본값을 반환합니다.
-        /// </summary>
-        /// <typeparam name="TEnum">변환할 enum 타입입니다.</typeparam>
-        /// <param name="data">테이블 Row 원본 데이터입니다.</param>
-        /// <param name="key">조회할 컬럼 이름입니다.</param>
-        /// <param name="fallback">컬럼이 없거나 비어 있을 때 사용할 기본값입니다.</param>
-        /// <returns>파싱된 enum 값입니다.</returns>
-        private static TEnum GetEnum<TEnum>(Dictionary<string, string> data, string key, TEnum fallback) where TEnum : struct, System.Enum
-        {
-            string value = data.GetValueOrDefault(key, string.Empty);
-            return string.IsNullOrWhiteSpace(value) ? fallback : EnumHelper.ConvertEnum<TEnum>(value);
-        }
     }
 }

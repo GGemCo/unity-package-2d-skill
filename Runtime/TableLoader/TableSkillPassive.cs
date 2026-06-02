@@ -27,9 +27,10 @@ namespace GGemCo2DSkill
 
         protected override StruckTableSkillPassive BuildRow(Dictionary<string, string> data)
         {
-            int uid = MathHelper.ParseInt(data.GetValueOrDefault("Uid"));
+            TableRowReader reader = ReadRow(data);
+            int uid = reader.Int("Uid");
 
-            string name = data.GetValueOrDefault("Name");
+            string name = reader.String("Name");
             if (LocalizationManagerSkill.Instance != null)
             {
                 name = LocalizationManagerSkill.Instance.GetPassiveSkillNameByKey(uid.ToString());
@@ -39,10 +40,10 @@ namespace GGemCo2DSkill
             {
                 Uid = uid,
                 Name = name,
-                Memo = data.GetValueOrDefault("Memo", string.Empty),
-                DefaultLearn = ConvertBoolean(data.GetValueOrDefault("DefaultLearn", string.Empty)),
-                NeedPlayerLevel = MathHelper.ParseInt(data.GetValueOrDefault("NeedPlayerLevel", "0")),
-                IconFileName = data.GetValueOrDefault("IconFileName", string.Empty),
+                Memo = reader.String("Memo", string.Empty),
+                DefaultLearn = reader.BoolYN("DefaultLearn"),
+                NeedPlayerLevel = reader.Int("NeedPlayerLevel", 0),
+                IconFileName = reader.String("IconFileName", string.Empty),
                 SkillKind = ConfigCommonSkill.SkillKind.Passive,
             };
         }
