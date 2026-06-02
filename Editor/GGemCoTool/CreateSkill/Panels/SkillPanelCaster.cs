@@ -33,29 +33,27 @@ namespace GGemCo2DSkillEditor
                 // EditorGUILayout.LabelField("IAffectTarget", hasTarget ? "OK" : "없음");
             }
         }
-        
+        /// <summary>
+        /// 씬 캐릭터 목록 새로고침 후 현재 선택된 스킬 소스에 맞는 캐스터를 자동으로 보정합니다.
+        /// </summary>
+        /// <remarks>
+        /// 플레이어 스킬은 현재 플레이어를, 몬스터 스킬은 SkillTestRuntimeHub가 선택한 몬스터를 우선 캐스터로 사용합니다.
+        /// </remarks>
         protected override void ApplyPostRefreshCharacterSelectionPolicy()
         {
-            if (_selectedSource != ConfigCommon.SkillTableSource.Player)
-                return;
-
-            for (int i = 0; i < sceneCharacters.Count; i++)
+            if (_selectedSource == ConfigCommon.SkillTableSource.Player)
             {
-                var character = sceneCharacters[i];
-                if (character == null || !character.IsPlayer())
-                    continue;
-
-                if (selectedCharacter == character)
-                {
-                    selectedCharacterIndex = i;
-                    return;
-                }
-
-                selectedCharacter = character;
-                selectedCharacterIndex = i;
-                OnSelectedCharacterChanged(selectedCharacter);
+                TryAssignAutoSelectedCaster(FindPlayerCharacter());
                 return;
             }
+
+            if (TryGetSelectedMonsterCharacter(out var selectedMonster))
+            {
+                TryAssignAutoSelectedCaster(selectedMonster);
+                return;
+            }
+
+            TryAssignAutoSelectedCaster(FindFirstMonsterCharacter());
         }
 
         protected override void OnSelectedCharacterChanged(CharacterBase character)

@@ -154,7 +154,15 @@ namespace GGemCo2DSkillEditor
             }
 
             if (!TryResolvePlayModeLockedTarget(hub, casterCharacter, out var lockedTarget, out error))
-                return false;
+            {
+                if (RequiresLockedTarget(targetingMode))
+                    return false;
+
+                target = CreateTargetWithoutLockedTarget(casterCharacter);
+                SyncResolvedTargetToHub(hub, target, preserveManualLockedTarget: false);
+                error = null;
+                return true;
+            }
 
             bool preserveManualLockedTarget = hub.UseManualLockedTarget;
             target = CreateTarget(casterCharacter.transform, lockedTarget);
@@ -198,6 +206,24 @@ namespace GGemCo2DSkillEditor
         private ConfigCommonSkill.SkillTargetingMode GetCurrentTargetingMode()
         {
             return GetCurrentTargetingModeValue();
+        }
+
+        /// <summary>
+        /// 현재 타겟팅 모드가 locked target을 필수로 요구하는지 확인합니다.
+        /// </summary>
+        /// <param name="targetingMode">검사할 스킬 타겟팅 모드입니다.</param>
+        /// <returns>locked target 없이는 실행 의미가 불완전하면 <see langword="true"/>를 반환합니다.</returns>
+        private static bool RequiresLockedTarget(ConfigCommonSkill.SkillTargetingMode targetingMode)
+        {
+            switch (targetingMode)
+            {
+                case ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit:
+                case ConfigCommonSkill.SkillTargetingMode.TargetCenteredArea:
+                case ConfigCommonSkill.SkillTargetingMode.FollowTargetArea:
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
@@ -334,6 +360,23 @@ namespace GGemCo2DSkillEditor
                 forward = Vector2.right;
 
             return new GGemCo2DCore.MonsterSkillTarget(self, position, forward);
+        }
+
+        /// <summary>
+        /// locked target이 없어도 실행 가능한 스킬을 위한 기본 타겟 컨텍스트를 생성합니다.
+        /// </summary>
+        /// <param name="casterCharacter">스킬을 실행할 캐스터입니다.</param>
+        /// <returns>캐스터 전방 지점을 기준으로 한 Target 없는 테스트 컨텍스트입니다.</returns>
+        private static GGemCo2DCore.MonsterSkillTarget CreateTargetWithoutLockedTarget(CharacterBase casterCharacter)
+        {
+            var casterTransform = casterCharacter.transform;
+            var forward = (Vector2)casterTransform.right;
+            if (forward.sqrMagnitude < 1e-6f)
+                forward = Vector2.right;
+
+            forward.Normalize();
+            Vector3 groundPoint = casterTransform.position + new Vector3(forward.x, forward.y, 0f);
+            return new GGemCo2DCore.MonsterSkillTarget(null, groundPoint, forward);
         }
 
         /// <summary>

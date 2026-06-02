@@ -72,6 +72,7 @@ namespace GGemCo2DSkillEditor
                     {
                         _selectedData = opt.Data;
                         CacheRow(true);
+                        ApplySkillSelectionAutoBinding();
                         Repaint();
                     },
                     defaultSearchMode: SearchableDropdownUtility.SearchMode.Both,
