@@ -22,7 +22,7 @@ namespace GGemCo2DSkill
         /// </summary>
         private void OnEnable()
         {
-            CharacterManager.OnCharacterSpawned += OnCharacterSpawned;
+            CharacterManager.OnCharacterActivated += OnCharacterActivated;
             CharacterManager.OnCharacterDestroyed += OnCharacterDestroyed;
 
             // MapLoadCharacters가 스폰 완료 대기를 위해 호출하는 비동기 Hook입니다.
@@ -35,7 +35,7 @@ namespace GGemCo2DSkill
         /// </summary>
         private void OnDisable()
         {
-            CharacterManager.OnCharacterSpawned -= OnCharacterSpawned;
+            CharacterManager.OnCharacterActivated -= OnCharacterActivated;
             CharacterManager.OnCharacterDestroyed -= OnCharacterDestroyed;
 
             CharacterSpawnHooks.OnCharacterSpawnedAsync -= OnCharacterSpawnedAsync;
@@ -43,11 +43,11 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 캐릭터가 생성되었을 때 스킬 실행기와 캐릭터 유형별 드라이버를 자동으로 부착합니다.
+        /// 캐릭터가 Core 초기화를 마친 뒤 스킬 실행기와 캐릭터 유형별 드라이버를 자동으로 부착합니다.
         /// 플레이어인 경우 패시브 스킬 컨트롤러도 함께 구성합니다.
         /// </summary>
-        /// <param name="ch">스폰된 캐릭터 인스턴스입니다.</param>
-        private void OnCharacterSpawned(CharacterBase ch)
+        /// <param name="ch">초기화가 완료된 캐릭터 인스턴스입니다.</param>
+        private void OnCharacterActivated(CharacterBase ch)
         {
             if (!addIfMissing) return;
 
@@ -60,6 +60,9 @@ namespace GGemCo2DSkill
             var skillExecutor = ch.gameObject.GetComponent<SkillExecutor>();
             if (skillExecutor == null)
                 skillExecutor = ch.gameObject.AddComponent<SkillExecutor>();
+
+            skillExecutor.Initialize(null);
+            skillExecutor.Activate(null);
 
             // 플레이어 전용 패시브 스킬 컨트롤러를 보장합니다.
             if (ch.IsPlayer())
@@ -199,6 +202,9 @@ namespace GGemCo2DSkill
         {
             if (ch == null)
                 return;
+
+            var skillExecutor = ch.GetComponent<SkillExecutor>();
+            skillExecutor?.Deinitialize();
 
             var skillChargeGaugePresenter = ch.GetComponent<SkillChargeGaugePresenter>();
             skillChargeGaugePresenter?.ReleaseGaugeView();

@@ -10,7 +10,7 @@ namespace GGemCo2DSkill
     /// 스킬 정의 조회, 이벤트 실행, 피격 판정, 이동, 이펙트, 상태이상 적용, 취소를 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class SkillExecutor : MonoBehaviour
+    public sealed class SkillExecutor : MonoBehaviour, IGameInitializable, IGameActivatable, IGameDeinitializable
     {
         /// <summary>
         /// 피격 판정에 사용할 레이어 마스크입니다.
@@ -92,18 +92,73 @@ namespace GGemCo2DSkill
         /// </summary>
         public event System.Action<SkillChargeSnapshot> ChargeStateChanged;
 
+        /// <summary>
+        /// 캐릭터 초기화 이후 기본 단계에서 실행기를 준비합니다.
+        /// </summary>
+        public int InitializeOrder => 0;
+
         private bool _hasPendingFinishReport;
+        private bool _isInitialized;
+        private bool _isActivated;
         private SkillExecutionReport _pendingFinishReport;
         private int _executionSequence;
         private readonly SkillAttackSequence _attackSequence = new();
         private CharacterHitStopController _hitStopController;
 
         /// <summary>
-        /// 실행기에 필요한 런타임 의존성을 초기화합니다.
+        /// 실행기에 필요한 로컬 참조만 준비합니다.
+        /// 실제 사용 가능 상태는 명시적 Initialize/Activate 단계에서 열립니다.
         /// </summary>
         private void Awake()
         {
-            _hitEvaluator = new AreaHitEvaluator(hitMask);
+            CacheLocalReferences();
+        }
+
+        /// <summary>
+        /// 스킬 실행에 필요한 평가기와 캐릭터 보조 컨트롤러를 준비합니다.
+        /// </summary>
+        /// <param name="context">초기화 컨텍스트입니다. SkillExecutor는 캐릭터 로컬 참조를 사용하므로 null을 허용합니다.</param>
+        public void Initialize(GameInitContext context)
+        {
+            if (_isInitialized)
+                return;
+
+            CacheLocalReferences();
+            _isInitialized = true;
+        }
+
+        /// <summary>
+        /// 캐릭터와 드라이버 연결 이후 스킬 사용과 런타임 Tick을 허용합니다.
+        /// </summary>
+        /// <param name="context">초기화 컨텍스트입니다.</param>
+        public void Activate(GameInitContext context)
+        {
+            if (!_isInitialized)
+                Initialize(context);
+
+            if (!_isInitialized)
+                return;
+
+            _isActivated = true;
+            enabled = true;
+        }
+
+        /// <summary>
+        /// 스킬 사용을 차단하고 진행 중인 스킬을 시스템 취소로 정리합니다.
+        /// </summary>
+        public void Deinitialize()
+        {
+            _isActivated = false;
+            if (_current != null)
+                TryCancel(SkillCancelReason.ForcedBySystem);
+        }
+
+        /// <summary>
+        /// 동일 GameObject에서 스킬 실행에 필요한 로컬 컴포넌트와 평가기를 캐싱합니다.
+        /// </summary>
+        private void CacheLocalReferences()
+        {
+            _hitEvaluator ??= new AreaHitEvaluator(hitMask);
             _hitStopController = GetComponent<CharacterHitStopController>();
         }
 
@@ -130,6 +185,9 @@ namespace GGemCo2DSkill
         /// </summary>
         private void Update()
         {
+            if (!_isInitialized || !_isActivated)
+                return;
+
             if (_hitStopController == null)
             {
                 _hitStopController = GetComponent<CharacterHitStopController>();
@@ -163,6 +221,12 @@ namespace GGemCo2DSkill
         /// <returns>스킬 실행이 시작되면 <see langword="true"/>, 실행할 수 없으면 <see langword="false"/>를 반환합니다.</returns>
         public bool TryUse(int skillUid, SkillTargetContext targetCtx, ConfigCommon.SkillTableSource source = ConfigCommon.SkillTableSource.Player)
         {
+            if (!_isInitialized)
+                Initialize(null);
+            if (!_isActivated)
+                Activate(null);
+
+            if (!_isInitialized || !_isActivated) return false;
             if (_current != null) return false;
 
             if (!SkillDefinitionResolver.TryResolve(skillUid, source, out var skill) || skill == null) return false;
