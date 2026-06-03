@@ -74,6 +74,18 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 외부 성공 이벤트로 콤보가 열리고, 아직 첫 Main 또는 Last 입력을 기다리는 진입 게이트 상태인지 반환합니다.
+        /// </summary>
+        public bool IsEntryGateActive
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive && _state.IsEntryGateActive;
+            }
+        }
+
+        /// <summary>
         /// 현재 공격 입력으로 다음 콤보 스킬을 받을 수 있는 상태인지 반환합니다.
         /// </summary>
         /// <remarks>
@@ -102,6 +114,24 @@ namespace GGemCo2DSkill
             {
                 ResetExpiredComboIfNeeded();
                 return _state.IsActive &&
+                       _isInputWindowArmed &&
+                       TryResolveNextNode(SkillComboCommand.Last, out _, out _);
+            }
+        }
+
+        /// <summary>
+        /// 현재 진입 게이트 위치에서 첫 번째 마무리 콤보 입력을 받을 수 있는지 반환합니다.
+        /// </summary>
+        /// <remarks>
+        /// 일반 체인 중 Last 입력과 달리, 외부 성공 이벤트로 열린 직후의 EntryLast 노드만 대상으로 합니다.
+        /// </remarks>
+        public bool CanAcceptEntryLastComboInput
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive &&
+                       _state.IsEntryGateActive &&
                        _isInputWindowArmed &&
                        TryResolveNextNode(SkillComboCommand.Last, out _, out _);
             }
