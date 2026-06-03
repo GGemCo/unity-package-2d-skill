@@ -90,6 +90,24 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 현재 마무리 콤보 입력으로 다음 Last 노드를 실행할 수 있는 상태인지 반환합니다.
+        /// </summary>
+        /// <remarks>
+        /// 입력 라우팅 계층이 공격 입력을 Main 또는 Last 명령 중 어디로 보낼지 판단할 때 사용합니다.
+        /// 실제 스킬 실행이나 콤보 상태 변경은 <see cref="TryUseLast"/>에서만 수행합니다.
+        /// </remarks>
+        public bool CanAcceptLastComboInput
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive &&
+                       _isInputWindowArmed &&
+                       TryResolveNextNode(SkillComboCommand.Last, out _, out _);
+            }
+        }
+
+        /// <summary>
         /// 현재 공격 입력을 선입력 버퍼로 저장할 수 있는 콤보 진행 상태인지 반환합니다.
         /// </summary>
         public bool CanBufferComboInput
