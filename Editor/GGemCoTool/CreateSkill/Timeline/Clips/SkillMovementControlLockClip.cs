@@ -24,8 +24,8 @@ namespace GGemCo2DSkillEditor
         [Tooltip("이벤트 시작 시 Skill 채널의 기존 모션을 취소합니다.")]
         [SerializeField] private bool cancelSkillMotion = true;
 
-        [Tooltip("Player의 CharacterBase 제어 잠금을 획득하여 입력과 캐릭터 제어 로직을 차단합니다.")]
-        [SerializeField] private bool lockControl = true;
+        [Tooltip("Player 조작을 어느 범위까지 잠글지 결정합니다.")]
+        [SerializeField] private SkillPlayerControlLockMode controlLockMode = SkillPlayerControlLockMode.AllControl;
 
         [Tooltip("자동 이동이 활성화되어 있을 때 처리할 정책입니다.")]
         [SerializeField] private SkillAutoMoveControlPolicy autoMovePolicy = SkillAutoMoveControlPolicy.Suspend;
@@ -56,9 +56,9 @@ namespace GGemCo2DSkillEditor
         public bool CancelSkillMotion => cancelSkillMotion;
 
         /// <summary>
-        /// Player의 CharacterBase 제어 잠금을 사용할지 여부입니다.
+        /// Player 조작을 차단할 범위입니다.
         /// </summary>
-        public bool LockControl => lockControl;
+        public SkillPlayerControlLockMode ControlLockMode => controlLockMode;
 
         /// <summary>
         /// 자동 이동 처리 정책입니다.

@@ -36,6 +36,7 @@ namespace GGemCo2DSkill
         private CharacterBase _movementControlLockCharacter;
         private IAutoMoveSuspendService _movementControlLockAutoMoveSuspendService;
         private object _movementControlLockToken;
+        private object _movementOnlyLockToken;
         private AutoMoveSuspendToken _movementControlLockAutoMoveToken;
 
         public bool IsDone { get; private set; }
@@ -347,7 +348,7 @@ namespace GGemCo2DSkill
         /// <param name="keepUntilSkillEnd">스킬 종료 시점까지 잠금을 유지할지 여부입니다.</param>
         /// <param name="stopImmediately">시작 시 캐릭터 이동과 속도를 즉시 정지할지 여부입니다.</param>
         /// <param name="cancelSkillMotion">시작 시 Skill 채널 모션을 취소할지 여부입니다.</param>
-        /// <param name="lockControl">캐릭터 제어 잠금을 획득할지 여부입니다.</param>
+        /// <param name="controlLockMode">Player 조작을 차단할 범위입니다.</param>
         /// <param name="autoMovePolicy">자동 이동 처리 정책입니다.</param>
         /// <returns>잠금 요청을 적용했으면 <see langword="true"/>입니다.</returns>
         public bool TryStartMovementControlLock(
@@ -356,7 +357,7 @@ namespace GGemCo2DSkill
             bool keepUntilSkillEnd,
             bool stopImmediately,
             bool cancelSkillMotion,
-            bool lockControl,
+            SkillPlayerControlLockMode controlLockMode,
             SkillAutoMoveControlPolicy autoMovePolicy)
         {
             if (character == null)
@@ -376,15 +377,13 @@ namespace GGemCo2DSkill
             _movementControlLockRemainingSeconds = keepUntilSkillEnd ? 0f : Mathf.Max(0f, durationSeconds);
             _keepMovementControlLockUntilSkillEnd = keepUntilSkillEnd;
 
-            if (lockControl)
-            {
-                _movementControlLockToken = character.AcquireControlLock(this);
-            }
+            ApplyPlayerControlLockMode(character, controlLockMode);
 
             ApplyAutoMovePolicy(autoMovePolicy);
 
             _isMovementControlLockActive =
                 _movementControlLockToken != null ||
+                _movementOnlyLockToken != null ||
                 _movementControlLockAutoMoveToken.IsValid ||
                 keepUntilSkillEnd ||
                 _movementControlLockRemainingSeconds > 0f;
@@ -414,12 +413,18 @@ namespace GGemCo2DSkill
         {
             if (!_isMovementControlLockActive &&
                 _movementControlLockToken == null &&
+                _movementOnlyLockToken == null &&
                 !_movementControlLockAutoMoveToken.IsValid)
                 return;
 
             if (_movementControlLockCharacter != null && _movementControlLockToken != null)
             {
                 _movementControlLockCharacter.ReleaseControlLock(_movementControlLockToken);
+            }
+
+            if (_movementControlLockCharacter != null && _movementOnlyLockToken != null)
+            {
+                _movementControlLockCharacter.ReleaseMovementLock(_movementOnlyLockToken);
             }
 
             if (_movementControlLockAutoMoveSuspendService != null && _movementControlLockAutoMoveToken.IsValid)
@@ -430,10 +435,33 @@ namespace GGemCo2DSkill
             _movementControlLockCharacter = null;
             _movementControlLockAutoMoveSuspendService = null;
             _movementControlLockToken = null;
+            _movementOnlyLockToken = null;
             _movementControlLockAutoMoveToken = AutoMoveSuspendToken.None;
             _movementControlLockRemainingSeconds = 0f;
             _isMovementControlLockActive = false;
             _keepMovementControlLockUntilSkillEnd = false;
+        }
+
+        /// <summary>
+        /// 이벤트 설정에 따라 Player의 이동 전용 잠금 또는 전체 조작 잠금을 획득합니다.
+        /// </summary>
+        /// <param name="character">잠금을 적용할 Player 캐릭터입니다.</param>
+        /// <param name="controlLockMode">Player 조작을 차단할 범위입니다.</param>
+        private void ApplyPlayerControlLockMode(CharacterBase character, SkillPlayerControlLockMode controlLockMode)
+        {
+            if (character == null)
+                return;
+
+            switch (controlLockMode)
+            {
+                case SkillPlayerControlLockMode.MovementOnly:
+                    _movementOnlyLockToken = character.AcquireMovementLock(this);
+                    break;
+
+                case SkillPlayerControlLockMode.AllControl:
+                    _movementControlLockToken = character.AcquireControlLock(this);
+                    break;
+            }
         }
 
         /// <summary>

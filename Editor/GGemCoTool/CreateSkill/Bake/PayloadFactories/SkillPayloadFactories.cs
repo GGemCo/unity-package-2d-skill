@@ -274,7 +274,7 @@ namespace GGemCo2DSkillEditor
             def.durationPolicy = movementLock.DurationPolicy;
             def.stopImmediately = movementLock.StopImmediately;
             def.cancelSkillMotion = movementLock.CancelSkillMotion;
-            def.lockControl = movementLock.LockControl;
+            def.controlLockMode = movementLock.ControlLockMode;
             def.autoMovePolicy = movementLock.AutoMovePolicy;
             return def;
         }

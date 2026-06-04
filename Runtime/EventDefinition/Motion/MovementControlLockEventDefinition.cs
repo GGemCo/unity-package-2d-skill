@@ -30,6 +30,21 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// 스킬 이동 조작 잠금 이벤트가 Player 조작을 차단하는 범위입니다.
+    /// </summary>
+    public enum SkillPlayerControlLockMode
+    {
+        /// <summary>Player 조작 잠금 토큰을 획득하지 않습니다.</summary>
+        None = 0,
+
+        /// <summary>이동, 점프, 대시 등 이동 계열 조작만 차단합니다.</summary>
+        MovementOnly = 1,
+
+        /// <summary>공격, 가드, 상호작용을 포함한 전체 조작을 차단합니다.</summary>
+        AllControl = 2,
+    }
+
+    /// <summary>
     /// 스킬 실행 중 현재 Player의 이동과 조작 입력을 잠그는 이벤트 정의입니다.
     /// </summary>
     public sealed class MovementControlLockEventDefinition : ScriptableObject
@@ -46,8 +61,8 @@ namespace GGemCo2DSkill
         [Tooltip("이벤트 시작 시 Skill 채널의 기존 모션을 취소합니다.")]
         public bool cancelSkillMotion = true;
 
-        [Tooltip("Player의 CharacterBase 제어 잠금을 획득하여 입력과 캐릭터 제어 로직을 차단합니다.")]
-        public bool lockControl = true;
+        [Tooltip("Player 조작을 어느 범위까지 잠글지 결정합니다.")]
+        public SkillPlayerControlLockMode controlLockMode = SkillPlayerControlLockMode.AllControl;
 
         [Tooltip("자동 이동이 활성화되어 있을 때 처리할 정책입니다.")]
         public SkillAutoMoveControlPolicy autoMovePolicy = SkillAutoMoveControlPolicy.Suspend;

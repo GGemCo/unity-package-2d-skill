@@ -42,7 +42,7 @@ namespace GGemCo2DSkill
                 keepUntilSkillEnd,
                 def.stopImmediately,
                 def.cancelSkillMotion,
-                def.lockControl,
+                def.controlLockMode,
                 def.autoMovePolicy);
         }
 
