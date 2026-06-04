@@ -30,7 +30,7 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
-    /// 스킬 실행 중 캐릭터 이동과 조작 입력을 잠그는 이벤트 정의입니다.
+    /// 스킬 실행 중 현재 Player의 이동과 조작 입력을 잠그는 이벤트 정의입니다.
     /// </summary>
     public sealed class MovementControlLockEventDefinition : ScriptableObject
     {
@@ -40,13 +40,13 @@ namespace GGemCo2DSkill
         [Tooltip("잠금 유지 정책입니다. ClipDuration 또는 UntilSkillEnd를 선택합니다.")]
         public MovementControlLockDurationPolicy durationPolicy = MovementControlLockDurationPolicy.ClipDuration;
 
-        [Tooltip("이벤트 시작 시 캐릭터 이동 입력, 이동 애니메이션, Rigidbody2D 속도를 즉시 정지합니다.")]
+        [Tooltip("이벤트 시작 시 Player 이동 입력, 이동 애니메이션, Rigidbody2D 속도를 즉시 정지합니다.")]
         public bool stopImmediately = true;
 
         [Tooltip("이벤트 시작 시 Skill 채널의 기존 모션을 취소합니다.")]
         public bool cancelSkillMotion = true;
 
-        [Tooltip("CharacterBase 제어 잠금을 획득하여 플레이어 입력과 캐릭터 제어 로직을 차단합니다.")]
+        [Tooltip("Player의 CharacterBase 제어 잠금을 획득하여 입력과 캐릭터 제어 로직을 차단합니다.")]
         public bool lockControl = true;
 
         [Tooltip("자동 이동이 활성화되어 있을 때 처리할 정책입니다.")]

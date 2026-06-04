@@ -18,8 +18,6 @@ namespace GGemCo2DSkill
 
         private readonly ICharacterMotionController _motionController;
         private readonly Rigidbody2D _casterRigidbody2D;
-        private readonly IAutoMoveSuspendService _autoMoveSuspendService;
-        private readonly PlayerAutoMoveController _playerAutoMoveController;
         private readonly SkillRunChargeController _chargeController;
         private readonly SkillRunPlaybackController _playbackController;
 
@@ -36,6 +34,7 @@ namespace GGemCo2DSkill
         private bool _keepMovementControlLockUntilSkillEnd;
         private float _movementControlLockRemainingSeconds;
         private CharacterBase _movementControlLockCharacter;
+        private IAutoMoveSuspendService _movementControlLockAutoMoveSuspendService;
         private object _movementControlLockToken;
         private AutoMoveSuspendToken _movementControlLockAutoMoveToken;
 
@@ -70,12 +69,6 @@ namespace GGemCo2DSkill
             _ctx = ctx;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
-            _autoMoveSuspendService = _ctx.caster != null
-                ? _ctx.caster.GetComponent<IAutoMoveSuspendService>() ?? _ctx.caster.GetComponentInParent<IAutoMoveSuspendService>()
-                : null;
-            _playerAutoMoveController = _ctx.caster != null
-                ? _ctx.caster.GetComponent<PlayerAutoMoveController>() ?? _ctx.caster.GetComponentInParent<PlayerAutoMoveController>()
-                : null;
             _chargeController = new SkillRunChargeController(
                 _owner,
                 this,
@@ -366,7 +359,7 @@ namespace GGemCo2DSkill
             bool lockControl,
             SkillAutoMoveControlPolicy autoMovePolicy)
         {
-            if (character == null || _ctx.caster == null)
+            if (character == null)
                 return false;
 
             if (!keepUntilSkillEnd && durationSeconds <= 0f)
@@ -376,7 +369,7 @@ namespace GGemCo2DSkill
 
             if (stopImmediately)
             {
-                StopCasterMovementImmediately(character, cancelSkillMotion);
+                StopTargetMovementImmediately(character, cancelSkillMotion);
             }
 
             _movementControlLockCharacter = character;
@@ -429,12 +422,13 @@ namespace GGemCo2DSkill
                 _movementControlLockCharacter.ReleaseControlLock(_movementControlLockToken);
             }
 
-            if (_autoMoveSuspendService != null && _movementControlLockAutoMoveToken.IsValid)
+            if (_movementControlLockAutoMoveSuspendService != null && _movementControlLockAutoMoveToken.IsValid)
             {
-                _autoMoveSuspendService.ReleaseSuspend(_movementControlLockAutoMoveToken);
+                _movementControlLockAutoMoveSuspendService.ReleaseSuspend(_movementControlLockAutoMoveToken);
             }
 
             _movementControlLockCharacter = null;
+            _movementControlLockAutoMoveSuspendService = null;
             _movementControlLockToken = null;
             _movementControlLockAutoMoveToken = AutoMoveSuspendToken.None;
             _movementControlLockRemainingSeconds = 0f;
@@ -448,28 +442,40 @@ namespace GGemCo2DSkill
         /// <param name="autoMovePolicy">자동 이동 처리 정책입니다.</param>
         private void ApplyAutoMovePolicy(SkillAutoMoveControlPolicy autoMovePolicy)
         {
+            GameObject targetObject = _movementControlLockCharacter != null
+                ? _movementControlLockCharacter.gameObject
+                : null;
+            if (targetObject == null)
+                return;
+
             switch (autoMovePolicy)
             {
                 case SkillAutoMoveControlPolicy.Suspend:
-                    if (_autoMoveSuspendService != null)
+                    _movementControlLockAutoMoveSuspendService =
+                        targetObject.GetComponent<IAutoMoveSuspendService>() ??
+                        targetObject.GetComponentInParent<IAutoMoveSuspendService>();
+                    if (_movementControlLockAutoMoveSuspendService != null)
                     {
                         _movementControlLockAutoMoveToken =
-                            _autoMoveSuspendService.AcquireSuspend(AutoMoveSuspendReason.Skill);
+                            _movementControlLockAutoMoveSuspendService.AcquireSuspend(AutoMoveSuspendReason.Skill);
                     }
                     break;
 
                 case SkillAutoMoveControlPolicy.Cancel:
-                    _playerAutoMoveController?.Cancel();
+                    PlayerAutoMoveController autoMoveController =
+                        targetObject.GetComponent<PlayerAutoMoveController>() ??
+                        targetObject.GetComponentInParent<PlayerAutoMoveController>();
+                    autoMoveController?.Cancel();
                     break;
             }
         }
 
         /// <summary>
-        /// 캐릭터의 현재 이동 입력, 이동 애니메이션, Rigidbody2D 속도를 즉시 정지합니다.
+        /// 대상 캐릭터의 현재 이동 입력, 이동 애니메이션, Rigidbody2D 속도를 즉시 정지합니다.
         /// </summary>
         /// <param name="character">이동을 정지할 캐릭터입니다.</param>
         /// <param name="cancelSkillMotion">Skill 채널 모션까지 함께 취소할지 여부입니다.</param>
-        private void StopCasterMovementImmediately(CharacterBase character, bool cancelSkillMotion)
+        private void StopTargetMovementImmediately(CharacterBase character, bool cancelSkillMotion)
         {
             if (character == null || character.IsStatusDead())
                 return;
@@ -479,12 +485,18 @@ namespace GGemCo2DSkill
 
             if (cancelSkillMotion)
             {
-                _motionController?.CancelMotion(MotionChannel.Skill, 2101);
+                ICharacterMotionController motionController =
+                    character.GetComponent<ICharacterMotionController>() ??
+                    character.GetComponentInParent<ICharacterMotionController>();
+                motionController?.CancelMotion(MotionChannel.Skill, 2101);
             }
 
-            if (_casterRigidbody2D != null)
+            Rigidbody2D rigidbody2D =
+                character.GetComponent<Rigidbody2D>() ??
+                character.GetComponentInParent<Rigidbody2D>();
+            if (rigidbody2D != null)
             {
-                _casterRigidbody2D.SetLinearVelocity(Vector2.zero);
+                rigidbody2D.SetLinearVelocity(Vector2.zero);
             }
         }
 

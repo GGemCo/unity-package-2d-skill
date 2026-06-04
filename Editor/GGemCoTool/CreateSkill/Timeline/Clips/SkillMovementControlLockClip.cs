@@ -6,7 +6,7 @@ using UnityEngine;
 namespace GGemCo2DSkillEditor
 {
     /// <summary>
-    /// 캐릭터 이동과 조작 입력을 잠그는 Authoring용 타임라인 클립입니다.
+    /// 현재 Player의 이동과 조작 입력을 잠그는 Authoring용 타임라인 클립입니다.
     /// Bake 과정에서 <see cref="MovementControlLockEventDefinition"/> Payload로 변환됩니다.
     /// </summary>
     [Serializable]
@@ -18,13 +18,13 @@ namespace GGemCo2DSkillEditor
         [Tooltip("잠금 유지 정책입니다. ClipDuration 또는 UntilSkillEnd를 선택합니다.")]
         [SerializeField] private MovementControlLockDurationPolicy durationPolicy = MovementControlLockDurationPolicy.ClipDuration;
 
-        [Tooltip("이벤트 시작 시 캐릭터 이동 입력, 이동 애니메이션, Rigidbody2D 속도를 즉시 정지합니다.")]
+        [Tooltip("이벤트 시작 시 Player 이동 입력, 이동 애니메이션, Rigidbody2D 속도를 즉시 정지합니다.")]
         [SerializeField] private bool stopImmediately = true;
 
         [Tooltip("이벤트 시작 시 Skill 채널의 기존 모션을 취소합니다.")]
         [SerializeField] private bool cancelSkillMotion = true;
 
-        [Tooltip("CharacterBase 제어 잠금을 획득하여 플레이어 입력과 캐릭터 제어 로직을 차단합니다.")]
+        [Tooltip("Player의 CharacterBase 제어 잠금을 획득하여 입력과 캐릭터 제어 로직을 차단합니다.")]
         [SerializeField] private bool lockControl = true;
 
         [Tooltip("자동 이동이 활성화되어 있을 때 처리할 정책입니다.")]
@@ -46,7 +46,7 @@ namespace GGemCo2DSkillEditor
         public MovementControlLockDurationPolicy DurationPolicy => durationPolicy;
 
         /// <summary>
-        /// 이벤트 시작 시 캐릭터 이동을 즉시 멈출지 여부입니다.
+        /// 이벤트 시작 시 Player 이동을 즉시 멈출지 여부입니다.
         /// </summary>
         public bool StopImmediately => stopImmediately;
 
@@ -56,7 +56,7 @@ namespace GGemCo2DSkillEditor
         public bool CancelSkillMotion => cancelSkillMotion;
 
         /// <summary>
-        /// CharacterBase 제어 잠금을 사용할지 여부입니다.
+        /// Player의 CharacterBase 제어 잠금을 사용할지 여부입니다.
         /// </summary>
         public bool LockControl => lockControl;
 
