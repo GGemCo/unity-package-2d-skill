@@ -262,6 +262,25 @@ namespace GGemCo2DSkillEditor
     }
 
     /// <summary>
+    /// MovementControlLock Timeline 클립을 MovementControlLockEventDefinition Payload로 변환합니다.
+    /// </summary>
+    internal sealed class SkillMovementControlLockPayloadFactory : SkillPayloadFactoryBase<SkillMovementControlLockClip>
+    {
+        /// <inheritdoc />
+        protected override UnityEngine.Object CreatePayload(SkillMovementControlLockClip movementLock)
+        {
+            var def = ScriptableObject.CreateInstance<MovementControlLockEventDefinition>();
+            def.durationOverrideSeconds = Mathf.Max(0f, movementLock.DurationOverrideSeconds);
+            def.durationPolicy = movementLock.DurationPolicy;
+            def.stopImmediately = movementLock.StopImmediately;
+            def.cancelSkillMotion = movementLock.CancelSkillMotion;
+            def.lockControl = movementLock.LockControl;
+            def.autoMovePolicy = movementLock.AutoMovePolicy;
+            return def;
+        }
+    }
+
+    /// <summary>
     /// ArcLunge Timeline 클립을 ArcLungeEventDefinition Payload로 변환합니다.
     /// </summary>
     internal sealed class SkillArcLungePayloadFactory : SkillPayloadFactoryBase<SkillArcLungeClip>

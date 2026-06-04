@@ -18,6 +18,8 @@ namespace GGemCo2DSkill
 
         private readonly ICharacterMotionController _motionController;
         private readonly Rigidbody2D _casterRigidbody2D;
+        private readonly IAutoMoveSuspendService _autoMoveSuspendService;
+        private readonly PlayerAutoMoveController _playerAutoMoveController;
         private readonly SkillRunChargeController _chargeController;
         private readonly SkillRunPlaybackController _playbackController;
 
@@ -30,6 +32,12 @@ namespace GGemCo2DSkill
         private bool _isEnded;
         private bool _isPositionHoldActive;
         private bool _keepPositionHoldUntilSkillEnd;
+        private bool _isMovementControlLockActive;
+        private bool _keepMovementControlLockUntilSkillEnd;
+        private float _movementControlLockRemainingSeconds;
+        private CharacterBase _movementControlLockCharacter;
+        private object _movementControlLockToken;
+        private AutoMoveSuspendToken _movementControlLockAutoMoveToken;
 
         public bool IsDone { get; private set; }
         public int SkillUid => _skill != null ? _skill.Uid : 0;
@@ -62,6 +70,12 @@ namespace GGemCo2DSkill
             _ctx = ctx;
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
+            _autoMoveSuspendService = _ctx.caster != null
+                ? _ctx.caster.GetComponent<IAutoMoveSuspendService>() ?? _ctx.caster.GetComponentInParent<IAutoMoveSuspendService>()
+                : null;
+            _playerAutoMoveController = _ctx.caster != null
+                ? _ctx.caster.GetComponent<PlayerAutoMoveController>() ?? _ctx.caster.GetComponentInParent<PlayerAutoMoveController>()
+                : null;
             _chargeController = new SkillRunChargeController(
                 _owner,
                 this,
@@ -217,6 +231,8 @@ namespace GGemCo2DSkill
             if (IsDone) return;
             if (_isLoading) return;
 
+            TickMovementControlLock(dt);
+
             if (_chargeController.ShouldBlockSkillFlow)
             {
                 _chargeController.Tick(dt);
@@ -331,6 +347,148 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 스킬 이벤트가 요청한 이동 조작 잠금을 시작합니다.
+        /// </summary>
+        /// <param name="character">잠금을 적용할 캐릭터입니다.</param>
+        /// <param name="durationSeconds">스킬 종료까지 유지하지 않을 때 적용할 잠금 시간입니다.</param>
+        /// <param name="keepUntilSkillEnd">스킬 종료 시점까지 잠금을 유지할지 여부입니다.</param>
+        /// <param name="stopImmediately">시작 시 캐릭터 이동과 속도를 즉시 정지할지 여부입니다.</param>
+        /// <param name="cancelSkillMotion">시작 시 Skill 채널 모션을 취소할지 여부입니다.</param>
+        /// <param name="lockControl">캐릭터 제어 잠금을 획득할지 여부입니다.</param>
+        /// <param name="autoMovePolicy">자동 이동 처리 정책입니다.</param>
+        /// <returns>잠금 요청을 적용했으면 <see langword="true"/>입니다.</returns>
+        public bool TryStartMovementControlLock(
+            CharacterBase character,
+            float durationSeconds,
+            bool keepUntilSkillEnd,
+            bool stopImmediately,
+            bool cancelSkillMotion,
+            bool lockControl,
+            SkillAutoMoveControlPolicy autoMovePolicy)
+        {
+            if (character == null || _ctx.caster == null)
+                return false;
+
+            if (!keepUntilSkillEnd && durationSeconds <= 0f)
+                return false;
+
+            ReleaseMovementControlLock();
+
+            if (stopImmediately)
+            {
+                StopCasterMovementImmediately(character, cancelSkillMotion);
+            }
+
+            _movementControlLockCharacter = character;
+            _movementControlLockRemainingSeconds = keepUntilSkillEnd ? 0f : Mathf.Max(0f, durationSeconds);
+            _keepMovementControlLockUntilSkillEnd = keepUntilSkillEnd;
+
+            if (lockControl)
+            {
+                _movementControlLockToken = character.AcquireControlLock(this);
+            }
+
+            ApplyAutoMovePolicy(autoMovePolicy);
+
+            _isMovementControlLockActive =
+                _movementControlLockToken != null ||
+                _movementControlLockAutoMoveToken.IsValid ||
+                keepUntilSkillEnd ||
+                _movementControlLockRemainingSeconds > 0f;
+            return true;
+        }
+
+        /// <summary>
+        /// 이동 조작 잠금의 남은 시간을 갱신하고 만료된 잠금을 해제합니다.
+        /// </summary>
+        /// <param name="dt">이번 프레임 경과 시간입니다.</param>
+        private void TickMovementControlLock(float dt)
+        {
+            if (!_isMovementControlLockActive || _keepMovementControlLockUntilSkillEnd)
+                return;
+
+            _movementControlLockRemainingSeconds -= Mathf.Max(0f, dt);
+            if (_movementControlLockRemainingSeconds > 0f)
+                return;
+
+            ReleaseMovementControlLock();
+        }
+
+        /// <summary>
+        /// 현재 스킬 런이 유지 중인 이동 조작 잠금과 자동 이동 일시정지를 해제합니다.
+        /// </summary>
+        public void ReleaseMovementControlLock()
+        {
+            if (!_isMovementControlLockActive &&
+                _movementControlLockToken == null &&
+                !_movementControlLockAutoMoveToken.IsValid)
+                return;
+
+            if (_movementControlLockCharacter != null && _movementControlLockToken != null)
+            {
+                _movementControlLockCharacter.ReleaseControlLock(_movementControlLockToken);
+            }
+
+            if (_autoMoveSuspendService != null && _movementControlLockAutoMoveToken.IsValid)
+            {
+                _autoMoveSuspendService.ReleaseSuspend(_movementControlLockAutoMoveToken);
+            }
+
+            _movementControlLockCharacter = null;
+            _movementControlLockToken = null;
+            _movementControlLockAutoMoveToken = AutoMoveSuspendToken.None;
+            _movementControlLockRemainingSeconds = 0f;
+            _isMovementControlLockActive = false;
+            _keepMovementControlLockUntilSkillEnd = false;
+        }
+
+        /// <summary>
+        /// 이벤트 설정에 따라 자동 이동을 일시정지하거나 취소합니다.
+        /// </summary>
+        /// <param name="autoMovePolicy">자동 이동 처리 정책입니다.</param>
+        private void ApplyAutoMovePolicy(SkillAutoMoveControlPolicy autoMovePolicy)
+        {
+            switch (autoMovePolicy)
+            {
+                case SkillAutoMoveControlPolicy.Suspend:
+                    if (_autoMoveSuspendService != null)
+                    {
+                        _movementControlLockAutoMoveToken =
+                            _autoMoveSuspendService.AcquireSuspend(AutoMoveSuspendReason.Skill);
+                    }
+                    break;
+
+                case SkillAutoMoveControlPolicy.Cancel:
+                    _playerAutoMoveController?.Cancel();
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 캐릭터의 현재 이동 입력, 이동 애니메이션, Rigidbody2D 속도를 즉시 정지합니다.
+        /// </summary>
+        /// <param name="character">이동을 정지할 캐릭터입니다.</param>
+        /// <param name="cancelSkillMotion">Skill 채널 모션까지 함께 취소할지 여부입니다.</param>
+        private void StopCasterMovementImmediately(CharacterBase character, bool cancelSkillMotion)
+        {
+            if (character == null || character.IsStatusDead())
+                return;
+
+            character.directionNormalize = Vector2.zero;
+            character.Stop(isForce: true);
+
+            if (cancelSkillMotion)
+            {
+                _motionController?.CancelMotion(MotionChannel.Skill, 2101);
+            }
+
+            if (_casterRigidbody2D != null)
+            {
+                _casterRigidbody2D.SetLinearVelocity(Vector2.zero);
+            }
+        }
+
+        /// <summary>
         /// 현재 스킬 런이 유지 중인 위치 고정 모션을 해제하고 잔여 속도를 제거합니다.
         /// </summary>
         public void ReleasePositionHold()
@@ -364,6 +522,11 @@ namespace GGemCo2DSkill
             if (_keepPositionHoldUntilSkillEnd || _isPositionHoldActive)
             {
                 ReleasePositionHold();
+            }
+
+            if (_keepMovementControlLockUntilSkillEnd || _isMovementControlLockActive)
+            {
+                ReleaseMovementControlLock();
             }
 
             _playbackController.CleanupActionState();

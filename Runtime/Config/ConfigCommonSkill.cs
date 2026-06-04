@@ -107,6 +107,11 @@ namespace Config
             /// 스킬 실행 중 캐릭터 잔상 트레일 또는 단발 잔상을 생성합니다.
             /// </summary>
             Afterimage = 18,
+
+            /// <summary>
+            /// 스킬 실행 중 캐릭터 이동을 즉시 멈추고 조작 또는 자동 이동을 잠급니다.
+            /// </summary>
+            MovementControlLock = 19,
         }
 
         /// <summary>

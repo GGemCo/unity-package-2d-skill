@@ -89,6 +89,10 @@ namespace GGemCo2DSkill
                     executor.HandlePositionHold(context.Run, targetContext, payload, context.EventDurationSeconds);
                     break;
 
+                case ConfigCommonSkill.SkillEventType.MovementControlLock:
+                    executor.HandleMovementControlLock(context.Run, targetContext, payload, context.EventDurationSeconds);
+                    break;
+
                 case ConfigCommonSkill.SkillEventType.GroundSlam:
                     executor.HandleGroundSlam(targetContext, payload, context.EventDurationSeconds);
                     break;

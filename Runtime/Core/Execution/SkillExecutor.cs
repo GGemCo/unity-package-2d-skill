@@ -366,6 +366,22 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 이동 조작 잠금 이벤트를 전용 핸들러로 위임합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런타임입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">이동 조작 잠금 이벤트 Payload입니다.</param>
+        /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
+        internal void HandleMovementControlLock(
+            SkillRun run,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            float eventDurationSeconds)
+        {
+            SkillMovementControlLockEventHandler.Handle(run, ctx, payloadObj, eventDurationSeconds);
+        }
+
+        /// <summary>
         /// 돌진 이벤트 정의에 따라 캐릭터 이동을 시작합니다.
         /// 2D 방향을 보정하고 직선 또는 포물선 이동 요청을 모션 컨트롤러에 전달합니다.
         /// </summary>

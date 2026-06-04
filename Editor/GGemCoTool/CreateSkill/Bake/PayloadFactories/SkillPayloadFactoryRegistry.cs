@@ -48,6 +48,7 @@ namespace GGemCo2DSkillEditor
                 new SkillLungePayloadFactory(),
                 new SkillGroundSlamPayloadFactory(),
                 new SkillPositionHoldPayloadFactory(),
+                new SkillMovementControlLockPayloadFactory(),
                 new SkillArcLungePayloadFactory(),
                 new SkillProjectilePayloadFactory(),
                 new SkillLaserPayloadFactory(),
