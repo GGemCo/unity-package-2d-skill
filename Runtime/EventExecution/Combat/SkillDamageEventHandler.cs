@@ -86,7 +86,7 @@ namespace GGemCo2DSkill
             hitEvaluator.EvaluateTargets(center, resolvedForward, areaSpec, range, maxTargets, ctx.caster, hits);
 
             CharacterBase castCharacterBase = ctx.caster.GetComponent<CharacterBase>();
-            long totalDamage = 10;
+            long totalDamage = ResolveSkillDamage(skill, def, ctx.executionOptions);
             int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
             var resolvedOnHitCrowdControls = new List<int>(8);
 
@@ -107,7 +107,13 @@ namespace GGemCo2DSkill
                 if (!IsDamageTargetStateAllowed(def, target))
                     continue;
 
-                ApplyOnHitAffects(def.onHitAffects, ctx.caster, target, damageApplied: false, timing: OnHitAffectTiming.BeforeDamage);
+                ApplyOnHitAffects(
+                    def.onHitAffects,
+                    ctx.caster,
+                    target,
+                    damageApplied: false,
+                    timing: OnHitAffectTiming.BeforeDamage,
+                    durationBonusSeconds: ctx.executionOptions.StatusDurationBonusSeconds);
                 int crowdControlUid = ResolveOnHitCrowdControlUid(
                     def.onHitCrowdControls,
                     damageApplied: false,
@@ -123,7 +129,7 @@ namespace GGemCo2DSkill
                 {
                     damage = totalDamage,
                     attacker = ctx.caster != null ? ctx.caster : ownerObject,
-                    damageType = ConfigCommon.DamageType.Physic,
+                    damageType = skill.DamageType,
                     affectUid = 0,
                     crowdControlUid = crowdControlUid,
                     AttackId = attackId,
@@ -142,7 +148,8 @@ namespace GGemCo2DSkill
                     GuardBreakFeedbackText = def.guardBreakFeedbackText,
                 };
 
-                bool didApplyDamage = ShouldApplyDamageByFacingPolicy(def, castCharacterBase, target, ownerObject);
+                bool didApplyDamage = totalDamage > 0L &&
+                                      ShouldApplyDamageByFacingPolicy(def, castCharacterBase, target, ownerObject);
 
                 CollectOnHitCrowdControlUids(
                     def.onHitCrowdControls,
@@ -165,8 +172,44 @@ namespace GGemCo2DSkill
                 if (target.IsStatusDead())
                     continue;
 
-                ApplyOnHitAffects(def.onHitAffects, ctx.caster, target, didApplyDamage, OnHitAffectTiming.AfterDamage);
+                ApplyOnHitAffects(
+                    def.onHitAffects,
+                    ctx.caster,
+                    target,
+                    didApplyDamage,
+                    OnHitAffectTiming.AfterDamage,
+                    ctx.executionOptions.StatusDurationBonusSeconds);
             }
+        }
+
+        /// <summary>
+        /// 스킬 테이블 기본 데미지와 이벤트/실행 옵션 배율을 곱해 최종 데미지를 계산합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">현재 데미지 이벤트 정의입니다.</param>
+        /// <param name="options">이번 스킬 실행에 적용된 옵션 스냅샷입니다.</param>
+        /// <returns>0 이상으로 보정된 최종 데미지입니다.</returns>
+        private static long ResolveSkillDamage(
+            RuntimeSkillDefinition skill,
+            DamageEventDefinition def,
+            in SkillExecutionOptions options)
+        {
+            if (skill == null)
+                return 0L;
+
+            long baseDamage = System.Math.Max(0L, skill.Damage);
+            if (baseDamage <= 0L)
+                return 0L;
+
+            float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
+            float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
+            double resolved = baseDamage * (double)eventMultiplier * optionMultiplier;
+            if (resolved <= 0d)
+                return 0L;
+
+            return resolved >= long.MaxValue
+                ? long.MaxValue
+                : (long)System.Math.Round(resolved);
         }
 
         /// <summary>
@@ -412,12 +455,14 @@ namespace GGemCo2DSkill
         /// <param name="target">효과를 적용할 대상입니다.</param>
         /// <param name="damageApplied">실제 데미지가 적용되었는지 여부입니다.</param>
         /// <param name="timing">현재 처리 중인 OnHit 적용 시점입니다.</param>
+        /// <param name="durationBonusSeconds">Affect 기본 또는 오버라이드 지속시간에 추가로 더할 초 단위 보너스입니다.</param>
         private static void ApplyOnHitAffects(
             OnHitAffectEntry[] entries,
             GameObject caster,
             CharacterBase target,
             bool damageApplied,
-            OnHitAffectTiming timing)
+            OnHitAffectTiming timing,
+            float durationBonusSeconds)
         {
             if (entries == null || entries.Length == 0)
                 return;
@@ -445,7 +490,7 @@ namespace GGemCo2DSkill
 
                 for (int s = 0; s < stacks; s++)
                 {
-                    AffectApi.Apply(target.gameObject, entry.affectUid, caster, duration);
+                    AffectApi.Apply(target.gameObject, entry.affectUid, caster, duration, durationBonusSeconds);
                 }
             }
         }

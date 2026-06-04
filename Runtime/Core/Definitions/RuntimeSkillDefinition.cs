@@ -1,4 +1,5 @@
 ﻿using Config;
+using GGemCo2DCore;
 
 namespace GGemCo2DSkill
 {
@@ -17,6 +18,13 @@ namespace GGemCo2DSkill
         public float CastTime;
         public float CoolTime;
         public int NeedMp;
+
+        /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 타입입니다.</summary>
+        public ConfigCommon.DamageType DamageType;
+
+        /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 값입니다.</summary>
+        public long Damage;
+
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
 
         /// <summary>스킬 사용 가능 거리입니다.</summary>
@@ -60,6 +68,8 @@ namespace GGemCo2DSkill
                 CastTime = row.CastTime,
                 CoolTime = row.CoolTime,
                 NeedMp = row.NeedMp,
+                DamageType = row.DamageType,
+                Damage = row.Damage,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,
@@ -89,6 +99,8 @@ namespace GGemCo2DSkill
                 CastTime = row.CastTime,
                 CoolTime = row.CoolTime,
                 NeedMp = 0,
+                DamageType = row.DamageType,
+                Damage = row.Damage,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,

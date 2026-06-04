@@ -89,7 +89,7 @@ namespace GGemCo2DSkill
                 return SkillUseResult.Fail(SkillUseFailReason.InvalidSource);
 
             var target = new MonsterSkillTarget(request.LockedTarget, request.GroundPoint, request.Forward);
-            return TryUseSkill(skillUid, target);
+            return TryUseSkillInternal(skillUid, target, request.ExecutionOptions);
         }
 
         /// <summary>
@@ -100,6 +100,21 @@ namespace GGemCo2DSkill
         /// <param name="target">고정 대상, 지면 위치, 방향을 포함한 타겟 정보입니다.</param>
         /// <returns>스킬 실행이 시작되면 <see cref="SkillUseResult.Started"/>, 실행할 수 없으면 <see cref="SkillUseResult.Rejected"/>를 반환합니다.</returns>
         public SkillUseResult TryUseSkill(int skillUid, in MonsterSkillTarget target)
+        {
+            return TryUseSkillInternal(skillUid, target, SkillExecutionOptions.None);
+        }
+
+        /// <summary>
+        /// 몬스터 스킬 실행 요청을 검증하고 실행 옵션을 포함한 스킬 컨텍스트로 변환합니다.
+        /// </summary>
+        /// <param name="skillUid">사용할 몬스터 스킬 UID입니다.</param>
+        /// <param name="target">고정 대상, 지면 위치, 방향을 포함한 타겟 정보입니다.</param>
+        /// <param name="executionOptions">이번 실행에만 적용할 옵션 스냅샷입니다.</param>
+        /// <returns>스킬 실행 시도 결과입니다.</returns>
+        private SkillUseResult TryUseSkillInternal(
+            int skillUid,
+            in MonsterSkillTarget target,
+            in SkillExecutionOptions executionOptions)
         {
             if (_executor == null) return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
             if (skillUid <= 0) return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
@@ -124,7 +139,8 @@ namespace GGemCo2DSkill
                 caster: gameObject,
                 lockedTarget: target.LockedTarget != null ? target.LockedTarget.gameObject : null,
                 groundPoint: target.GroundPoint,
-                forward: new Vector3(target.Forward.x, target.Forward.y, 0f)
+                forward: new Vector3(target.Forward.x, target.Forward.y, 0f),
+                executionOptions: executionOptions
             );
 
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))

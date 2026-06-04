@@ -120,10 +120,35 @@ namespace GGemCo2DSkill
         public void Start()
         {
             SnapshotContext();
+            ApplyStartExecutionOptions();
 
             _playbackController.ApplyInitialActionState(HasCharge);
             _isLoading = true;
             _ = LoadSequenceAsync();
+        }
+
+        /// <summary>
+        /// 스킬 시작 시점에 고정된 실행 옵션 중 즉시 적용해야 하는 효과를 처리합니다.
+        /// </summary>
+        private void ApplyStartExecutionOptions()
+        {
+            if (_ctx.executionOptions.RuntimeTempHpOnStart <= 0L || _ctx.caster == null)
+                return;
+
+            CharacterBase targetCharacter =
+                _ctx.caster.GetComponent<CharacterBase>() ??
+                _ctx.caster.GetComponentInParent<CharacterBase>();
+            if (targetCharacter == null)
+                return;
+
+            int sourceKey = _ctx.executionOptions.RuntimeTempHpSourceKeyOverride != 0
+                ? _ctx.executionOptions.RuntimeTempHpSourceKeyOverride
+                : SkillUid;
+
+            targetCharacter.SetRuntimeBonusHpTemp(
+                sourceKey,
+                _ctx.executionOptions.RuntimeTempHpOnStart,
+                fillToMax: true);
         }
 
         /// <summary>

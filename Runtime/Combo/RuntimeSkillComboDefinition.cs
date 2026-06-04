@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using GGemCo2DCore;
 
 namespace GGemCo2DSkill
 {
@@ -139,6 +140,11 @@ namespace GGemCo2DSkill
         /// 마무리 명령으로 이어질 마무리 노드 인덱스입니다.
         /// </summary>
         public int LastNodeIndex = RuntimeSkillComboDefinition.InvalidNodeIndex;
+
+        /// <summary>
+        /// 이 콤보 노드로 스킬을 실행할 때 적용할 1회성 실행 옵션입니다.
+        /// </summary>
+        public SkillExecutionOptions ExecutionOptions = SkillExecutionOptions.None;
 
         /// <summary>
         /// 이 노드가 메인 타입인지 반환합니다.

@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System;
 using Config;
 using GGemCo2DCore;
 
@@ -20,6 +21,12 @@ namespace GGemCo2DSkill
         public float CastTime;
         
         public float CoolTime;
+
+        /// <summary>스킬 데미지에 사용할 기본 데미지 타입입니다.</summary>
+        public ConfigCommon.DamageType DamageType;
+
+        /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 값입니다.</summary>
+        public long Damage;
 
         /// <summary>타겟팅 모드(스킬 패키지의 SkillTargetingMode enum 값을 int로 저장).</summary>
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
@@ -100,6 +107,8 @@ namespace GGemCo2DSkill
                 SkillKind = ConfigCommonSkill.SkillKind.Active,
                 CastTime = reader.Float("CastTime"),
                 CoolTime = reader.Float("CoolTime"),
+                DamageType = ResolveDamageType(reader),
+                Damage = System.Math.Max(0L, reader.Long("Damage", reader.Long("damage", 0L))),
                 TargetingMode = reader.Enum<ConfigCommonSkill.SkillTargetingMode>("TargetingMode"),
                 CastRange = reader.Float("CastRange"),
                 PlacementRange = reader.Float("PlacementRange"),
@@ -122,6 +131,31 @@ namespace GGemCo2DSkill
             };
         }
 
+        /// <summary>
+        /// 몬스터 스킬 테이블의 DamageType 컬럼 값을 Core 데미지 타입 enum으로 변환합니다.
+        /// </summary>
+        /// <param name="reader">현재 행을 읽는 테이블 파서입니다.</param>
+        /// <returns>파싱된 데미지 타입입니다. 값이 비어 있으면 물리 데미지를 사용합니다.</returns>
+        private static ConfigCommon.DamageType ResolveDamageType(TableRowReader reader)
+        {
+            string value = reader.String("DamageType", reader.String("damageType", string.Empty));
+            if (string.IsNullOrWhiteSpace(value))
+                return ConfigCommon.DamageType.Physic;
+
+            value = value.Trim();
+            if (value.StartsWith("DT_", StringComparison.OrdinalIgnoreCase))
+            {
+                value = value.Substring(3);
+            }
+
+            if (int.TryParse(value, out int rawValue) &&
+                Enum.IsDefined(typeof(ConfigCommon.DamageType), rawValue))
+            {
+                return (ConfigCommon.DamageType)rawValue;
+            }
+
+            return EnumHelper.ConvertEnum<ConfigCommon.DamageType>(value);
+        }
 
     }
 }

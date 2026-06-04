@@ -33,10 +33,11 @@ namespace GGemCo2DSkill
             GameObject applyTarget = ResolveApplyTarget(ctx, def.applyTo);
             int stacks = Mathf.Max(1, def.stacks);
             float duration = def.durationOverrideSeconds > 0f ? def.durationOverrideSeconds : 0f;
+            float durationBonusSeconds = ctx.executionOptions.StatusDurationBonusSeconds;
 
             for (int s = 0; s < stacks; s++)
             {
-                AffectApi.Apply(applyTarget, affectUid, ctx.caster, duration);
+                AffectApi.Apply(applyTarget, affectUid, ctx.caster, duration, durationBonusSeconds);
             }
         }
 

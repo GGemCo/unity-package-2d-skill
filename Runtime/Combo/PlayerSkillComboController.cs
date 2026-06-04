@@ -487,7 +487,9 @@ namespace GGemCo2DSkill
             if (_skillDriver == null)
                 return SkillComboUseResult.Fail(SkillComboUseFailReason.MissingSkillDriver);
 
-            SkillUseResult skillUseResult = _skillDriver.TryUseSkill(node.SkillUid, in request);
+            SkillExecutionOptions executionOptions = request.ExecutionOptions.Combine(node.ExecutionOptions);
+            SkillDriverRequest resolvedRequest = request.WithExecutionOptions(executionOptions);
+            SkillUseResult skillUseResult = _skillDriver.TryUseSkill(node.SkillUid, in resolvedRequest);
             if (!skillUseResult.IsStarted)
             {
                 return SkillComboUseResult.Fail(

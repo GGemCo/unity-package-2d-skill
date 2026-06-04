@@ -13,6 +13,8 @@ namespace GGemCo2DSkill
     [DisallowMultipleComponent]
     public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier
     {
+        private const float AirborneSkillDamageMultiplier = 1.5f;
+
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
         /// </summary>
@@ -119,7 +121,8 @@ namespace GGemCo2DSkill
                 caster: gameObject,
                 lockedTarget: request.LockedTarget != null ? request.LockedTarget.gameObject : null,
                 groundPoint: request.GroundPoint,
-                forward: new Vector3(request.Forward.x, request.Forward.y, 0f)
+                forward: new Vector3(request.Forward.x, request.Forward.y, 0f),
+                executionOptions: ResolveExecutionOptions(request.ExecutionOptions)
             );
 
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
@@ -158,6 +161,31 @@ namespace GGemCo2DSkill
             _chainConsumed = false;
 
             return SkillUseResult.Started;
+        }
+
+        /// <summary>
+        /// 요청으로 전달된 실행 옵션에 플레이어의 현재 상태 기반 보너스를 병합합니다.
+        /// </summary>
+        /// <param name="requestOptions">입력/콤보 계층에서 전달한 실행 옵션입니다.</param>
+        /// <returns>이번 스킬 실행에 적용할 최종 옵션 스냅샷입니다.</returns>
+        private SkillExecutionOptions ResolveExecutionOptions(in SkillExecutionOptions requestOptions)
+        {
+            SkillExecutionOptions resolved = SkillExecutionOptions.None.Combine(requestOptions);
+            if (!IsCasterAirborneAtSkillStart())
+                return resolved;
+
+            // 공중 사용 보너스는 스킬 시작 시점에 스냅샷으로 고정해 타격 시점 착지 여부에 흔들리지 않게 합니다.
+            var airborneBonus = new SkillExecutionOptions(AirborneSkillDamageMultiplier, 0f, 0L);
+            return resolved.Combine(airborneBonus);
+        }
+
+        /// <summary>
+        /// 스킬 시작 시점의 캐스터 공중 상태를 확인합니다.
+        /// </summary>
+        /// <returns>캐스터가 지면에 닿아 있지 않으면 true입니다.</returns>
+        private bool IsCasterAirborneAtSkillStart()
+        {
+            return _character != null && !_character.IsCurrentlyGrounded();
         }
 
         public SkillUseResult TryUseSkill(int skillUid, in MonsterSkillTarget target)
