@@ -67,8 +67,8 @@ namespace GGemCo2DSkill
             string path = GetIconImagePath();
             if (string.IsNullOrEmpty(path))
             {
-                ImageIcon.sprite = null;
-                CacheNormalIconSprite(null);
+                ImageIcon.sprite = spriteBlank;
+                CacheNormalIconSprite(spriteBlank);
                 return;
             }
 
