@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System;
 using Config;
 using GGemCo2DCore;
 
@@ -107,7 +106,7 @@ namespace GGemCo2DSkill
                 SkillKind = ConfigCommonSkill.SkillKind.Active,
                 CastTime = reader.Float("CastTime"),
                 CoolTime = reader.Float("CoolTime"),
-                DamageType = ResolveDamageType(reader),
+                DamageType = reader.DamageType("DamageType"),
                 Damage = System.Math.Max(0L, reader.Long("Damage", reader.Long("damage", 0L))),
                 TargetingMode = reader.Enum<ConfigCommonSkill.SkillTargetingMode>("TargetingMode"),
                 CastRange = reader.Float("CastRange"),
@@ -129,32 +128,6 @@ namespace GGemCo2DSkill
                 UseClipReferenceDurationSeconds = System.Math.Max(0f, reader.Float("UseClipReferenceDurationSeconds", 0f)),
                 FacingMode = reader.Enum<ConfigCommonSkill.SkillFacingMode>("FacingMode")
             };
-        }
-
-        /// <summary>
-        /// 몬스터 스킬 테이블의 DamageType 컬럼 값을 Core 데미지 타입 enum으로 변환합니다.
-        /// </summary>
-        /// <param name="reader">현재 행을 읽는 테이블 파서입니다.</param>
-        /// <returns>파싱된 데미지 타입입니다. 값이 비어 있으면 물리 데미지를 사용합니다.</returns>
-        private static ConfigCommon.DamageType ResolveDamageType(TableRowReader reader)
-        {
-            string value = reader.String("DamageType", reader.String("damageType", string.Empty));
-            if (string.IsNullOrWhiteSpace(value))
-                return ConfigCommon.DamageType.Physic;
-
-            value = value.Trim();
-            if (value.StartsWith("DT_", StringComparison.OrdinalIgnoreCase))
-            {
-                value = value.Substring(3);
-            }
-
-            if (int.TryParse(value, out int rawValue) &&
-                Enum.IsDefined(typeof(ConfigCommon.DamageType), rawValue))
-            {
-                return (ConfigCommon.DamageType)rawValue;
-            }
-
-            return EnumHelper.ConvertEnum<ConfigCommon.DamageType>(value);
         }
 
     }
