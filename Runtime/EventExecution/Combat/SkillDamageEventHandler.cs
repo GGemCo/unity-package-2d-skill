@@ -160,6 +160,7 @@ namespace GGemCo2DSkill
                 metadataDamage.ElementGaugeApplications = ResolveElementGaugeApplications(
                     def.onHitElementGauges,
                     ownerObject,
+                    target,
                     didApplyDamage);
 
                 if (didApplyDamage)
@@ -183,16 +184,18 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 캐스터의 패시브 정책을 반영하여 Damage 이벤트의 OnHitElementGauge 적용 목록을 생성합니다.
-        /// 패시브가 특정 원소 게이지를 차단하면 해당 항목은 전투 메타데이터에 전달하지 않습니다.
+        /// 피격 대상의 패시브 정책을 반영하여 Damage 이벤트의 OnHitElementGauge 적용 목록을 생성합니다.
+        /// 대상 패시브가 특정 원소 게이지 수신을 차단하면 해당 항목은 전투 메타데이터에 전달하지 않습니다.
         /// </summary>
         /// <param name="entries">스킬 이벤트에 설정된 OnHit 원소 게이지 항목입니다.</param>
-        /// <param name="caster">패시브 정책과 Affect 조건 확인에 사용할 캐스터 오브젝트입니다.</param>
+        /// <param name="caster">Affect 조건 확인에 사용할 캐스터 오브젝트입니다.</param>
+        /// <param name="target">원소 게이지 수신 차단 패시브를 확인할 피격 대상입니다.</param>
         /// <param name="damageApplied">이번 타격에서 실제 데미지가 적용되었는지 여부입니다.</param>
         /// <returns>적용 가능한 원소 게이지 목록입니다. 적용할 항목이 없으면 null입니다.</returns>
         private static ElementGaugeApplication[] ResolveElementGaugeApplications(
             OnHitElementGaugeEntry[] entries,
             GameObject caster,
+            CharacterBase target,
             bool damageApplied)
         {
             if (entries == null || entries.Length == 0)
@@ -201,7 +204,7 @@ namespace GGemCo2DSkill
             }
 
             CharacterPassiveSkillController passiveController =
-                caster != null ? caster.GetComponent<CharacterPassiveSkillController>() : null;
+                target != null ? target.GetComponent<CharacterPassiveSkillController>() : null;
             if (passiveController == null)
             {
                 return SkillOnHitEffectUtility.BuildElementGaugeApplications(entries, caster, damageApplied);
