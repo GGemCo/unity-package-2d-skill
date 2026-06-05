@@ -23,7 +23,14 @@ namespace GGemCo2DSkill
         /// </summary>
         public IReadOnlyDictionary<int, int> EquippedPassives => _equippedPassives;
 
+        /// <summary>
+        /// 현재 장착된 패시브 슬롯 단위 목록입니다.
+        /// 같은 패시브 UID가 여러 번 들어오면 엔트리도 여러 개 유지됩니다.
+        /// </summary>
+        public IReadOnlyList<PassiveSkillLoadoutEntry> EquippedPassiveEntries => _equippedPassiveEntries;
+
         private readonly Dictionary<int, int> _equippedPassives = new();
+        private readonly List<PassiveSkillLoadoutEntry> _equippedPassiveEntries = new();
 
         private void Awake()
         {
@@ -52,12 +59,50 @@ namespace GGemCo2DSkill
         public void ApplyEquippedPassives(Dictionary<int, int> skillUidToLevel)
         {
             _equippedPassives.Clear();
+            _equippedPassiveEntries.Clear();
             if (skillUidToLevel != null)
             {
                 foreach (var kv in skillUidToLevel)
                 {
                     if (kv.Key <= 0) continue;
-                    _equippedPassives[kv.Key] = Mathf.Max(1, kv.Value);
+                    int level = Mathf.Max(1, kv.Value);
+                    _equippedPassives[kv.Key] = level;
+                    _equippedPassiveEntries.Add(new PassiveSkillLoadoutEntry(kv.Key, level));
+                }
+            }
+
+            Rebuild();
+        }
+
+        /// <summary>
+        /// 슬롯 단위 패시브 장착 목록을 교체하고 즉시 적용합니다.
+        /// 같은 패시브 UID가 여러 번 전달되면 장착 횟수만큼 Stat 옵션을 누적합니다.
+        /// </summary>
+        /// <param name="entries">슬롯 단위 패시브 장착 목록입니다.</param>
+        public void ApplyEquippedPassiveStacks(IReadOnlyList<PassiveSkillLoadoutEntry> entries)
+        {
+            _equippedPassives.Clear();
+            _equippedPassiveEntries.Clear();
+
+            if (entries != null)
+            {
+                for (int i = 0; i < entries.Count; i++)
+                {
+                    PassiveSkillLoadoutEntry entry = entries[i];
+                    if (entry.SkillUid <= 0)
+                    {
+                        continue;
+                    }
+
+                    int level = Mathf.Max(1, entry.Level);
+                    _equippedPassiveEntries.Add(new PassiveSkillLoadoutEntry(entry.SkillUid, level));
+
+                    // 기존 조회 API는 UID별 대표 레벨만 표현할 수 있으므로 가장 높은 레벨을 유지합니다.
+                    if (!_equippedPassives.TryGetValue(entry.SkillUid, out int currentLevel) ||
+                        currentLevel < level)
+                    {
+                        _equippedPassives[entry.SkillUid] = level;
+                    }
                 }
             }
 
@@ -70,6 +115,7 @@ namespace GGemCo2DSkill
         public void Clear()
         {
             _equippedPassives.Clear();
+            _equippedPassiveEntries.Clear();
             Rebuild();
         }
         
@@ -124,10 +170,11 @@ namespace GGemCo2DSkill
             var tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
             var tableOption = TableLoaderManagerSkill.Instance.TableSkillPassiveOption;
 
-            foreach (var kv in _equippedPassives)
+            for (int entryIndex = 0; entryIndex < _equippedPassiveEntries.Count; entryIndex++)
             {
-                int skillUid = kv.Key;
-                int level = kv.Value;
+                PassiveSkillLoadoutEntry entry = _equippedPassiveEntries[entryIndex];
+                int skillUid = entry.SkillUid;
+                int level = entry.Level;
 
                 var skillRow = tableSkillPassive.GetDataByUid(skillUid);
                 if (skillRow == null) continue;
