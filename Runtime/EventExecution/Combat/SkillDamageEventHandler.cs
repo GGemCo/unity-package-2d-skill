@@ -183,13 +183,13 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 스킬 테이블 기본 데미지와 이벤트/실행 옵션 배율을 곱해 최종 데미지를 계산합니다.
+        /// 스킬 테이블 기본 데미지를 해석한 뒤 전역 계산 매니저로 최종 스킬 데미지를 계산합니다.
         /// </summary>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="def">현재 데미지 이벤트 정의입니다.</param>
         /// <param name="options">이번 스킬 실행에 적용된 옵션 스냅샷입니다.</param>
         /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
-        /// <returns>0 이상으로 보정된 최종 데미지입니다.</returns>
+        /// <returns>전역 계산 정책이 반영된 최종 스킬 데미지입니다.</returns>
         private static long ResolveSkillDamage(
             RuntimeSkillDefinition skill,
             DamageEventDefinition def,
@@ -200,12 +200,14 @@ namespace GGemCo2DSkill
                 return 0L;
 
             double baseDamage = ResolveBaseSkillDamage(skill, caster);
-            if (baseDamage <= 0d)
-                return 0L;
-
             float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
             float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
-            double resolved = baseDamage * eventMultiplier * optionMultiplier;
+
+            CalculateManager calculateManager = CalculateManager.GetActive();
+            if (calculateManager != null)
+                return calculateManager.CalculateAttackDamage(baseDamage, eventMultiplier, optionMultiplier);
+
+            double resolved = System.Math.Max(0d, baseDamage) * eventMultiplier * optionMultiplier;
             if (resolved <= 0d)
                 return 0L;
 
