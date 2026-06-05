@@ -28,6 +28,9 @@ namespace GGemCo2DSkill
         /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 값입니다.</summary>
         public long Damage;
 
+        /// <summary>공중에서 플레이어 스킬을 시작했을 때 추가로 적용할 데미지 배율입니다. 1이면 보너스를 적용하지 않습니다.</summary>
+        public float AirborneDamageMultiplier = 1f;
+
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
 
         /// <summary>스킬 사용 가능 거리입니다.</summary>
@@ -74,6 +77,7 @@ namespace GGemCo2DSkill
                 DamageType = row.DamageType,
                 DamageValueType = row.DamageValueType,
                 Damage = row.Damage,
+                AirborneDamageMultiplier = row.AirborneDamageMultiplier,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,
@@ -106,6 +110,7 @@ namespace GGemCo2DSkill
                 DamageType = row.DamageType,
                 DamageValueType = row.DamageValueType,
                 Damage = row.Damage,
+                AirborneDamageMultiplier = 1f,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
                 PlacementRange = row.PlacementRange,

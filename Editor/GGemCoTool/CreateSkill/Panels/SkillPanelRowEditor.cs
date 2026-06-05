@@ -351,6 +351,9 @@ namespace GGemCo2DSkillEditor
                 case nameof(StruckTableSkill.UseClipTimeScale):
                     ClampPositiveFloatMember(target, memberName, 0.001f);
                     break;
+                case nameof(StruckTableSkill.AirborneDamageMultiplier):
+                    ClampPositiveFloatMember(target, memberName, 1f);
+                    break;
                 case nameof(StruckTableSkill.MaxTargets):
                 case nameof(StruckTableSkill.NeedPlayerLevel):
                 case nameof(StruckTableSkill.NeedMp):
@@ -374,6 +377,7 @@ namespace GGemCo2DSkillEditor
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeCompleteDurationSeconds));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.ChargeFailDurationSeconds));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.UseClipTimeScale));
+            NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.AirborneDamageMultiplier));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.UseClipReferenceDurationSeconds));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.MaxTargets));
             NormalizeEditingFieldValue(_editingRow, nameof(StruckTableSkill.NeedPlayerLevel));

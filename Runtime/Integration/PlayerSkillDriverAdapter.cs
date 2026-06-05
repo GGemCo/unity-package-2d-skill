@@ -13,8 +13,6 @@ namespace GGemCo2DSkill
     [DisallowMultipleComponent]
     public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier
     {
-        private const float AirborneSkillDamageMultiplier = 1.5f;
-
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
         /// </summary>
@@ -122,7 +120,7 @@ namespace GGemCo2DSkill
                 lockedTarget: request.LockedTarget != null ? request.LockedTarget.gameObject : null,
                 groundPoint: request.GroundPoint,
                 forward: new Vector3(request.Forward.x, request.Forward.y, 0f),
-                executionOptions: ResolveExecutionOptions(request.ExecutionOptions)
+                executionOptions: ResolveExecutionOptions(skill, request.ExecutionOptions)
             );
 
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
@@ -166,17 +164,41 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 요청으로 전달된 실행 옵션에 플레이어의 현재 상태 기반 보너스를 병합합니다.
         /// </summary>
+        /// <param name="skill">이번에 실행할 플레이어 스킬 정의입니다.</param>
         /// <param name="requestOptions">입력/콤보 계층에서 전달한 실행 옵션입니다.</param>
         /// <returns>이번 스킬 실행에 적용할 최종 옵션 스냅샷입니다.</returns>
-        private SkillExecutionOptions ResolveExecutionOptions(in SkillExecutionOptions requestOptions)
+        private SkillExecutionOptions ResolveExecutionOptions(
+            RuntimeSkillDefinition skill,
+            in SkillExecutionOptions requestOptions)
         {
             SkillExecutionOptions resolved = SkillExecutionOptions.None.Combine(requestOptions);
+            float airborneDamageMultiplier = ResolveAirborneDamageMultiplier(skill);
+            if (airborneDamageMultiplier <= 1f)
+                return resolved;
+
             if (!IsCasterAirborneAtSkillStart())
                 return resolved;
 
             // 공중 사용 보너스는 스킬 시작 시점에 스냅샷으로 고정해 타격 시점 착지 여부에 흔들리지 않게 합니다.
-            var airborneBonus = new SkillExecutionOptions(AirborneSkillDamageMultiplier, 0f, 0L);
+            var airborneBonus = new SkillExecutionOptions(airborneDamageMultiplier, 0f, 0L);
             return resolved.Combine(airborneBonus);
+        }
+
+        /// <summary>
+        /// 스킬 정의에 설정된 공중 사용 데미지 배율을 안전한 범위로 보정합니다.
+        /// </summary>
+        /// <remarks>
+        /// 1 이하는 보너스를 적용하지 않는 값으로 다루어 기존 요청 옵션만 유지합니다.
+        /// 테이블 값이 비어 있거나 잘못 들어와도 모든 스킬에 공중 보너스가 퍼지지 않도록 여기에서 한 번 더 방어합니다.
+        /// </remarks>
+        /// <param name="skill">확인할 플레이어 스킬 정의입니다.</param>
+        /// <returns>공중 사용 시 추가로 적용할 데미지 배율입니다.</returns>
+        private static float ResolveAirborneDamageMultiplier(RuntimeSkillDefinition skill)
+        {
+            if (skill == null || skill.AirborneDamageMultiplier <= 1f)
+                return 1f;
+
+            return skill.AirborneDamageMultiplier;
         }
 
         /// <summary>
