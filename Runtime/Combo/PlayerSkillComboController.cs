@@ -292,7 +292,7 @@ namespace GGemCo2DSkill
                     entryTrigger);
             }
 
-            if (!SkillComboGraphResolver.TryResolveEntryNode(
+            if (!TryResolveOptionalEntryNode(
                     definition,
                     SkillComboCommand.Main,
                     out RuntimeSkillComboNode entryMainNode,
@@ -303,16 +303,21 @@ namespace GGemCo2DSkill
                     entryTrigger);
             }
 
-            RuntimeSkillComboNode entryLastNode = null;
-            if (!SkillComboGraphResolver.TryResolveEntryNode(
+            if (!TryResolveOptionalEntryNode(
                     definition,
                     SkillComboCommand.Last,
-                    out entryLastNode,
-                    out SkillComboUseFailReason lastFailReason) &&
-                lastFailReason != SkillComboUseFailReason.MissingLastNode)
+                    out RuntimeSkillComboNode entryLastNode,
+                    out SkillComboUseFailReason lastFailReason))
             {
                 return SkillComboOpenResult.Fail(
                     ConvertOpenFailReason(lastFailReason),
+                    entryTrigger);
+            }
+
+            if (entryMainNode == null && entryLastNode == null)
+            {
+                return SkillComboOpenResult.Fail(
+                    SkillComboOpenFailReason.MissingStartNode,
                     entryTrigger);
             }
 
@@ -322,6 +327,47 @@ namespace GGemCo2DSkill
             SkillComboOpenResult openResult = SkillComboOpenResult.Opened(entryMainNode, entryLastNode, entryTrigger);
             NotifyComboOpenedForUi(openResult);
             return openResult;
+        }
+
+        /// <summary>
+        /// 콤보 진입 게이트에서 사용할 수 있는 선택형 진입 노드를 확인합니다.
+        /// </summary>
+        /// <remarks>
+        /// 기본 콤보 마지막 타격 이후에는 Main 슬롯 없이 마무리 슬롯만 장착한 구성도 허용해야 합니다.
+        /// 따라서 노드가 없는 상태는 실패가 아닌 선택지 없음으로 처리하고, 노드가 존재하지만 타입이 잘못된 경우만 실패로 반환합니다.
+        /// </remarks>
+        /// <param name="definition">확인할 콤보 정의입니다.</param>
+        /// <param name="command">확인할 진입 명령입니다.</param>
+        /// <param name="node">확인된 진입 노드입니다. 해당 명령의 진입 노드가 없으면 null입니다.</param>
+        /// <param name="failReason">선택형 진입 노드 확인 중 발생한 실패 사유입니다.</param>
+        /// <returns>진입 노드가 없거나 유효한 진입 노드가 있으면 true, 정의가 손상되었거나 노드 타입이 잘못되었으면 false입니다.</returns>
+        private static bool TryResolveOptionalEntryNode(
+            RuntimeSkillComboDefinition definition,
+            SkillComboCommand command,
+            out RuntimeSkillComboNode node,
+            out SkillComboUseFailReason failReason)
+        {
+            if (SkillComboGraphResolver.TryResolveEntryNode(
+                    definition,
+                    command,
+                    out node,
+                    out failReason))
+            {
+                return true;
+            }
+
+            SkillComboUseFailReason missingReason = command == SkillComboCommand.Main
+                ? SkillComboUseFailReason.MissingStartNode
+                : SkillComboUseFailReason.MissingLastNode;
+
+            if (failReason == missingReason)
+            {
+                node = null;
+                failReason = SkillComboUseFailReason.None;
+                return true;
+            }
+
+            return false;
         }
 
         /// <summary>
