@@ -16,6 +16,8 @@ namespace GGemCo2DSkill
     {
         private CharacterBase _character;
         private readonly HashSet<int> _appliedAffects = new();
+        private readonly HashSet<ConfigCommon.DamageType> _suppressedOnHitElementGaugeTypes = new();
+        private bool _suppressAllOnHitElementGauge;
 
         /// <summary>
         /// 현재 장착된 패시브 목록(스킬 UID -> 레벨).
@@ -51,6 +53,22 @@ namespace GGemCo2DSkill
         /// </summary>
         public virtual void RefreshFromSaveData()
         {
+        }
+
+        /// <summary>
+        /// 현재 장착된 패시브가 Damage 이벤트의 OnHitElementGauge 적용을 차단하는지 확인합니다.
+        /// </summary>
+        /// <param name="damageType">확인할 원소 게이지 데미지 타입입니다.</param>
+        /// <returns>전체 차단 또는 해당 데미지 타입 차단 패시브가 있으면 true를 반환합니다.</returns>
+        public bool SuppressesOnHitElementGauge(ConfigCommon.DamageType damageType)
+        {
+            if (_suppressAllOnHitElementGauge)
+            {
+                return true;
+            }
+
+            return damageType != ConfigCommon.DamageType.None &&
+                   _suppressedOnHitElementGaugeTypes.Contains(damageType);
         }
 
         /// <summary>
@@ -145,6 +163,8 @@ namespace GGemCo2DSkill
         /// </summary>
         private void Rebuild(PassiveTempHpApplyMode applyMode)
         {
+            ResetPassiveCombatPolicies();
+
             if (_character == null) return;
             if (TableLoaderManagerSkill.Instance == null) return;
 
@@ -198,6 +218,10 @@ namespace GGemCo2DSkill
                         case SkillOptionKind.Affect:
                             if (TryParseIntId(op.TargetId, out var affectUid) && affectUid > 0)
                                 desiredAffects.Add(affectUid);
+                            break;
+
+                        case SkillOptionKind.SuppressOnHitElementGauge:
+                            AccumulateOnHitElementGaugeSuppression(op);
                             break;
                     }
                 }
@@ -257,6 +281,92 @@ namespace GGemCo2DSkill
         public void RebuildAndFillPassiveTempHpToMax()
         {
             Rebuild(PassiveTempHpApplyMode.FillToMax);
+        }
+
+        /// <summary>
+        /// 패시브에서 제공하는 전투 정책 캐시를 초기화합니다.
+        /// Stat/Affect와 달리 CharacterStat에 저장되지 않는 실행 정책은 리빌드마다 다시 계산합니다.
+        /// </summary>
+        private void ResetPassiveCombatPolicies()
+        {
+            _suppressAllOnHitElementGauge = false;
+            _suppressedOnHitElementGaugeTypes.Clear();
+        }
+
+        /// <summary>
+        /// 패시브 옵션 한 줄을 OnHitElementGauge 차단 정책으로 누적합니다.
+        /// TargetId가 비어 있거나 All이면 모든 원소 게이지를 차단하고, 특정 DamageType이면 해당 타입만 차단합니다.
+        /// </summary>
+        /// <param name="option">패시브 옵션 테이블 행입니다.</param>
+        private void AccumulateOnHitElementGaugeSuppression(StruckTableSkillPassiveOption option)
+        {
+            if (option == null)
+            {
+                return;
+            }
+
+            if (IsAllElementGaugeSuppressionTarget(option.TargetId))
+            {
+                _suppressAllOnHitElementGauge = true;
+                _suppressedOnHitElementGaugeTypes.Clear();
+                return;
+            }
+
+            if (TryParseDamageType(option.TargetId, out ConfigCommon.DamageType damageType) &&
+                damageType != ConfigCommon.DamageType.None)
+            {
+                _suppressedOnHitElementGaugeTypes.Add(damageType);
+            }
+        }
+
+        /// <summary>
+        /// OnHitElementGauge 차단 대상 문자열이 전체 차단을 의미하는지 확인합니다.
+        /// </summary>
+        /// <param name="targetId">패시브 옵션 TargetId 값입니다.</param>
+        /// <returns>비어 있거나 All, Any, *이면 true를 반환합니다.</returns>
+        private static bool IsAllElementGaugeSuppressionTarget(string targetId)
+        {
+            if (string.IsNullOrWhiteSpace(targetId))
+            {
+                return true;
+            }
+
+            string normalized = targetId.Trim();
+            return string.Equals(normalized, "All", StringComparison.OrdinalIgnoreCase) ||
+                   string.Equals(normalized, "Any", StringComparison.OrdinalIgnoreCase) ||
+                   normalized == "*";
+        }
+
+        /// <summary>
+        /// 패시브 옵션 TargetId를 원소 게이지 데미지 타입으로 해석합니다.
+        /// 문자열 enum 이름과 정수 enum 값을 모두 지원합니다.
+        /// </summary>
+        /// <param name="targetId">패시브 옵션 TargetId 값입니다.</param>
+        /// <param name="damageType">해석된 데미지 타입입니다.</param>
+        /// <returns>DamageType으로 해석할 수 있으면 true를 반환합니다.</returns>
+        private static bool TryParseDamageType(string targetId, out ConfigCommon.DamageType damageType)
+        {
+            damageType = ConfigCommon.DamageType.None;
+            if (string.IsNullOrWhiteSpace(targetId))
+            {
+                return false;
+            }
+
+            string normalized = targetId.Trim();
+            if (Enum.TryParse(normalized, ignoreCase: true, out ConfigCommon.DamageType parsed))
+            {
+                damageType = parsed;
+                return true;
+            }
+
+            if (int.TryParse(normalized, out int rawValue) &&
+                Enum.IsDefined(typeof(ConfigCommon.DamageType), rawValue))
+            {
+                damageType = (ConfigCommon.DamageType)rawValue;
+                return true;
+            }
+
+            return false;
         }
 
         private void SyncAffects(HashSet<int> desired)

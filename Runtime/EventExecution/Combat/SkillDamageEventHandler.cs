@@ -157,7 +157,7 @@ namespace GGemCo2DSkill
                     OnHitCrowdControlTiming.AfterDamage,
                     resolvedOnHitCrowdControls);
 
-                metadataDamage.ElementGaugeApplications = SkillOnHitEffectUtility.BuildElementGaugeApplications(
+                metadataDamage.ElementGaugeApplications = ResolveElementGaugeApplications(
                     def.onHitElementGauges,
                     ownerObject,
                     didApplyDamage);
@@ -180,6 +180,63 @@ namespace GGemCo2DSkill
                     OnHitAffectTiming.AfterDamage,
                     ctx.executionOptions.StatusDurationBonusSeconds);
             }
+        }
+
+        /// <summary>
+        /// 캐스터의 패시브 정책을 반영하여 Damage 이벤트의 OnHitElementGauge 적용 목록을 생성합니다.
+        /// 패시브가 특정 원소 게이지를 차단하면 해당 항목은 전투 메타데이터에 전달하지 않습니다.
+        /// </summary>
+        /// <param name="entries">스킬 이벤트에 설정된 OnHit 원소 게이지 항목입니다.</param>
+        /// <param name="caster">패시브 정책과 Affect 조건 확인에 사용할 캐스터 오브젝트입니다.</param>
+        /// <param name="damageApplied">이번 타격에서 실제 데미지가 적용되었는지 여부입니다.</param>
+        /// <returns>적용 가능한 원소 게이지 목록입니다. 적용할 항목이 없으면 null입니다.</returns>
+        private static ElementGaugeApplication[] ResolveElementGaugeApplications(
+            OnHitElementGaugeEntry[] entries,
+            GameObject caster,
+            bool damageApplied)
+        {
+            if (entries == null || entries.Length == 0)
+            {
+                return null;
+            }
+
+            CharacterPassiveSkillController passiveController =
+                caster != null ? caster.GetComponent<CharacterPassiveSkillController>() : null;
+            if (passiveController == null)
+            {
+                return SkillOnHitEffectUtility.BuildElementGaugeApplications(entries, caster, damageApplied);
+            }
+
+            bool suppressedAny = false;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (passiveController.SuppressesOnHitElementGauge(entries[i].damageType))
+                {
+                    suppressedAny = true;
+                    break;
+                }
+            }
+
+            if (!suppressedAny)
+            {
+                return SkillOnHitEffectUtility.BuildElementGaugeApplications(entries, caster, damageApplied);
+            }
+
+            List<OnHitElementGaugeEntry> allowedEntries = new List<OnHitElementGaugeEntry>(entries.Length);
+            for (int i = 0; i < entries.Length; i++)
+            {
+                OnHitElementGaugeEntry entry = entries[i];
+                if (passiveController.SuppressesOnHitElementGauge(entry.damageType))
+                {
+                    continue;
+                }
+
+                allowedEntries.Add(entry);
+            }
+
+            return allowedEntries != null && allowedEntries.Count > 0
+                ? SkillOnHitEffectUtility.BuildElementGaugeApplications(allowedEntries.ToArray(), caster, damageApplied)
+                : null;
         }
 
         /// <summary>

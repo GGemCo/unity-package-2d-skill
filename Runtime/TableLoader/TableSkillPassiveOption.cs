@@ -46,12 +46,14 @@ namespace GGemCo2DSkill
     /// 패시브 옵션이 영향을 주는 도메인.
     /// - Stat: CharacterStat(CharacterTotals)에 직접 반영되는 수치 스탯
     /// - Affect: Affect 시스템(상시/트리거형 등)은 Affect 패키지 정책에 따라 처리
+    /// - SuppressOnHitElementGauge: 스킬 Damage 이벤트의 OnHitElementGauge 적용을 차단
     /// </summary>
     public enum SkillOptionKind
     {
         None = 0,
         Stat = 1,
         Affect = 2,
+        SuppressOnHitElementGauge = 3,
     }
 
     /// <summary>
