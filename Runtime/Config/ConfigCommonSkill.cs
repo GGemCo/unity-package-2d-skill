@@ -193,6 +193,23 @@ namespace Config
         }
 
         /// <summary>
+        /// 스킬 테이블의 Damage 값을 어떤 기준으로 해석할지 정의합니다.
+        /// </summary>
+        public enum SkillDamageValueType
+        {
+            /// <summary>
+            /// Damage 값을 최종 계산 전 기본 고정 데미지로 사용합니다.
+            /// </summary>
+            Fixed = 0,
+
+            /// <summary>
+            /// Damage 값을 캐스터 공격력에 곱할 퍼센트 값으로 사용합니다.
+            /// 예: Damage 값이 150이면 캐스터 공격력의 150%를 기본 데미지로 계산합니다.
+            /// </summary>
+            AttackPercent = 1,
+        }
+
+        /// <summary>
         /// UseClip 애니메이션 길이와 재생 속도를 스킬 런타임 시퀀스에 반영하는 방식을 정의합니다.
         /// </summary>
         public enum SkillUseClipTimingPolicy

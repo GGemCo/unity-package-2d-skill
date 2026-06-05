@@ -22,6 +22,9 @@ namespace GGemCo2DSkill
         /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 타입입니다.</summary>
         public ConfigCommon.DamageType DamageType;
 
+        /// <summary>스킬 데미지 이벤트가 Damage 값을 해석할 방식입니다.</summary>
+        public ConfigCommonSkill.SkillDamageValueType DamageValueType;
+
         /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 값입니다.</summary>
         public long Damage;
 
@@ -69,6 +72,7 @@ namespace GGemCo2DSkill
                 CoolTime = row.CoolTime,
                 NeedMp = row.NeedMp,
                 DamageType = row.DamageType,
+                DamageValueType = row.DamageValueType,
                 Damage = row.Damage,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
@@ -100,6 +104,7 @@ namespace GGemCo2DSkill
                 CoolTime = row.CoolTime,
                 NeedMp = 0,
                 DamageType = row.DamageType,
+                DamageValueType = row.DamageValueType,
                 Damage = row.Damage,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
