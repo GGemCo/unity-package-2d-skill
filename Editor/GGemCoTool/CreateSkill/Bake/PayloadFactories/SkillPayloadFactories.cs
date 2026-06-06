@@ -406,6 +406,7 @@ namespace GGemCo2DSkillEditor
             def.visualVfxUidOverride = laser.VisualVfxUidOverride;
             def.allowSkillChainOnConfirmedDamage = laser.AllowSkillChainOnConfirmedDamage;
             def.onHitCrowdControls = laser.OnHitCrowdControls;
+            def.guardAttackType = laser.GuardAttackType;
             def.onHitElementGauges = laser.OnHitElementGauges;
             def.targetingOverride = laser.TargetingOverride;
             return def;

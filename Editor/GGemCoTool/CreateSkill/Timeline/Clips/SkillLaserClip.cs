@@ -36,6 +36,10 @@ namespace GGemCo2DSkillEditor
         [Tooltip("레이저 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
         [SerializeField] private GGemCo2DSkill.OnHitCrowdControlEntry[] onHitCrowdControls;
 
+        [Header("Guard")]
+        [Tooltip("[공격 방어 타입] GGemCoPlayerGuardSettings에서 가드 성공/브레이크/추가 CC를 결정할 때 사용하는 타입입니다.")]
+        [SerializeField] private GuardAttackType guardAttackType = GuardAttackType.Normal;
+
         [Header("Timing")]
         [Tooltip("레이저 유지 시간(초)입니다.")]
         [SerializeField] private float durationSeconds = 0.25f;
@@ -316,6 +320,11 @@ namespace GGemCo2DSkillEditor
         /// 레이저 적중 시 적용될 Crowd Control 후보 목록입니다.
         /// </summary>
         public GGemCo2DSkill.OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
+
+        /// <summary>
+        /// 이 레이저 공격이 가드 설정에서 어떤 공격 방어 타입으로 처리될지 반환합니다.
+        /// </summary>
+        public GuardAttackType GuardAttackType => guardAttackType;
 
         /// <summary>
         /// 적중 시 추가할 속성 게이지 목록입니다.

@@ -124,6 +124,7 @@ namespace GGemCo2DSkill
                     ownerObject,
                     damageApplied: true),
                 onHitCrowdControls: BuildLaserOnHitCrowdControls(def.onHitCrowdControls),
+                guardAttackType: def.guardAttackType,
                 useDurationOverride: true,
                 durationOverride: Mathf.Max(0f, def.durationSeconds),
                 useDamageTimingOverride: true,
