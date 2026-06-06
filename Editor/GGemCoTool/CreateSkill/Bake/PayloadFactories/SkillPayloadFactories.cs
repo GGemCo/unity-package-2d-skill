@@ -375,6 +375,8 @@ namespace GGemCo2DSkillEditor
             def.laserUid = laser.LaserUid;
             def.damageType = laser.DamageType;
             def.damage = laser.Damage;
+            def.damageValueType = laser.DamageValueType;
+            def.multiplier = laser.Multiplier;
             def.durationSeconds = Mathf.Max(0f, laser.DurationSeconds);
             def.damageStartDelaySeconds = Mathf.Max(0f, laser.DamageStartDelaySeconds);
             def.damageActiveDurationSeconds = SkillPayloadBakeUtility.NormalizeLaserDamageActiveDuration(laser.DamageActiveDurationSeconds);
