@@ -166,7 +166,9 @@ namespace GGemCo2DSkill
             in SkillExecutionOptions options,
             CharacterBase caster)
         {
-            double baseDamage = ResolveBaseProjectileDamage(skill, def, caster);
+            bool useDamageFormula = skill != null && !string.IsNullOrWhiteSpace(skill.DamageFormulaKey);
+            double baseDamage = ResolveBaseProjectileDamage(skill, def, caster, useDamageFormula);
+            double skillDamageRate = ResolveProjectileDamageRate(skill, def);
             float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
             float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
 
@@ -178,7 +180,7 @@ namespace GGemCo2DSkill
                     ResolveProjectileFormulaTarget(skill, def, caster),
                     skill != null ? skill.DamageFormulaKey : string.Empty,
                     baseDamage,
-                    eventMultiplier,
+                    skillDamageRate,
                     eventMultiplier,
                     optionMultiplier,
                     0d,
@@ -187,7 +189,7 @@ namespace GGemCo2DSkill
                 return calculateManager.CalculateSkillDamage(request);
             }
 
-            double resolved = System.Math.Max(0d, baseDamage) * eventMultiplier * optionMultiplier;
+            double resolved = System.Math.Max(0d, baseDamage) * skillDamageRate * eventMultiplier * optionMultiplier;
             if (resolved <= 0d)
             {
                 return 0L;
@@ -225,11 +227,13 @@ namespace GGemCo2DSkill
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
         /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <param name="useDamageFormula">Poly 데미지 공식을 사용할지 여부입니다.</param>
         /// <returns>이벤트 배율과 실행 옵션 배율을 적용하기 전의 기본 피해량입니다.</returns>
         private static double ResolveBaseProjectileDamage(
             RuntimeSkillDefinition skill,
             ProjectileEventDefinition def,
-            CharacterBase caster)
+            CharacterBase caster,
+            bool useDamageFormula)
         {
             if (skill == null && def == null)
             {
@@ -257,13 +261,39 @@ namespace GGemCo2DSkill
                         return 0d;
                     }
 
-                    long attack = System.Math.Max(0L, caster.TotalAtk.Value);
-                    return attack > 0L ? attack * (damage / 100d) : 0d;
+                    // 공식 기반 프로젝타일도 BaseDamage에 STAT_ATK를 포함하지 않습니다.
+                    // GGemCoPlayerSettings의 Stat Point Atk 설정으로 계산된 STAT_ATK는
+                    // CalculateManager가 StatStrength 변수로 공식에 별도 전달합니다.
+                    long attack = useDamageFormula
+                        ? System.Math.Max(0L, caster.TotalBaseAtk.Value)
+                        : System.Math.Max(0L, caster.TotalAtk.Value);
+                    return attack > 0L ? attack : 0d;
 
                 case ConfigCommonSkill.SkillDamageValueType.Fixed:
                 default:
                     return damage;
             }
+        }
+
+        /// <summary>
+        /// 프로젝타일 피해량 정의의 Damage 값을 데미지 비율로 변환합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
+        /// <returns>공식과 기본 계산에 사용할 프로젝타일 데미지 비율입니다.</returns>
+        private static double ResolveProjectileDamageRate(RuntimeSkillDefinition skill, ProjectileEventDefinition def)
+        {
+            bool useDamageOverride = def != null && def.damage > 0L;
+            ConfigCommonSkill.SkillDamageValueType damageValueType = useDamageOverride
+                ? def.damageValueType
+                : (skill != null ? skill.DamageValueType : ConfigCommonSkill.SkillDamageValueType.Fixed);
+            long damage = useDamageOverride
+                ? def.damage
+                : (skill != null ? skill.Damage : 0L);
+
+            return damageValueType == ConfigCommonSkill.SkillDamageValueType.AttackPercent
+                ? System.Math.Max(0L, damage) / 100d
+                : 1d;
         }
 
         /// <summary>

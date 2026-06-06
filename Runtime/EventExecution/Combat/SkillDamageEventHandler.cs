@@ -262,7 +262,9 @@ namespace GGemCo2DSkill
             if (skill == null)
                 return 0L;
 
-            double baseDamage = ResolveBaseSkillDamage(skill, caster);
+            bool useDamageFormula = !string.IsNullOrWhiteSpace(skill.DamageFormulaKey);
+            double baseDamage = ResolveBaseSkillDamage(skill, caster, useDamageFormula);
+            double skillDamageRate = ResolveSkillDamageRate(skill);
             float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
             float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
 
@@ -274,7 +276,7 @@ namespace GGemCo2DSkill
                     target,
                     skill.DamageFormulaKey,
                     baseDamage,
-                    eventMultiplier,
+                    skillDamageRate,
                     eventMultiplier,
                     optionMultiplier,
                     0d,
@@ -283,7 +285,7 @@ namespace GGemCo2DSkill
                 return calculateManager.CalculateSkillDamage(request);
             }
 
-            double resolved = System.Math.Max(0d, baseDamage) * eventMultiplier * optionMultiplier;
+            double resolved = System.Math.Max(0d, baseDamage) * skillDamageRate * eventMultiplier * optionMultiplier;
             if (resolved <= 0d)
                 return 0L;
 
@@ -297,8 +299,9 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <param name="useDamageFormula">Poly 데미지 공식을 사용할지 여부입니다.</param>
         /// <returns>이벤트 배율과 실행 옵션 배율을 적용하기 전의 기본 데미지입니다.</returns>
-        private static double ResolveBaseSkillDamage(RuntimeSkillDefinition skill, CharacterBase caster)
+        private static double ResolveBaseSkillDamage(RuntimeSkillDefinition skill, CharacterBase caster, bool useDamageFormula)
         {
             if (skill == null)
                 return 0d;
@@ -313,16 +316,36 @@ namespace GGemCo2DSkill
                     if (caster == null)
                         return 0d;
 
-                    long attack = System.Math.Max(0L, caster.TotalAtk.Value);
+                    // 공식 기반 스킬은 BaseDamage에 STAT_ATK를 포함하지 않습니다.
+                    // GGemCoPlayerSettings의 Stat Point Atk 설정으로 계산된 STAT_ATK는
+                    // CalculateManager가 StatStrength 변수로 공식에 별도 전달합니다.
+                    long attack = useDamageFormula
+                        ? System.Math.Max(0L, caster.TotalBaseAtk.Value)
+                        : System.Math.Max(0L, caster.TotalAtk.Value);
                     if (attack <= 0L)
                         return 0d;
 
-                    return attack * (damage / 100d);
+                    return attack;
 
                 case ConfigCommonSkill.SkillDamageValueType.Fixed:
                 default:
                     return damage;
             }
+        }
+
+        /// <summary>
+        /// skill 테이블의 Damage 값을 데미지 비율로 변환합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <returns>공식과 기본 계산에 사용할 스킬 데미지 비율입니다.</returns>
+        private static double ResolveSkillDamageRate(RuntimeSkillDefinition skill)
+        {
+            if (skill == null)
+                return 1d;
+
+            return skill.DamageValueType == ConfigCommonSkill.SkillDamageValueType.AttackPercent
+                ? System.Math.Max(0L, skill.Damage) / 100d
+                : 1d;
         }
 
         /// <summary>
