@@ -93,6 +93,17 @@ namespace GGemCo2DSkill
                     executor.HandleMovementControlLock(context.Run, targetContext, payload, context.EventDurationSeconds);
                     break;
 
+                case ConfigCommonSkill.SkillEventType.CaptureTargetPosition:
+                    executor.HandleCaptureTargetPosition(
+                        context.Run,
+                        context.Skill,
+                        targetContext,
+                        payload,
+                        context.SnapshotCasterPosition,
+                        context.SnapshotTargetPosition,
+                        context.SnapshotGroundPoint);
+                    break;
+
                 case ConfigCommonSkill.SkillEventType.GroundSlam:
                     executor.HandleGroundSlam(targetContext, payload, context.EventDurationSeconds);
                     break;

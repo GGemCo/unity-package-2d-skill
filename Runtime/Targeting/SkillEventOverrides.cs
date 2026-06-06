@@ -97,6 +97,60 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// 스킬 실행 중 위치 앵커로 저장할 기준 위치를 정의합니다.
+    /// </summary>
+    public enum SkillPositionCaptureSource
+    {
+        /// <summary>
+        /// 이벤트 시점의 캐스터 위치를 저장합니다.
+        /// </summary>
+        Caster = 0,
+
+        /// <summary>
+        /// 이벤트 시점의 타겟 위치를 저장합니다.
+        /// 타겟이 없으면 스킬 시작 시점의 타겟 스냅샷을 사용합니다.
+        /// </summary>
+        Target = 1,
+
+        /// <summary>
+        /// 이벤트 시점의 지면 기준점을 저장합니다.
+        /// </summary>
+        Ground = 2,
+
+        /// <summary>
+        /// 스킬 타겟팅 모드와 사거리 정책을 기준으로 계산한 위치를 저장합니다.
+        /// </summary>
+        CurrentTargeting = 3,
+
+        /// <summary>
+        /// 스킬 시작 시점에 저장된 타겟 위치 스냅샷을 저장합니다.
+        /// </summary>
+        SkillStartTargetSnapshot = 4,
+    }
+
+    /// <summary>
+    /// 타겟 기준 위치를 저장할 때 세부 목표점을 보정하는 정책입니다.
+    /// </summary>
+    public enum SkillPositionCaptureTargetPointPolicy
+    {
+        /// <summary>
+        /// 계산된 기준 위치를 그대로 사용합니다.
+        /// </summary>
+        UseSourcePosition = 0,
+
+        /// <summary>
+        /// 타겟 중심 위치에 고정 오프셋을 더한 위치를 사용합니다.
+        /// </summary>
+        FixedOffsetFromTargetCenter = 1,
+
+        /// <summary>
+        /// 타겟 HitArea의 정규화 좌표를 월드 위치로 변환해서 사용합니다.
+        /// HitArea를 찾지 못하면 타겟 중심과 고정 오프셋으로 대체합니다.
+        /// </summary>
+        FixedNormalizedPointInTargetHitArea = 2,
+    }
+
+    /// <summary>
     /// 스킬 실행 중 특정 이벤트가 계산한 위치 정보를 보관하는 스냅샷입니다.
     /// </summary>
     public readonly struct SkillPositionAnchorSnapshot

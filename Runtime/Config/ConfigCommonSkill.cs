@@ -112,6 +112,11 @@ namespace Config
             /// 스킬 실행 중 캐릭터 이동을 즉시 멈추고 조작 또는 자동 이동을 잠급니다.
             /// </summary>
             MovementControlLock = 19,
+
+            /// <summary>
+            /// 스킬 실행 중 특정 시점의 타겟 또는 기준 위치를 이름 있는 위치 앵커로 저장합니다.
+            /// </summary>
+            CaptureTargetPosition = 20,
         }
 
         /// <summary>

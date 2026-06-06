@@ -77,6 +77,25 @@ namespace GGemCo2DSkillEditor
     }
 
     /// <summary>
+    /// CaptureTargetPosition Timeline 클립을 CaptureTargetPositionEventDefinition Payload로 변환합니다.
+    /// </summary>
+    internal sealed class SkillCaptureTargetPositionPayloadFactory : SkillPayloadFactoryBase<SkillCaptureTargetPositionClip>
+    {
+        /// <inheritdoc />
+        protected override UnityEngine.Object CreatePayload(SkillCaptureTargetPositionClip capture)
+        {
+            var def = ScriptableObject.CreateInstance<CaptureTargetPositionEventDefinition>();
+            def.anchorKey = capture.AnchorKey;
+            def.source = capture.Source;
+            def.targetPointPolicy = capture.TargetPointPolicy;
+            def.offset = capture.Offset;
+            def.targetHitAreaNormalized = capture.TargetHitAreaNormalized;
+            def.targetingOverride = capture.TargetingOverride;
+            return def;
+        }
+    }
+
+    /// <summary>
     /// ApplyAffect Timeline 클립을 ApplyStatusEventDefinition Payload로 변환합니다.
     /// </summary>
     internal sealed class SkillApplyAffectPayloadFactory : SkillPayloadFactoryBase<SkillApplyAffectClip>
@@ -387,6 +406,7 @@ namespace GGemCo2DSkillEditor
             def.targetPointPolicy = laser.TargetPointPolicy;
             def.fixedTargetOffset = laser.FixedTargetOffset;
             def.fixedTargetHitAreaNormalized = laser.FixedTargetHitAreaNormalized;
+            def.targetPositionReference = laser.TargetPositionReference;
             def.useRaycastDirectionModeOverride = laser.UseRaycastDirectionModeOverride;
             def.raycastDirectionModeOverride = laser.RaycastDirectionModeOverride;
             def.useRaycastAngleOverride = laser.UseRaycastAngleOverride;

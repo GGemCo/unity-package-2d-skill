@@ -40,6 +40,7 @@ namespace GGemCo2DSkillEditor
             {
                 new SkillDamagePayloadFactory(),
                 new SkillSpawnVfxPayloadFactory(),
+                new SkillCaptureTargetPositionPayloadFactory(),
                 new SkillApplyAffectPayloadFactory(),
                 new SkillApplyTempHpPayloadFactory(),
                 new SkillPlayAudioPayloadFactory(),

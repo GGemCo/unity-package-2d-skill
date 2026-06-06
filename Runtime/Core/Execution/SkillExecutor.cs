@@ -12,6 +12,7 @@ namespace GGemCo2DSkill
     [DisallowMultipleComponent]
     public sealed class SkillExecutor : MonoBehaviour, IGameInitializable, IGameActivatable, IGameDeinitializable
     {
+        // 아래 위치 캡처 메서드는 기존 Lunge 주석과 분리해 XML 문서가 섞이지 않도록 둡니다.
         /// <summary>
         /// 피격 판정에 사용할 레이어 마스크입니다.
         /// </summary>
@@ -382,13 +383,42 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 위치 캡처 이벤트 정의를 바탕으로 현재 타임라인 시점의 기준 위치를 이름 있는 위치 앵커로 저장합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">위치 캡처 이벤트 Payload입니다.</param>
+        /// <param name="snapshotCasterPos">스킬 시작 시점의 캐스터 위치입니다.</param>
+        /// <param name="snapshotTargetPos">스킬 시작 시점의 타겟 위치입니다.</param>
+        /// <param name="snapshotGroundPoint">스킬 시작 시점의 지면 기준점입니다.</param>
+        internal void HandleCaptureTargetPosition(
+            SkillRun run,
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPos,
+            Vector3 snapshotTargetPos,
+            Vector3 snapshotGroundPoint)
+        {
+            SkillCaptureTargetPositionEventHandler.Handle(
+                run,
+                skill,
+                ctx,
+                payloadObj,
+                snapshotCasterPos,
+                snapshotTargetPos,
+                snapshotGroundPoint);
+        }
+
+        /// <summary>
         /// 돌진 이벤트 정의에 따라 캐릭터 이동을 시작합니다.
-        /// 2D 방향을 보정하고 직선 또는 포물선 이동 요청을 모션 컨트롤러에 전달합니다.
+        /// 2D 방향을 보정하고 직선 또는 호 형태의 이동 요청을 모션 컨트롤러에 전달합니다.
         /// </summary>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
-        /// <param name="payloadObj">돌진 이벤트 페이로드 오브젝트입니다.</param>
-        /// <param name="eventDurationSeconds">이벤트 구간에서 계산된 기본 지속 시간입니다.</param>
+        /// <param name="payloadObj">돌진 이벤트 Payload입니다.</param>
+        /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산한 이벤트 지속 시간입니다.</param>
         internal void HandleLunge(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,

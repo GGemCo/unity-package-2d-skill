@@ -88,6 +88,18 @@ namespace GGemCo2DSkill
                 targetChar = null;
             }
 
+            if (!TryApplyLaserTargetPositionReference(
+                    run,
+                    skill,
+                    def,
+                    snapshotTargetPos,
+                    ref targetChar,
+                    ref usePosOverride,
+                    ref posOverride))
+            {
+                return;
+            }
+
             LaserConstants.StartPositionOverrideMode resolvedStartPositionOverrideMode = def.startPositionOverrideMode;
             Vector2 resolvedStartPositionOverride = def.startPositionOverride;
             LaserConstants.StartPointUpdateMode resolvedStartPointUpdateMode = def.startPointUpdateMode;
@@ -465,6 +477,63 @@ namespace GGemCo2DSkill
                 case LaserTargetPointPolicy.UseDefaultTargeting:
                 default:
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// 레이저 이벤트의 타겟 좌표 참조 설정을 해석하여 좌표 오버라이드에 반영합니다.
+        /// </summary>
+        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="snapshotTargetPos">스킬 시작 시점의 타겟 위치입니다.</param>
+        /// <param name="targetChar">레이저가 추적할 타겟 캐릭터 참조입니다.</param>
+        /// <param name="usePosOverride">레이저 좌표 오버라이드 사용 여부입니다.</param>
+        /// <param name="posOverride">레이저가 조준할 좌표 오버라이드입니다.</param>
+        /// <returns>레이저 처리를 계속할 수 있으면 <see langword="true"/>입니다.</returns>
+        private static bool TryApplyLaserTargetPositionReference(
+            SkillRun run,
+            RuntimeSkillDefinition skill,
+            LaserEventDefinition def,
+            Vector3 snapshotTargetPos,
+            ref CharacterBase targetChar,
+            ref bool usePosOverride,
+            ref Vector2 posOverride)
+        {
+            if (def == null)
+                return false;
+
+            SkillPositionReference reference = def.targetPositionReference;
+            switch (reference.mode)
+            {
+                case SkillPositionReferenceMode.CurrentTargeting:
+                    return true;
+
+                case SkillPositionReferenceMode.SkillStartSnapshot:
+                    usePosOverride = true;
+                    posOverride = snapshotTargetPos;
+                    targetChar = null;
+                    return true;
+
+                case SkillPositionReferenceMode.NamedPositionAnchor:
+                case SkillPositionReferenceMode.NamedPositionAnchorOrCurrent:
+                    if (run != null && run.TryGetPositionAnchor(reference.key, out SkillPositionAnchorSnapshot snapshot))
+                    {
+                        usePosOverride = true;
+                        posOverride = snapshot.Position;
+                        targetChar = null;
+                        return true;
+                    }
+
+                    if (reference.mode == SkillPositionReferenceMode.NamedPositionAnchorOrCurrent)
+                        return true;
+
+                    Debug.LogWarning(
+                        $"[SkillExecutor] Laser target position anchor not found. skillUid={skill?.Uid ?? 0}, key={reference.key}");
+                    return false;
+
+                default:
+                    return true;
             }
         }
 

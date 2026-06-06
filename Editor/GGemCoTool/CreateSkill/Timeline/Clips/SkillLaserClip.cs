@@ -72,6 +72,10 @@ namespace GGemCo2DSkillEditor
 
         [Tooltip("targetPointPolicy가 FixedNormalizedPointInTargetHitArea일 때, 타겟 HitArea 내부에서 사용할 정규화된 지점입니다. (0,0)=좌측 하단, (1,1)=우측 상단")]
         [SerializeField] private Vector2 fixedTargetHitAreaNormalized = new(0.5f, 0.5f);
+
+        [Header("Target Position Reference")]
+        [Tooltip("레이저가 조준할 타겟 좌표를 기존 타겟팅, 스킬 시작 스냅샷, 또는 이름 있는 위치 앵커 중 어디에서 가져올지 지정합니다.")]
+        [SerializeField] private SkillPositionReference targetPositionReference;
         
         [Header("Angle Overrides")]
         [Tooltip("레이캐스트 방향 모드 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 RaycastDirectionMode 대신 이 값을 사용합니다.")]
@@ -220,6 +224,11 @@ namespace GGemCo2DSkillEditor
         /// 타겟 HitArea 정규화 좌표(0~1)입니다.
         /// </summary>
         public Vector2 FixedTargetHitAreaNormalized => fixedTargetHitAreaNormalized;
+
+        /// <summary>
+        /// 레이저 조준 좌표를 가져올 위치 참조 설정입니다.
+        /// </summary>
+        public SkillPositionReference TargetPositionReference => targetPositionReference;
 
         /// <summary>
         /// 레이캐스트 방향 모드 오버라이드 사용 여부입니다.
