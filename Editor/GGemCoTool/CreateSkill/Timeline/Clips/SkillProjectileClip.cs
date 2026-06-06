@@ -33,6 +33,15 @@ namespace GGemCo2DSkillEditor
         [Tooltip("프로젝타일 적중 시 적용될 기본 피해량입니다.")]
         [SerializeField] private long damage = 0;
 
+        /// <summary>
+        /// 프로젝타일 기본 피해량에 곱해지는 이벤트 단위 배율입니다.
+        /// </summary>
+        /// <remarks>
+        /// 1은 기본값이며, 2는 2배, 0.5는 절반의 피해를 의미합니다.
+        /// </remarks>
+        [Tooltip("[피해 배율] 프로젝타일 기본 피해량에 곱해지는 계수입니다. 1=기본, 2=2배, 0.5=절반")]
+        [SerializeField] private float multiplier = 1.0f;
+
         [Header("OnHit Crowd Control (Target)")]
         [Tooltip("프로젝타일 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
         [SerializeField] private OnHitCrowdControlEntry[] onHitCrowdControls;
@@ -141,6 +150,11 @@ namespace GGemCo2DSkillEditor
         /// 프로젝타일이 적용할 기본 피해량입니다.
         /// </summary>
         public long Damage => damage;
+
+        /// <summary>
+        /// 프로젝타일 기본 피해량에 적용할 이벤트 단위 배율입니다.
+        /// </summary>
+        public float Multiplier => multiplier;
 
         /// <summary>
         /// 프로젝타일 적중 시 적용될 Crowd Control 후보 목록입니다.

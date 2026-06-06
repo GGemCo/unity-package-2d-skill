@@ -86,7 +86,7 @@ namespace GGemCo2DSkill
             var meta = new MetadataProjectile(
                 uid: def.projectileUid,
                 damageType: def.damageType,
-                damage: def.damage,
+                damage: ResolveProjectileDamage(def),
                 target: targetChar,
                 owner: casterChar,
                 speedMultiplier: def.speedMultiplier,
@@ -125,6 +125,33 @@ namespace GGemCo2DSkill
                 hitVfxHitAreaNormalized: def.hitVfxHitAreaNormalized);
 
             casterChar.LaunchProjectile(meta);
+        }
+
+        /// <summary>
+        /// 프로젝타일 이벤트의 기본 피해량과 이벤트 배율을 반영한 최종 피해량을 계산합니다.
+        /// </summary>
+        /// <remarks>
+        /// 기존 프로젝타일은 클립의 고정 피해량을 그대로 사용했으므로, 스킬 테이블 기반 데미지 재해석은 하지 않고
+        /// 이벤트 클립에 추가된 배율만 적용합니다.
+        /// </remarks>
+        /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
+        /// <returns>프로젝타일 발사 메타데이터에 전달할 피해량입니다.</returns>
+        private static long ResolveProjectileDamage(ProjectileEventDefinition def)
+        {
+            if (def == null || def.damage <= 0L)
+            {
+                return 0L;
+            }
+
+            double resolved = def.damage * (double)Mathf.Max(0f, def.multiplier);
+            if (resolved <= 0d)
+            {
+                return 0L;
+            }
+
+            return resolved >= long.MaxValue
+                ? long.MaxValue
+                : (long)System.Math.Round(resolved);
         }
 
         /// <summary>
