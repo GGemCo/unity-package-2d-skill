@@ -87,6 +87,8 @@ namespace GGemCo2DSkillEditor
             var def = ScriptableObject.CreateInstance<CaptureTargetPositionEventDefinition>();
             def.anchorKey = capture.AnchorKey;
             def.source = capture.Source;
+            def.actorKey = capture.ActorKey;
+            def.missingActorPolicy = capture.MissingActorPolicy;
             def.targetPointPolicy = capture.TargetPointPolicy;
             def.offset = capture.Offset;
             def.targetHitAreaNormalized = capture.TargetHitAreaNormalized;

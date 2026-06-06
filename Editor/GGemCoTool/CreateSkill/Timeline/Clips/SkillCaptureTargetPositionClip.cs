@@ -18,6 +18,12 @@ namespace GGemCo2DSkillEditor
         [Tooltip("위치 앵커에 저장할 기준 위치입니다.")]
         [SerializeField] private SkillPositionCaptureSource source = SkillPositionCaptureSource.Target;
 
+        [Tooltip("source가 DummyActor일 때 조회할 더미 Actor 키입니다.")]
+        [SerializeField] private string actorKey = "dummy_1";
+
+        [Tooltip("더미 Actor를 찾지 못했을 때의 처리 정책입니다.")]
+        [SerializeField] private DummyMissingActorPolicy missingActorPolicy = DummyMissingActorPolicy.Warn;
+
         [Tooltip("타겟 기준 위치를 저장할 때 적용할 세부 목표점 보정 정책입니다.")]
         [SerializeField] private SkillPositionCaptureTargetPointPolicy targetPointPolicy =
             SkillPositionCaptureTargetPointPolicy.UseSourcePosition;
@@ -47,6 +53,16 @@ namespace GGemCo2DSkillEditor
         /// 위치 앵커에 저장할 기준 위치입니다.
         /// </summary>
         public SkillPositionCaptureSource Source => source;
+
+        /// <summary>
+        /// 더미 Actor 위치를 저장할 때 조회할 actorKey입니다.
+        /// </summary>
+        public string ActorKey => actorKey;
+
+        /// <summary>
+        /// 더미 Actor를 찾지 못했을 때의 처리 정책입니다.
+        /// </summary>
+        public DummyMissingActorPolicy MissingActorPolicy => missingActorPolicy;
 
         /// <summary>
         /// 타겟 기준 위치 저장 시 사용할 세부 목표점 보정 정책입니다.

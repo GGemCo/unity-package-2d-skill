@@ -126,6 +126,11 @@ namespace GGemCo2DSkill
         /// 스킬 시작 시점에 저장된 타겟 위치 스냅샷을 저장합니다.
         /// </summary>
         SkillStartTargetSnapshot = 4,
+
+        /// <summary>
+        /// 같은 스킬 실행 중 actorKey로 등록된 더미 Actor의 현재 위치를 저장합니다.
+        /// </summary>
+        DummyActor = 5,
     }
 
     /// <summary>

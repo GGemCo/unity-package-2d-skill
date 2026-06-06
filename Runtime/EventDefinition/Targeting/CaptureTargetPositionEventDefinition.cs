@@ -20,6 +20,18 @@ namespace GGemCo2DSkill
         public SkillPositionCaptureSource source = SkillPositionCaptureSource.Target;
 
         /// <summary>
+        /// source가 DummyActor일 때 조회할 더미 Actor 키입니다.
+        /// </summary>
+        [Tooltip("source가 DummyActor일 때 조회할 더미 Actor 키입니다.")]
+        public string actorKey = "dummy_1";
+
+        /// <summary>
+        /// 더미 Actor를 찾지 못했을 때의 처리 정책입니다.
+        /// </summary>
+        [Tooltip("더미 Actor를 찾지 못했을 때의 처리 정책입니다.")]
+        public DummyMissingActorPolicy missingActorPolicy = DummyMissingActorPolicy.Warn;
+
+        /// <summary>
         /// 타겟 기준 위치를 저장할 때 적용할 세부 목표점 보정 정책입니다.
         /// </summary>
         [Tooltip("타겟 기준 위치를 저장할 때 적용할 세부 목표점 보정 정책입니다.")]

@@ -408,7 +408,8 @@ namespace GGemCo2DSkill
                 payloadObj,
                 snapshotCasterPos,
                 snapshotTargetPos,
-                snapshotGroundPoint);
+                snapshotGroundPoint,
+                _dummyActors);
         }
 
         /// <summary>

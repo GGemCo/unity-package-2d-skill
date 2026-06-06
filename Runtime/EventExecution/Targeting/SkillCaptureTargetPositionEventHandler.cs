@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -19,6 +20,7 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">스킬 시작 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">스킬 시작 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">스킬 시작 시점의 지면 기준점입니다.</param>
+        /// <param name="dummyActors">현재 스킬 실행에서 actorKey 기준으로 등록된 더미 Actor 레지스트리입니다.</param>
         public static void Handle(
             SkillRun run,
             RuntimeSkillDefinition skill,
@@ -26,7 +28,8 @@ namespace GGemCo2DSkill
             Object payloadObj,
             Vector3 snapshotCasterPos,
             Vector3 snapshotTargetPos,
-            Vector3 snapshotGroundPoint)
+            Vector3 snapshotGroundPoint,
+            Dictionary<string, SkillDummyActorHandle> dummyActors)
         {
             if (run == null || payloadObj is not CaptureTargetPositionEventDefinition def)
                 return;
@@ -49,6 +52,16 @@ namespace GGemCo2DSkill
                 ? ctx.lockedTarget.GetComponent<CharacterBase>()
                 : null;
             Vector3 resolvedForward = SkillDirectionResolver.ResolveForward2D(ctx.caster, ctx.forward);
+            bool hasDummyActorPosition = false;
+            Vector3 dummyActorPosition = Vector3.zero;
+
+            if (def.source == SkillPositionCaptureSource.DummyActor &&
+                !TryResolveDummyActorPosition(dummyActors, def, out dummyActorPosition))
+            {
+                return;
+            }
+            hasDummyActorPosition = def.source == SkillPositionCaptureSource.DummyActor;
+
             Vector3 position = ResolveCapturePosition(
                 skill,
                 ctx,
@@ -58,7 +71,9 @@ namespace GGemCo2DSkill
                 groundPoint,
                 snapshotTargetPos,
                 resolvedForward,
-                targetChar);
+                targetChar,
+                hasDummyActorPosition,
+                dummyActorPosition);
 
             // HitArea 기반 보정이 아닌 경우에는 최종 기준점에 공통 오프셋을 더합니다.
             if (def.targetPointPolicy != SkillPositionCaptureTargetPointPolicy.FixedOffsetFromTargetCenter &&
@@ -90,6 +105,8 @@ namespace GGemCo2DSkill
         /// <param name="snapshotTargetPos">스킬 시작 시점의 타겟 위치입니다.</param>
         /// <param name="resolvedForward">이벤트 시점에 해석된 전방 방향입니다.</param>
         /// <param name="targetChar">현재 고정 타겟 캐릭터입니다.</param>
+        /// <param name="hasDummyActorPosition">더미 Actor 위치를 미리 해석했는지 여부입니다.</param>
+        /// <param name="dummyActorPosition">미리 해석한 더미 Actor 월드 위치입니다.</param>
         /// <returns>위치 앵커에 저장할 월드 좌표입니다.</returns>
         private static Vector3 ResolveCapturePosition(
             RuntimeSkillDefinition skill,
@@ -100,7 +117,9 @@ namespace GGemCo2DSkill
             Vector3 groundPoint,
             Vector3 snapshotTargetPos,
             Vector3 resolvedForward,
-            CharacterBase targetChar)
+            CharacterBase targetChar,
+            bool hasDummyActorPosition,
+            Vector3 dummyActorPosition)
         {
             Vector3 sourcePosition = ResolveSourcePosition(
                 skill,
@@ -110,7 +129,9 @@ namespace GGemCo2DSkill
                 targetPos,
                 groundPoint,
                 snapshotTargetPos,
-                resolvedForward);
+                resolvedForward,
+                hasDummyActorPosition,
+                dummyActorPosition);
 
             switch (def.targetPointPolicy)
             {
@@ -145,6 +166,8 @@ namespace GGemCo2DSkill
         /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
         /// <param name="snapshotTargetPos">스킬 시작 시점의 타겟 위치입니다.</param>
         /// <param name="resolvedForward">이벤트 시점에 해석된 전방 방향입니다.</param>
+        /// <param name="hasDummyActorPosition">더미 Actor 위치를 미리 해석했는지 여부입니다.</param>
+        /// <param name="dummyActorPosition">미리 해석한 더미 Actor 월드 위치입니다.</param>
         /// <returns>타겟 보정 전의 기본 월드 좌표입니다.</returns>
         private static Vector3 ResolveSourcePosition(
             RuntimeSkillDefinition skill,
@@ -154,7 +177,9 @@ namespace GGemCo2DSkill
             Vector3 targetPos,
             Vector3 groundPoint,
             Vector3 snapshotTargetPos,
-            Vector3 resolvedForward)
+            Vector3 resolvedForward,
+            bool hasDummyActorPosition,
+            Vector3 dummyActorPosition)
         {
             switch (def.source)
             {
@@ -170,10 +195,48 @@ namespace GGemCo2DSkill
                 case SkillPositionCaptureSource.SkillStartTargetSnapshot:
                     return snapshotTargetPos;
 
+                case SkillPositionCaptureSource.DummyActor:
+                    if (hasDummyActorPosition)
+                        return dummyActorPosition;
+
+                    return targetPos;
+
                 case SkillPositionCaptureSource.Target:
                 default:
                     return targetPos;
             }
+        }
+
+        /// <summary>
+        /// Capture 이벤트 정의의 actorKey를 이용해 더미 Actor의 현재 월드 위치를 조회합니다.
+        /// </summary>
+        /// <param name="dummyActors">현재 스킬 실행에서 actorKey 기준으로 등록된 더미 Actor 레지스트리입니다.</param>
+        /// <param name="def">위치 캡처 이벤트 정의입니다.</param>
+        /// <param name="position">조회된 더미 Actor 월드 위치입니다.</param>
+        /// <returns>더미 Actor 위치를 찾았으면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveDummyActorPosition(
+            Dictionary<string, SkillDummyActorHandle> dummyActors,
+            CaptureTargetPositionEventDefinition def,
+            out Vector3 position)
+        {
+            position = Vector3.zero;
+            if (def == null)
+                return false;
+
+            if (!SkillDummyActorReferenceUtility.TryGetActorHandle(
+                    dummyActors,
+                    def.actorKey,
+                    def.missingActorPolicy,
+                    out SkillDummyActorHandle handle))
+            {
+                return false;
+            }
+
+            if (handle == null || handle.Character == null)
+                return false;
+
+            position = handle.Character.transform.position;
+            return true;
         }
 
         /// <summary>
