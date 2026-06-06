@@ -211,8 +211,10 @@ namespace GGemCo2DSkill
                     switch (op.Kind)
                     {
                         case SkillOptionKind.Stat:
-                            StatModifierHelper.AccumulateStat(flat, percent,
-                                op.TargetId, op.Op, op.Value);
+                            if (TryResolvePassiveStatId(op, out string statId))
+                            {
+                                StatModifierHelper.AccumulateStat(flat, percent, statId, op.Op, op.Value);
+                            }
                             break;
 
                         case SkillOptionKind.Affect:
@@ -291,6 +293,42 @@ namespace GGemCo2DSkill
         {
             _suppressAllOnHitElementGauge = false;
             _suppressedOnHitElementGaugeTypes.Clear();
+        }
+
+        /// <summary>
+        /// 패시브 Stat 옵션의 TargetId를 stat 테이블 ID로 해석합니다.
+        /// </summary>
+        /// <param name="option">패시브 옵션 테이블 행입니다.</param>
+        /// <param name="statId">정규화된 stat 테이블 ID입니다.</param>
+        /// <returns>BASE_* 또는 STAT_* 계열 stat ID로 사용할 수 있으면 true를 반환합니다.</returns>
+        /// <remarks>
+        /// skill_passive_option.TargetId 컬럼은 여러 옵션 종류가 공유합니다.
+        /// Stat 옵션에서는 TargetId를 stat 테이블의 ID로 사용하므로, BASE_*와 STAT_*만 modifier 버킷에 누적합니다.
+        /// STAT_ATK는 Core 계산 정책에 따라 TotalStatAtk에 반영되고, BASE_ATK는 TotalBaseAtk에 반영됩니다.
+        /// </remarks>
+        private static bool TryResolvePassiveStatId(StruckTableSkillPassiveOption option, out string statId)
+        {
+            statId = null;
+            if (option == null || option.Kind != SkillOptionKind.Stat)
+            {
+                return false;
+            }
+
+            string rawStatId = option.StatId;
+            if (string.IsNullOrWhiteSpace(rawStatId))
+            {
+                return false;
+            }
+
+            string normalizedStatId = rawStatId.Trim();
+            ConfigCommon.StatGroup statGroup = ConfigCommon.ResolveStatGroupById(normalizedStatId);
+            if (statGroup == ConfigCommon.StatGroup.None)
+            {
+                return false;
+            }
+
+            statId = normalizedStatId;
+            return true;
         }
 
         /// <summary>

@@ -27,8 +27,21 @@ namespace GGemCo2DSkill
         /// <summary>옵션 종류</summary>
         public SkillOptionKind Kind;
 
-        /// <summary>대상 ID. 예) STAT_HP, 1001(AffectUid)</summary>
+        /// <summary>
+        /// 옵션 대상 ID입니다.
+        /// - <see cref="SkillOptionKind.Stat"/>: stat 테이블의 ID를 사용합니다. 예) BASE_ATK, STAT_ATK
+        /// - <see cref="SkillOptionKind.Affect"/>: AffectUid 문자열을 사용합니다. 예) 1001
+        /// - <see cref="SkillOptionKind.SuppressOnHitElementGauge"/>: DamageType 또는 All을 사용합니다.
+        /// </summary>
         public string TargetId;
+
+        /// <summary>
+        /// Stat 옵션에서 사용하는 stat 테이블 ID입니다.
+        /// </summary>
+        /// <remarks>
+        /// TargetId 컬럼을 유지하면서 Stat 옵션의 의미를 명확히 드러내기 위한 읽기 전용 별칭입니다.
+        /// </remarks>
+        public string StatId => TargetId;
 
         /// <summary>연산/접미사(Stat 옵션에 사용)</summary>
         public ConfigCommon.SuffixType Op;
@@ -83,6 +96,12 @@ namespace GGemCo2DSkill
                 name = $"SkillPassiveOption_{uid}";
             }
 
+            string targetId = reader.String("TargetId");
+            if (!string.IsNullOrWhiteSpace(targetId))
+            {
+                targetId = targetId.Trim();
+            }
+
             return new StruckTableSkillPassiveOption
             {
                 Uid = uid,
@@ -91,7 +110,7 @@ namespace GGemCo2DSkill
                 Order = reader.Int("Order", 0),
                 Level = reader.Int("Level", 0),
                 Kind = reader.Enum<SkillOptionKind>("Kind", EnumHelper.ConvertEnum<SkillOptionKind>("None")),
-                TargetId = reader.String("TargetId"),
+                TargetId = targetId,
                 Op = reader.Enum<ConfigCommon.SuffixType>("Op", EnumHelper.ConvertEnum<ConfigCommon.SuffixType>("None")),
                 Value = reader.Float("Value", 0f),
                 Duration = reader.Float("Duration", 0f),
