@@ -86,7 +86,6 @@ namespace GGemCo2DSkill
             hitEvaluator.EvaluateTargets(center, resolvedForward, areaSpec, range, maxTargets, ctx.caster, hits);
 
             CharacterBase castCharacterBase = ctx.caster != null ? ctx.caster.GetComponent<CharacterBase>() : null;
-            long totalDamage = ResolveSkillDamage(skill, def, ctx.executionOptions, castCharacterBase);
             int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
             var resolvedOnHitCrowdControls = new List<int>(8);
 
@@ -124,6 +123,8 @@ namespace GGemCo2DSkill
                     def.onHitCrowdControls,
                     damageApplied: true,
                     timing: OnHitCrowdControlTiming.AfterDamage);
+
+                long totalDamage = ResolveSkillDamage(skill, def, ctx.executionOptions, castCharacterBase, target);
 
                 var metadataDamage = new MetadataDamage
                 {
@@ -249,12 +250,14 @@ namespace GGemCo2DSkill
         /// <param name="def">현재 데미지 이벤트 정의입니다.</param>
         /// <param name="options">이번 스킬 실행에 적용된 옵션 스냅샷입니다.</param>
         /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <param name="target">레벨 차이 배율 계산에 사용할 피격 대상 캐릭터입니다.</param>
         /// <returns>전역 계산 정책이 반영된 최종 스킬 데미지입니다.</returns>
         private static long ResolveSkillDamage(
             RuntimeSkillDefinition skill,
             DamageEventDefinition def,
             in SkillExecutionOptions options,
-            CharacterBase caster)
+            CharacterBase caster,
+            CharacterBase target)
         {
             if (skill == null)
                 return 0L;
@@ -265,7 +268,20 @@ namespace GGemCo2DSkill
 
             CalculateManager calculateManager = CalculateManager.GetActive();
             if (calculateManager != null)
-                return calculateManager.CalculateAttackDamage(baseDamage, eventMultiplier, optionMultiplier);
+            {
+                var request = new DamageFormulaRequest(
+                    caster,
+                    target,
+                    skill.DamageFormulaKey,
+                    baseDamage,
+                    eventMultiplier,
+                    eventMultiplier,
+                    optionMultiplier,
+                    0d,
+                    skill.DamageType,
+                    false);
+                return calculateManager.CalculateSkillDamage(request);
+            }
 
             double resolved = System.Math.Max(0d, baseDamage) * eventMultiplier * optionMultiplier;
             if (resolved <= 0d)

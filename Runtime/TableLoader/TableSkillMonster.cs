@@ -30,6 +30,9 @@ namespace GGemCo2DSkill
         /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 값입니다.</summary>
         public long Damage;
 
+        /// <summary>스킬 데미지 계산에 사용할 damage_formula 테이블의 FormulaKey입니다. 비어 있으면 기존 기본 공식을 사용합니다.</summary>
+        public string DamageFormulaKey;
+
         /// <summary>타겟팅 모드(스킬 패키지의 SkillTargetingMode enum 값을 int로 저장).</summary>
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
 
@@ -112,6 +115,7 @@ namespace GGemCo2DSkill
                 DamageType = reader.DamageType("DamageType"),
                 DamageValueType = reader.Enum("DamageValueType", ConfigCommonSkill.SkillDamageValueType.Fixed),
                 Damage = System.Math.Max(0L, reader.Long("Damage", reader.Long("damage", 0L))),
+                DamageFormulaKey = reader.String("DamageFormulaKey", string.Empty),
                 TargetingMode = reader.Enum<ConfigCommonSkill.SkillTargetingMode>("TargetingMode"),
                 CastRange = reader.Float("CastRange"),
                 PlacementRange = reader.Float("PlacementRange"),

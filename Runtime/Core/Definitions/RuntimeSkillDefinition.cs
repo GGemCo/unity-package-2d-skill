@@ -28,6 +28,9 @@ namespace GGemCo2DSkill
         /// <summary>스킬 데미지 이벤트가 사용할 기본 데미지 값입니다.</summary>
         public long Damage;
 
+        /// <summary>스킬 데미지 계산에 사용할 damage_formula 테이블의 FormulaKey입니다.</summary>
+        public string DamageFormulaKey;
+
         /// <summary>공중에서 플레이어 스킬을 시작했을 때 추가로 적용할 데미지 배율입니다. 1이면 보너스를 적용하지 않습니다.</summary>
         public float AirborneDamageMultiplier = 1f;
 
@@ -77,6 +80,7 @@ namespace GGemCo2DSkill
                 DamageType = row.DamageType,
                 DamageValueType = row.DamageValueType,
                 Damage = row.Damage,
+                DamageFormulaKey = row.DamageFormulaKey,
                 AirborneDamageMultiplier = row.AirborneDamageMultiplier,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,
@@ -110,6 +114,7 @@ namespace GGemCo2DSkill
                 DamageType = row.DamageType,
                 DamageValueType = row.DamageValueType,
                 Damage = row.Damage,
+                DamageFormulaKey = row.DamageFormulaKey,
                 AirborneDamageMultiplier = 1f,
                 TargetingMode = row.TargetingMode,
                 CastRange = row.CastRange,

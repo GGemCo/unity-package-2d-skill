@@ -38,6 +38,9 @@ namespace GGemCo2DSkill
         /// <summary>공중에서 스킬을 시작했을 때 추가로 적용할 데미지 배율입니다. 1이면 보너스를 적용하지 않습니다.</summary>
         public float AirborneDamageMultiplier = 1f;
 
+        /// <summary>스킬 데미지 계산에 사용할 damage_formula 테이블의 FormulaKey입니다. 비어 있으면 기존 기본 공식을 사용합니다.</summary>
+        public string DamageFormulaKey;
+
         /// <summary>타겟팅 모드(스킬 패키지의 SkillTargetingMode enum 값을 int로 저장).</summary>
         public ConfigCommonSkill.SkillTargetingMode TargetingMode;
 
@@ -131,6 +134,7 @@ namespace GGemCo2DSkill
                 DamageValueType = reader.Enum("DamageValueType", ConfigCommonSkill.SkillDamageValueType.Fixed),
                 Damage = System.Math.Max(0L, reader.Long("Damage", reader.Long("damage", 0L))),
                 AirborneDamageMultiplier = System.Math.Max(1f, reader.Float("AirborneDamageMultiplier", 1f)),
+                DamageFormulaKey = reader.String("DamageFormulaKey", string.Empty),
                 TargetingMode = reader.Enum<ConfigCommonSkill.SkillTargetingMode>("TargetingMode"),
                 CastRange = reader.Float("CastRange"),
                 PlacementRange = reader.Float("PlacementRange"),

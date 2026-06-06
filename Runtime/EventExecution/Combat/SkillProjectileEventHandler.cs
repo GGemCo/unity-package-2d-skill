@@ -173,7 +173,18 @@ namespace GGemCo2DSkill
             CalculateManager calculateManager = CalculateManager.GetActive();
             if (calculateManager != null)
             {
-                return calculateManager.CalculateAttackDamage(baseDamage, eventMultiplier, optionMultiplier);
+                var request = new DamageFormulaRequest(
+                    caster,
+                    ResolveProjectileFormulaTarget(skill, def, caster),
+                    skill != null ? skill.DamageFormulaKey : string.Empty,
+                    baseDamage,
+                    eventMultiplier,
+                    eventMultiplier,
+                    optionMultiplier,
+                    0d,
+                    ResolveProjectileDamageType(skill, def),
+                    false);
+                return calculateManager.CalculateSkillDamage(request);
             }
 
             double resolved = System.Math.Max(0d, baseDamage) * eventMultiplier * optionMultiplier;
@@ -185,6 +196,27 @@ namespace GGemCo2DSkill
             return resolved >= long.MaxValue
                 ? long.MaxValue
                 : (long)System.Math.Round(resolved);
+        }
+
+        /// <summary>
+        /// 프로젝타일 공식 계산에 사용할 대상 캐릭터를 추정합니다.
+        /// </summary>
+        /// <remarks>
+        /// Projectile은 발사 시점에 아직 실제 피격 대상이 없으므로, 캐스터의 현재 공격 타겟을 우선 사용합니다.
+        /// 실제 적중 후 대상별 보정이 필요하면 Projectile 충돌 시점에서 재계산하는 별도 확장이 필요합니다.
+        /// </remarks>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
+        /// <param name="caster">공격자 캐릭터입니다.</param>
+        /// <returns>공식 계산에 사용할 대상 캐릭터입니다. 없으면 null입니다.</returns>
+        private static CharacterBase ResolveProjectileFormulaTarget(
+            RuntimeSkillDefinition skill,
+            ProjectileEventDefinition def,
+            CharacterBase caster)
+        {
+            return caster != null && caster.attackerTransform != null
+                ? caster.attackerTransform.GetComponent<CharacterBase>()
+                : null;
         }
 
         /// <summary>
