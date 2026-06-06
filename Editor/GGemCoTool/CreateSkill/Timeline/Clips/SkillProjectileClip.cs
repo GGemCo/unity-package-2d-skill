@@ -33,6 +33,14 @@ namespace GGemCo2DSkillEditor
         [Tooltip("프로젝타일 적중 시 적용될 기본 피해량입니다.")]
         [SerializeField] private long damage = 0;
 
+        [Header("OnHit Crowd Control (Target)")]
+        [Tooltip("프로젝타일 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
+        [SerializeField] private OnHitCrowdControlEntry[] onHitCrowdControls;
+
+        [Header("Guard")]
+        [Tooltip("[공격 방어 타입] GGemCoPlayerGuardSettings에서 가드 성공/브레이크/추가 CC를 결정할 때 사용하는 타입입니다.")]
+        [SerializeField] private GuardAttackType guardAttackType = GuardAttackType.Normal;
+
         [Header("Dynamic Multipliers")]
         [Tooltip("프로젝타일 기본 속도에 곱해지는 배율입니다.")]
         [SerializeField] private float speedMultiplier = 1f;
@@ -133,6 +141,16 @@ namespace GGemCo2DSkillEditor
         /// 프로젝타일이 적용할 기본 피해량입니다.
         /// </summary>
         public long Damage => damage;
+
+        /// <summary>
+        /// 프로젝타일 적중 시 적용될 Crowd Control 후보 목록입니다.
+        /// </summary>
+        public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
+
+        /// <summary>
+        /// 이 프로젝타일 공격이 가드 설정에서 어떤 공격 방어 타입으로 처리될지 반환합니다.
+        /// </summary>
+        public GuardAttackType GuardAttackType => guardAttackType;
 
         /// <summary>
         /// 프로젝타일 속도에 적용할 배율 값입니다.

@@ -331,6 +331,8 @@ namespace GGemCo2DSkillEditor
             def.projectileUid = proj.ProjectileUid;
             def.damageType = proj.DamageType;
             def.damage = proj.Damage;
+            def.onHitCrowdControls = proj.OnHitCrowdControls;
+            def.guardAttackType = proj.GuardAttackType;
             def.speedMultiplier = proj.SpeedMultiplier;
             def.scaleMultiplier = proj.ScaleMultiplier;
             def.visualType = proj.VisualType;

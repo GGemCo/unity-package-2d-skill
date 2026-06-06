@@ -19,6 +19,14 @@ namespace GGemCo2DSkill
         public ConfigCommon.DamageType damageType = ConfigCommon.DamageType.None;
         public long damage = 0;
 
+        [Header("OnHit Crowd Control (Target)")]
+        [Tooltip("프로젝타일 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
+        public OnHitCrowdControlEntry[] onHitCrowdControls;
+
+        [Header("Guard")]
+        [Tooltip("GGemCoPlayerGuardSettings에서 가드 성공/브레이크/추가 CC를 결정할 때 사용하는 공격 방어 타입입니다.")]
+        public GuardAttackType guardAttackType = GuardAttackType.Normal;
+
         [Header("Dynamic Multipliers")]
         [Tooltip("테이블 속도에 곱해지는 배율(최소 0.01)")]
         public float speedMultiplier = 1f;
