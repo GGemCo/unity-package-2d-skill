@@ -117,6 +117,10 @@ namespace GGemCo2DSkill
         [Tooltip("이 Laser 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
         public bool allowSkillChainOnConfirmedDamage = false;
 
+        [Header("OnHit Crowd Control (Target)")]
+        [Tooltip("레이저 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
+        public OnHitCrowdControlEntry[] onHitCrowdControls;
+
         [Header("OnHit Element Gauge")]
         public OnHitElementGaugeEntry[] onHitElementGauges;
 

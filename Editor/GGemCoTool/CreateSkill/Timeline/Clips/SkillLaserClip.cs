@@ -32,6 +32,10 @@ namespace GGemCo2DSkillEditor
         [Tooltip("Damage 오버라이드 값이 0보다 클 때, 해당 값을 어떤 기준으로 해석할지 지정합니다.")]
         [SerializeField] private ConfigCommonSkill.SkillDamageValueType damageValueType = ConfigCommonSkill.SkillDamageValueType.Fixed;
 
+        [Header("OnHit Crowd Control (Target)")]
+        [Tooltip("레이저 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
+        [SerializeField] private GGemCo2DSkill.OnHitCrowdControlEntry[] onHitCrowdControls;
+
         [Header("Timing")]
         [Tooltip("레이저 유지 시간(초)입니다.")]
         [SerializeField] private float durationSeconds = 0.25f;
@@ -307,6 +311,11 @@ namespace GGemCo2DSkillEditor
         /// 실제 데미지 확정 시 스킬 연계를 즉시 허용할지 여부입니다.
         /// </summary>
         public bool AllowSkillChainOnConfirmedDamage => allowSkillChainOnConfirmedDamage;
+
+        /// <summary>
+        /// 레이저 적중 시 적용될 Crowd Control 후보 목록입니다.
+        /// </summary>
+        public GGemCo2DSkill.OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
 
         /// <summary>
         /// 적중 시 추가할 속성 게이지 목록입니다.

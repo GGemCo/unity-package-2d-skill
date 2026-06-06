@@ -123,6 +123,7 @@ namespace GGemCo2DSkill
                     def.onHitElementGauges,
                     ownerObject,
                     damageApplied: true),
+                onHitCrowdControls: BuildLaserOnHitCrowdControls(def.onHitCrowdControls),
                 useDurationOverride: true,
                 durationOverride: Mathf.Max(0f, def.durationSeconds),
                 useDamageTimingOverride: true,
@@ -384,6 +385,49 @@ namespace GGemCo2DSkill
             return damageValueType == ConfigCommonSkill.SkillDamageValueType.AttackPercent
                 ? System.Math.Max(0L, damage) / 100d
                 : 1d;
+        }
+
+        /// <summary>
+        /// Skill 전용 OnHit Crowd Control 정의를 Core 레이저 런타임 메타데이터로 변환합니다.
+        /// </summary>
+        /// <remarks>
+        /// Core 패키지가 Skill 타입을 참조하지 않도록, 발사 메타데이터 생성 시점에 독립 DTO로 변환합니다.
+        /// </remarks>
+        /// <param name="entries">스킬 레이저 이벤트에 설정된 Crowd Control 후보 목록입니다.</param>
+        /// <returns>Core 레이저 시스템에서 사용할 Crowd Control 후보 목록입니다.</returns>
+        private static ProjectileOnHitCrowdControlEntry[] BuildLaserOnHitCrowdControls(
+            OnHitCrowdControlEntry[] entries)
+        {
+            if (entries == null || entries.Length == 0)
+            {
+                return null;
+            }
+
+            var result = new ProjectileOnHitCrowdControlEntry[entries.Length];
+            for (int i = 0; i < entries.Length; i++)
+            {
+                OnHitCrowdControlEntry entry = entries[i];
+                result[i] = new ProjectileOnHitCrowdControlEntry(
+                    entry.crowdControlUid,
+                    entry.chance,
+                    entry.requireDamageDealt,
+                    ConvertOnHitCrowdControlTiming(entry.timing));
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Skill Crowd Control 적용 시점을 Core 레이저 적용 시점으로 변환합니다.
+        /// </summary>
+        /// <param name="timing">Skill 이벤트에 설정된 적용 시점입니다.</param>
+        /// <returns>Core 레이저 메타데이터에서 사용할 적용 시점입니다.</returns>
+        private static ProjectileOnHitCrowdControlTiming ConvertOnHitCrowdControlTiming(
+            OnHitCrowdControlTiming timing)
+        {
+            return timing == OnHitCrowdControlTiming.BeforeDamage
+                ? ProjectileOnHitCrowdControlTiming.BeforeDamage
+                : ProjectileOnHitCrowdControlTiming.AfterDamage;
         }
 
         /// <summary>
