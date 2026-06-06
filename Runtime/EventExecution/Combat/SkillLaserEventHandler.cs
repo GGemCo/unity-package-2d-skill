@@ -105,8 +105,8 @@ namespace GGemCo2DSkill
             int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
             var meta = new MetadataLaser(
                 uid: def.laserUid,
-                damageType: def.damageType,
-                damage: def.damage,
+                damageType: ResolveLaserDamageType(skill, def),
+                damage: ResolveLaserDamage(skill, def, ctx.executionOptions, casterChar, targetChar),
                 target: targetChar,
                 owner: casterChar,
                 scaleMultiplier: def.scaleMultiplier,
@@ -234,6 +234,156 @@ namespace GGemCo2DSkill
         private static float NormalizeLaserDamageActiveDuration(float value)
         {
             return value <= 0f ? -1f : value;
+        }
+
+        /// <summary>
+        /// 레이저 이벤트의 피해 타입을 계산합니다.
+        /// </summary>
+        /// <remarks>
+        /// Laser Clip의 DamageType이 None이면 skill/skill_monster 테이블의 DamageType을 사용합니다.
+        /// </remarks>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <returns>레이저 메타데이터에 전달할 피해 타입입니다.</returns>
+        private static ConfigCommon.DamageType ResolveLaserDamageType(
+            RuntimeSkillDefinition skill,
+            LaserEventDefinition def)
+        {
+            if (def != null && def.damageType != ConfigCommon.DamageType.None)
+            {
+                return def.damageType;
+            }
+
+            return skill != null ? skill.DamageType : ConfigCommon.DamageType.None;
+        }
+
+        /// <summary>
+        /// 레이저 이벤트의 오버라이드 피해량, 스킬 테이블 기본 피해량, 이벤트 배율을 반영한 최종 피해량을 계산합니다.
+        /// </summary>
+        /// <remarks>
+        /// Laser Clip의 Damage가 0 이하이면 skill/skill_monster 테이블의 Damage와 DamageValueType을 사용합니다.
+        /// Damage가 0보다 크면 Laser Clip의 Damage와 DamageValueType으로 테이블 값을 덮어씁니다.
+        /// </remarks>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="options">이번 스킬 실행에 적용된 옵션 스냅샷입니다.</param>
+        /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <param name="target">레벨 차이 배율 계산에 사용할 공격 대상 캐릭터입니다.</param>
+        /// <returns>레이저 메타데이터에 전달할 피해량입니다.</returns>
+        private static long ResolveLaserDamage(
+            RuntimeSkillDefinition skill,
+            LaserEventDefinition def,
+            in SkillExecutionOptions options,
+            CharacterBase caster,
+            CharacterBase target)
+        {
+            bool useDamageFormula = skill != null && !string.IsNullOrWhiteSpace(skill.DamageFormulaKey);
+            double baseDamage = ResolveBaseLaserDamage(skill, def, caster, useDamageFormula);
+            double skillDamageRate = ResolveLaserDamageRate(skill, def);
+            float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
+            float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
+
+            CalculateManager calculateManager = CalculateManager.GetActive();
+            if (calculateManager != null)
+            {
+                var request = new DamageFormulaRequest(
+                    caster,
+                    target,
+                    skill != null ? skill.DamageFormulaKey : string.Empty,
+                    baseDamage,
+                    skillDamageRate,
+                    eventMultiplier,
+                    optionMultiplier,
+                    0d,
+                    ResolveLaserDamageType(skill, def),
+                    false);
+                return calculateManager.CalculateSkillDamage(request);
+            }
+
+            double resolved = System.Math.Max(0d, baseDamage) * skillDamageRate * eventMultiplier * optionMultiplier;
+            if (resolved <= 0d)
+            {
+                return 0L;
+            }
+
+            return resolved >= long.MaxValue
+                ? long.MaxValue
+                : (long)System.Math.Round(resolved);
+        }
+
+        /// <summary>
+        /// 레이저 피해량 오버라이드 여부에 따라 배율 적용 전 기본 피해량을 계산합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <param name="useDamageFormula">Poly 데미지 공식을 사용할지 여부입니다.</param>
+        /// <returns>이벤트 배율과 실행 옵션 배율을 적용하기 전의 기본 피해량입니다.</returns>
+        private static double ResolveBaseLaserDamage(
+            RuntimeSkillDefinition skill,
+            LaserEventDefinition def,
+            CharacterBase caster,
+            bool useDamageFormula)
+        {
+            if (skill == null && def == null)
+            {
+                return 0d;
+            }
+
+            bool useDamageOverride = def != null && def.damage > 0L;
+            long damage = useDamageOverride
+                ? def.damage
+                : (skill != null ? skill.Damage : 0L);
+            if (damage <= 0L)
+            {
+                return 0d;
+            }
+
+            ConfigCommonSkill.SkillDamageValueType damageValueType = useDamageOverride
+                ? def.damageValueType
+                : (skill != null ? skill.DamageValueType : ConfigCommonSkill.SkillDamageValueType.Fixed);
+
+            switch (damageValueType)
+            {
+                case ConfigCommonSkill.SkillDamageValueType.AttackPercent:
+                    if (caster == null)
+                    {
+                        return 0d;
+                    }
+
+                    // 공식 기반 레이저도 BaseDamage에 STAT_ATK를 포함하지 않습니다.
+                    // GGemCoPlayerSettings의 Stat Point Atk 설정으로 계산된 STAT_ATK는
+                    // CalculateManager가 StatStrength 변수로 공식에 별도 전달합니다.
+                    long attack = useDamageFormula
+                        ? System.Math.Max(0L, caster.TotalBaseAtk.Value)
+                        : System.Math.Max(0L, caster.TotalAtk.Value);
+                    return attack > 0L ? attack : 0d;
+
+                case ConfigCommonSkill.SkillDamageValueType.Fixed:
+                default:
+                    return damage;
+            }
+        }
+
+        /// <summary>
+        /// 레이저 피해량 정의의 Damage 값을 데미지 비율로 변환합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <returns>공식과 기본 계산에 사용할 레이저 데미지 비율입니다.</returns>
+        private static double ResolveLaserDamageRate(RuntimeSkillDefinition skill, LaserEventDefinition def)
+        {
+            bool useDamageOverride = def != null && def.damage > 0L;
+            ConfigCommonSkill.SkillDamageValueType damageValueType = useDamageOverride
+                ? def.damageValueType
+                : (skill != null ? skill.DamageValueType : ConfigCommonSkill.SkillDamageValueType.Fixed);
+            long damage = useDamageOverride
+                ? def.damage
+                : (skill != null ? skill.Damage : 0L);
+
+            return damageValueType == ConfigCommonSkill.SkillDamageValueType.AttackPercent
+                ? System.Math.Max(0L, damage) / 100d
+                : 1d;
         }
 
         /// <summary>

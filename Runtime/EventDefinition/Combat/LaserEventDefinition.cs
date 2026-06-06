@@ -1,3 +1,4 @@
+using Config;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -17,6 +18,22 @@ namespace GGemCo2DSkill
         [Header("Combat")]
         public ConfigCommon.DamageType damageType = ConfigCommon.DamageType.None;
         public long damage = 0;
+
+        /// <summary>
+        /// Damage 오버라이드 값을 해석할 방식입니다.
+        /// </summary>
+        /// <remarks>
+        /// damage가 0 이하이면 skill/skill_monster 테이블의 DamageValueType을 사용하므로 이 값은 무시됩니다.
+        /// </remarks>
+        public ConfigCommonSkill.SkillDamageValueType damageValueType = ConfigCommonSkill.SkillDamageValueType.Fixed;
+
+        /// <summary>
+        /// 레이저 기본 피해량에 적용할 이벤트 단위 배율입니다.
+        /// </summary>
+        /// <remarks>
+        /// 1은 기본값이며, 2는 2배, 0.5는 절반의 피해를 의미합니다.
+        /// </remarks>
+        public float multiplier = 1.0f;
 
         [Header("Timing")]
         [Tooltip("레이저 유지 시간(초)입니다. 0 이하이면 1프레임성 레이저처럼 동작합니다.")]
