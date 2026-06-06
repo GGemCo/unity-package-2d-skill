@@ -27,20 +27,19 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private int projectileUid = 0;
 
         [Header("Combat")]
-        [Tooltip("프로젝타일 적중 시 적용될 피해 유형입니다.")]
-        [SerializeField] private ConfigCommon.DamageType damageType = ConfigCommon.DamageType.None;
-
-        [Tooltip("프로젝타일 적중 시 적용될 기본 피해량입니다.")]
-        [SerializeField] private long damage = 0;
-
-        /// <summary>
-        /// 프로젝타일 기본 피해량에 곱해지는 이벤트 단위 배율입니다.
-        /// </summary>
-        /// <remarks>
-        /// 1은 기본값이며, 2는 2배, 0.5는 절반의 피해를 의미합니다.
-        /// </remarks>
         [Tooltip("[피해 배율] 프로젝타일 기본 피해량에 곱해지는 계수입니다. 1=기본, 2=2배, 0.5=절반")]
         [SerializeField] private float multiplier = 1.0f;
+        
+        [Header("Combat-Override")]
+        [Tooltip("프로젝타일 적중 시 적용할 피해 유형 오버라이드입니다. None이면 skill/skill_monster 테이블의 DamageType을 사용합니다.")]
+        [SerializeField] private ConfigCommon.DamageType damageType = ConfigCommon.DamageType.None;
+
+        [Tooltip("프로젝타일 적중 시 적용할 피해량 오버라이드입니다. 0이면 skill/skill_monster 테이블의 Damage를 사용합니다.")]
+        [SerializeField] private long damage = 0;
+
+        [Tooltip("Damage 오버라이드 값이 0보다 클 때, 해당 값을 어떤 기준으로 해석할지 지정합니다.")]
+        [SerializeField] private ConfigCommonSkill.SkillDamageValueType damageValueType = ConfigCommonSkill.SkillDamageValueType.Fixed;
+
 
         [Header("OnHit Crowd Control (Target)")]
         [Tooltip("프로젝타일 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
@@ -142,14 +141,28 @@ namespace GGemCo2DSkillEditor
         public int ProjectileUid => projectileUid;
 
         /// <summary>
-        /// 프로젝타일이 적용할 피해 유형입니다.
+        /// 프로젝타일이 적용할 피해 유형 오버라이드입니다.
         /// </summary>
+        /// <remarks>
+        /// None이면 skill/skill_monster 테이블의 DamageType 값을 사용합니다.
+        /// </remarks>
         public ConfigCommon.DamageType DamageType => damageType;
 
         /// <summary>
-        /// 프로젝타일이 적용할 기본 피해량입니다.
+        /// 프로젝타일이 적용할 피해량 오버라이드입니다.
         /// </summary>
+        /// <remarks>
+        /// 0이면 skill/skill_monster 테이블의 Damage 값을 사용합니다.
+        /// </remarks>
         public long Damage => damage;
+
+        /// <summary>
+        /// Damage 오버라이드 값을 해석할 방식입니다.
+        /// </summary>
+        /// <remarks>
+        /// Damage가 0 이하이면 스킬 테이블의 DamageValueType을 사용하므로 이 값은 무시됩니다.
+        /// </remarks>
+        public ConfigCommonSkill.SkillDamageValueType DamageValueType => damageValueType;
 
         /// <summary>
         /// 프로젝타일 기본 피해량에 적용할 이벤트 단위 배율입니다.

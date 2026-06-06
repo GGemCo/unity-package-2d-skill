@@ -1,6 +1,6 @@
-﻿using GGemCo2DCore;
+﻿using Config;
+using GGemCo2DCore;
 using UnityEngine;
-using UnityEngine.Serialization;
 
 namespace GGemCo2DSkill
 {
@@ -18,6 +18,14 @@ namespace GGemCo2DSkill
         [Header("Combat")]
         public ConfigCommon.DamageType damageType = ConfigCommon.DamageType.None;
         public long damage = 0;
+
+        /// <summary>
+        /// Damage 오버라이드 값을 해석할 방식입니다.
+        /// </summary>
+        /// <remarks>
+        /// damage가 0 이하이면 skill/skill_monster 테이블의 DamageValueType을 사용하므로 이 값은 무시됩니다.
+        /// </remarks>
+        public ConfigCommonSkill.SkillDamageValueType damageValueType = ConfigCommonSkill.SkillDamageValueType.Fixed;
 
         /// <summary>
         /// 프로젝타일 기본 피해량에 적용할 이벤트 단위 배율입니다.

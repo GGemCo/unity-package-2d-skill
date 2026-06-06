@@ -85,8 +85,8 @@ namespace GGemCo2DSkill
 
             var meta = new MetadataProjectile(
                 uid: def.projectileUid,
-                damageType: def.damageType,
-                damage: ResolveProjectileDamage(def),
+                damageType: ResolveProjectileDamageType(skill, def),
+                damage: ResolveProjectileDamage(skill, def, ctx.executionOptions, casterChar),
                 target: targetChar,
                 owner: casterChar,
                 speedMultiplier: def.speedMultiplier,
@@ -128,22 +128,55 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 프로젝타일 이벤트의 기본 피해량과 이벤트 배율을 반영한 최종 피해량을 계산합니다.
+        /// 프로젝타일 이벤트의 피해 타입을 계산합니다.
         /// </summary>
         /// <remarks>
-        /// 기존 프로젝타일은 클립의 고정 피해량을 그대로 사용했으므로, 스킬 테이블 기반 데미지 재해석은 하지 않고
-        /// 이벤트 클립에 추가된 배율만 적용합니다.
+        /// Projectile Clip의 DamageType이 None이면 skill/skill_monster 테이블의 DamageType을 사용합니다.
         /// </remarks>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
-        /// <returns>프로젝타일 발사 메타데이터에 전달할 피해량입니다.</returns>
-        private static long ResolveProjectileDamage(ProjectileEventDefinition def)
+        /// <returns>프로젝타일 발사 메타데이터에 전달할 피해 타입입니다.</returns>
+        private static ConfigCommon.DamageType ResolveProjectileDamageType(
+            RuntimeSkillDefinition skill,
+            ProjectileEventDefinition def)
         {
-            if (def == null || def.damage <= 0L)
+            if (def != null && def.damageType != ConfigCommon.DamageType.None)
             {
-                return 0L;
+                return def.damageType;
             }
 
-            double resolved = def.damage * (double)Mathf.Max(0f, def.multiplier);
+            return skill != null ? skill.DamageType : ConfigCommon.DamageType.None;
+        }
+
+        /// <summary>
+        /// 프로젝타일 이벤트의 오버라이드 피해량, 스킬 테이블 기본 피해량, 이벤트 배율을 반영한 최종 피해량을 계산합니다.
+        /// </summary>
+        /// <remarks>
+        /// Projectile Clip의 Damage가 0 이하이면 skill/skill_monster 테이블의 Damage와 DamageValueType을 사용합니다.
+        /// Damage가 0보다 크면 Projectile Clip의 Damage와 DamageValueType으로 테이블 값을 덮어씁니다.
+        /// </remarks>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
+        /// <param name="options">이번 스킬 실행에 적용된 옵션 스냅샷입니다.</param>
+        /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <returns>프로젝타일 발사 메타데이터에 전달할 피해량입니다.</returns>
+        private static long ResolveProjectileDamage(
+            RuntimeSkillDefinition skill,
+            ProjectileEventDefinition def,
+            in SkillExecutionOptions options,
+            CharacterBase caster)
+        {
+            double baseDamage = ResolveBaseProjectileDamage(skill, def, caster);
+            float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
+            float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
+
+            CalculateManager calculateManager = CalculateManager.GetActive();
+            if (calculateManager != null)
+            {
+                return calculateManager.CalculateAttackDamage(baseDamage, eventMultiplier, optionMultiplier);
+            }
+
+            double resolved = System.Math.Max(0d, baseDamage) * eventMultiplier * optionMultiplier;
             if (resolved <= 0d)
             {
                 return 0L;
@@ -152,6 +185,53 @@ namespace GGemCo2DSkill
             return resolved >= long.MaxValue
                 ? long.MaxValue
                 : (long)System.Math.Round(resolved);
+        }
+
+        /// <summary>
+        /// 프로젝타일 피해량 오버라이드 여부에 따라 배율 적용 전 기본 피해량을 계산합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
+        /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <returns>이벤트 배율과 실행 옵션 배율을 적용하기 전의 기본 피해량입니다.</returns>
+        private static double ResolveBaseProjectileDamage(
+            RuntimeSkillDefinition skill,
+            ProjectileEventDefinition def,
+            CharacterBase caster)
+        {
+            if (skill == null && def == null)
+            {
+                return 0d;
+            }
+
+            bool useDamageOverride = def != null && def.damage > 0L;
+            long damage = useDamageOverride
+                ? def.damage
+                : (skill != null ? skill.Damage : 0L);
+            if (damage <= 0L)
+            {
+                return 0d;
+            }
+
+            ConfigCommonSkill.SkillDamageValueType damageValueType = useDamageOverride
+                ? def.damageValueType
+                : (skill != null ? skill.DamageValueType : ConfigCommonSkill.SkillDamageValueType.Fixed);
+
+            switch (damageValueType)
+            {
+                case ConfigCommonSkill.SkillDamageValueType.AttackPercent:
+                    if (caster == null)
+                    {
+                        return 0d;
+                    }
+
+                    long attack = System.Math.Max(0L, caster.TotalAtk.Value);
+                    return attack > 0L ? attack * (damage / 100d) : 0d;
+
+                case ConfigCommonSkill.SkillDamageValueType.Fixed:
+                default:
+                    return damage;
+            }
         }
 
         /// <summary>
