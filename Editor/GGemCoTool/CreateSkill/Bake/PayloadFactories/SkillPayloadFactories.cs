@@ -457,6 +457,7 @@ namespace GGemCo2DSkillEditor
             def.namedAnchorKey = spawnDummy.NamedAnchorKey;
             def.localOffset = spawnDummy.LocalOffset;
             def.useSnapshotCenter = spawnDummy.UseSnapshotCenter;
+            def.spawnFacingPolicy = spawnDummy.SpawnFacingPolicy;
             def.spawnFacing = spawnDummy.SpawnFacing;
             def.fadeInEnabled = spawnDummy.FadeInEnabled;
             def.fadeInDurationSeconds = Mathf.Max(0f, spawnDummy.FadeInDurationSeconds);

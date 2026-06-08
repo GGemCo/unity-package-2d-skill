@@ -32,6 +32,9 @@ namespace GGemCo2DSkill
         [Tooltip("true이면 생성 위치 계산에 현재 시점 대신 스킬 시작 스냅샷(caster/target/ground)을 사용합니다.")]
         public bool useSnapshotCenter;
 
+        [Tooltip("생성 직후 바라보기 방향을 해석하는 정책입니다.")]
+        public DummySpawnFacingPolicy spawnFacingPolicy = DummySpawnFacingPolicy.FixedDirection;
+
         [Tooltip("생성 직후 적용할 바라보기 방향입니다. None이면 프리팹 기본 방향을 유지합니다.")]
         public CharacterConstants.FacingDirection8 spawnFacing = CharacterConstants.FacingDirection8.None;
 

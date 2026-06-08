@@ -25,6 +25,10 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private string namedAnchorKey;
         [SerializeField] private Vector3 localOffset;
         [SerializeField] private bool useSnapshotCenter;
+
+        [Tooltip("생성 직후 바라보기 방향을 해석하는 정책입니다.")]
+        [SerializeField] private DummySpawnFacingPolicy spawnFacingPolicy = DummySpawnFacingPolicy.FixedDirection;
+
         [Tooltip("생성 직후 적용할 바라보기 방향입니다. None이면 기본 방향을 유지합니다.")]
         [SerializeField] private CharacterConstants.FacingDirection8 spawnFacing = CharacterConstants.FacingDirection8.None;
 
@@ -79,6 +83,11 @@ namespace GGemCo2DSkillEditor
         /// 스냅샷 중심 사용 여부를 반환합니다.
         /// </summary>
         public bool UseSnapshotCenter => useSnapshotCenter;
+
+        /// <summary>
+        /// 생성 직후 바라보기 방향 해석 정책을 반환합니다.
+        /// </summary>
+        public DummySpawnFacingPolicy SpawnFacingPolicy => spawnFacingPolicy;
 
         /// <summary>
         /// 생성 직후 적용할 바라보기 방향을 반환합니다.

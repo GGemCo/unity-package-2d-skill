@@ -45,6 +45,22 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// 더미 캐릭터 생성 직후 바라보기 방향을 결정하는 정책입니다.
+    /// </summary>
+    public enum DummySpawnFacingPolicy
+    {
+        /// <summary>
+        /// 이벤트에 지정된 고정 8방향 값을 사용합니다.
+        /// </summary>
+        FixedDirection = 0,
+
+        /// <summary>
+        /// 생성 위치에서 현재 잠금 타겟 위치를 바라보도록 방향을 계산합니다.
+        /// </summary>
+        LookAtTarget = 1,
+    }
+
+    /// <summary>
     /// 더미 캐릭터 이동 목표 위치의 해석 방식을 정의합니다.
     /// </summary>
     public enum DummyMoveTargetMode

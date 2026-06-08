@@ -68,7 +68,7 @@ namespace GGemCo2DSkill
                 return false;
 
             handle = CreateHandle(actorKey, character, def, spawnPos);
-            ApplyInitialFacingAndAnimation(runner, handle, def);
+            ApplyInitialFacingAndAnimation(runner, handle, def, spawnPos, targetPos);
             BindMarker(character, actorKey, ResolveOwnerSkillUid(run, skill));
 
             SkillDummyActorPresentationUtility.ApplyRuntimeLocks(handle);
@@ -245,16 +245,19 @@ namespace GGemCo2DSkill
         /// <param name="runner">예약된 애니메이션 후속 전환을 취소할 MonoBehaviour입니다.</param>
         /// <param name="handle">초기 연출을 적용할 더미 핸들입니다.</param>
         /// <param name="def">더미 생성 이벤트 정의입니다.</param>
+        /// <param name="spawnPos">더미가 생성된 월드 좌표입니다.</param>
+        /// <param name="targetPos">생성 시점에 해석된 잠금 타겟 월드 좌표입니다.</param>
         private static void ApplyInitialFacingAndAnimation(
             MonoBehaviour runner,
             SkillDummyActorHandle handle,
-            SpawnDummyCharacterEventDefinition def)
+            SpawnDummyCharacterEventDefinition def,
+            Vector3 spawnPos,
+            Vector3 targetPos)
         {
             if (handle == null || handle.Character == null)
                 return;
 
-            if (def.spawnFacing != CharacterConstants.FacingDirection8.None)
-                handle.Character.SetFacing(def.spawnFacing);
+            ApplyInitialFacing(handle.Character, def, spawnPos, targetPos);
 
             if (!string.IsNullOrWhiteSpace(def.initialAnimationName))
             {
@@ -265,6 +268,74 @@ namespace GGemCo2DSkill
                     def.initialAnimationLoop,
                     def.initialAnimationTimeScale);
             }
+        }
+
+        /// <summary>
+        /// 생성 직후 바라보기 정책에 따라 더미 캐릭터의 초기 방향을 적용합니다.
+        /// </summary>
+        /// <param name="character">방향을 적용할 더미 캐릭터입니다.</param>
+        /// <param name="def">더미 생성 이벤트 정의입니다.</param>
+        /// <param name="spawnPos">더미가 생성된 월드 좌표입니다.</param>
+        /// <param name="targetPos">생성 시점에 해석된 잠금 타겟 월드 좌표입니다.</param>
+        private static void ApplyInitialFacing(
+            CharacterBase character,
+            SpawnDummyCharacterEventDefinition def,
+            Vector3 spawnPos,
+            Vector3 targetPos)
+        {
+            if (character == null || def == null)
+                return;
+
+            switch (def.spawnFacingPolicy)
+            {
+                case DummySpawnFacingPolicy.LookAtTarget:
+                    ApplyFacingTowardTarget(character, def, spawnPos, targetPos);
+                    break;
+
+                case DummySpawnFacingPolicy.FixedDirection:
+                default:
+                    ApplyFixedFacing(character, def.spawnFacing);
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// 지정된 고정 방향이 유효할 때 더미 캐릭터에 적용합니다.
+        /// </summary>
+        /// <param name="character">방향을 적용할 더미 캐릭터입니다.</param>
+        /// <param name="facing">적용할 고정 8방향입니다.</param>
+        private static void ApplyFixedFacing(CharacterBase character, CharacterConstants.FacingDirection8 facing)
+        {
+            if (character == null || facing == CharacterConstants.FacingDirection8.None)
+                return;
+
+            character.SetFacing(facing);
+        }
+
+        /// <summary>
+        /// 생성 위치에서 타겟 위치를 바라보는 방향을 계산해 더미 캐릭터에 적용합니다.
+        /// </summary>
+        /// <param name="character">방향을 적용할 더미 캐릭터입니다.</param>
+        /// <param name="def">더미 생성 이벤트 정의입니다.</param>
+        /// <param name="spawnPos">더미가 생성된 월드 좌표입니다.</param>
+        /// <param name="targetPos">생성 시점에 해석된 잠금 타겟 월드 좌표입니다.</param>
+        private static void ApplyFacingTowardTarget(
+            CharacterBase character,
+            SpawnDummyCharacterEventDefinition def,
+            Vector3 spawnPos,
+            Vector3 targetPos)
+        {
+            if (character == null)
+                return;
+
+            Vector2 direction = new(targetPos.x - spawnPos.x, targetPos.y - spawnPos.y);
+            if (direction.sqrMagnitude <= 1e-6f)
+            {
+                ApplyFixedFacing(character, def.spawnFacing);
+                return;
+            }
+
+            character.SetFacing(direction);
         }
 
         /// <summary>
