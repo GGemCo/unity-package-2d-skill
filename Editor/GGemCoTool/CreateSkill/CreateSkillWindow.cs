@@ -105,6 +105,21 @@ namespace GGemCo2DSkillEditor
         }
 
         /// <summary>
+        /// 에디터 창이 닫히거나 파괴될 때 스킬 테스트 중 임시로 변경한 런타임 상태를 복원합니다.
+        /// </summary>
+        private void OnDestroy()
+        {
+            if (!Application.isPlaying)
+                return;
+
+            SkillTestRuntimeHub hub = SkillTestRuntimeHub.Instance;
+            if (hub == null)
+                return;
+
+            hub.RestoreSkillTestDisabledBehaviours();
+        }
+
+        /// <summary>
         /// 에디터 창의 전체 GUI를 그립니다.
         /// </summary>
         /// <remarks>

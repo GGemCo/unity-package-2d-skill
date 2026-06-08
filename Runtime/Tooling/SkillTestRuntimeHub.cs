@@ -52,6 +52,7 @@ namespace GGemCo2DSkill
         private readonly Dictionary<int, SkillTestTargetSnapshot> _snapshots = new();
         private readonly List<SkillDebugAreaRecord> _activeDamageAreas = new(8);
         private readonly List<SkillDebugLaserRecord> _activeLasers = new(8);
+        private readonly Dictionary<Behaviour, bool> _skillTestDisabledBehaviourStates = new();
         private readonly Vector2 _monsterSpawnPosition = new(150, 0);
 
         private SkillExecutor _selectedExecutor;
@@ -101,6 +102,8 @@ namespace GGemCo2DSkill
 
         private void OnDestroy()
         {
+            RestoreSkillTestDisabledBehaviours();
+
             if (Instance == this)
                 Instance = null;
         }
@@ -448,7 +451,11 @@ namespace GGemCo2DSkill
             return monster;
         }
 
-        private static void EnsureSkillTestComponents(GameObject caster)
+        /// <summary>
+        /// 스킬 테스트에 필요한 실행 컴포넌트를 보강하고, 테스트 결과에 개입할 수 있는 몬스터 AI를 임시로 비활성화합니다.
+        /// </summary>
+        /// <param name="caster">스킬 테스트에서 시전자 역할을 수행할 게임 오브젝트입니다.</param>
+        private void EnsureSkillTestComponents(GameObject caster)
         {
             if (caster == null)
                 return;
@@ -466,20 +473,66 @@ namespace GGemCo2DSkill
             {
                 if (caster.GetComponent<MonsterSkillDriverAdapter>() == null)
                     caster.AddComponent<MonsterSkillDriverAdapter>();
-            }
 
-            var brainTicker = caster.GetComponent<MonsterBrainTicker>();
-            if (brainTicker != null)
-                brainTicker.enabled = false;
+                DisableMonsterAiForSkillTest(caster);
+            }
+        }
+
+        /// <summary>
+        /// 스킬 테스트 도구가 몬스터 스킬 실행을 직접 제어할 수 있도록 몬스터 AI 실행 컴포넌트를 임시로 비활성화합니다.
+        /// </summary>
+        /// <param name="caster">AI 제어를 임시로 중단할 몬스터 게임 오브젝트입니다.</param>
+        private void DisableMonsterAiForSkillTest(GameObject caster)
+        {
+            if (caster == null)
+                return;
+
+            // Brain Tick이 활성화되어 있으면 테스트 중 자동 이동, 기본 공격, 스킬 사용이 실행될 수 있으므로 원래 상태를 저장한 뒤 비활성화합니다.
+            DisableBehaviourForSkillTest(caster.GetComponent<MonsterBrainTicker>());
 
             foreach (var mb in caster.GetComponents<MonoBehaviour>())
             {
                 if (mb == null)
                     continue;
 
+                // AI BT 패키지는 Skill보다 상위 패키지이므로 직접 타입 참조 대신 이름 기반으로 테스트 중 실행만 차단합니다.
                 if (mb.GetType().Name == "MonsterBtRunner")
-                    mb.enabled = false;
+                    DisableBehaviourForSkillTest(mb);
             }
+        }
+
+        /// <summary>
+        /// 스킬 테스트 중 임시로 비활성화할 Behaviour의 원래 활성 상태를 저장하고 비활성화합니다.
+        /// </summary>
+        /// <param name="behaviour">스킬 테스트 중 자동 실행을 막을 Behaviour입니다.</param>
+        private void DisableBehaviourForSkillTest(Behaviour behaviour)
+        {
+            if (behaviour == null)
+                return;
+
+            if (!_skillTestDisabledBehaviourStates.ContainsKey(behaviour))
+                _skillTestDisabledBehaviourStates.Add(behaviour, behaviour.enabled);
+
+            behaviour.enabled = false;
+        }
+
+        /// <summary>
+        /// 스킬 테스트 도구가 임시로 변경한 Behaviour 활성 상태를 원래 값으로 복원합니다.
+        /// </summary>
+        public void RestoreSkillTestDisabledBehaviours()
+        {
+            if (_skillTestDisabledBehaviourStates.Count == 0)
+                return;
+
+            foreach (var pair in _skillTestDisabledBehaviourStates)
+            {
+                if (pair.Key == null)
+                    continue;
+
+                pair.Key.enabled = pair.Value;
+            }
+
+            _skillTestDisabledBehaviourStates.Clear();
         }
 
         public void SelectCaster(GameObject caster, bool captureSnapshot = true)
