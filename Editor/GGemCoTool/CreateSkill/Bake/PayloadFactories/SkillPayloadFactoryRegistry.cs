@@ -45,6 +45,7 @@ namespace GGemCo2DSkillEditor
                 new SkillApplyTempHpPayloadFactory(),
                 new SkillPlayAudioPayloadFactory(),
                 new SkillScreenFadePayloadFactory(),
+                new SkillCasterFadePayloadFactory(),
                 new SkillAfterimagePayloadFactory(),
                 new SkillLungePayloadFactory(),
                 new SkillGroundSlamPayloadFactory(),

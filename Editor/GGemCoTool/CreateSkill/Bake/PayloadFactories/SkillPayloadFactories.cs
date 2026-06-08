@@ -173,6 +173,24 @@ namespace GGemCo2DSkillEditor
     }
 
     /// <summary>
+    /// CasterFade Timeline 클립을 SkillCasterFadeEventDefinition Payload로 변환합니다.
+    /// </summary>
+    internal sealed class SkillCasterFadePayloadFactory : SkillPayloadFactoryBase<SkillCasterFadeClip>
+    {
+        /// <inheritdoc />
+        protected override UnityEngine.Object CreatePayload(SkillCasterFadeClip casterFade)
+        {
+            var def = ScriptableObject.CreateInstance<SkillCasterFadeEventDefinition>();
+            def.mode = casterFade.Mode;
+            def.useClipDuration = casterFade.UseClipDuration;
+            def.durationOverrideSeconds = Mathf.Max(0f, casterFade.DurationOverrideSeconds);
+            def.restoreOnSkillEnd = casterFade.RestoreOnSkillEnd;
+            def.restoreOnCancel = casterFade.RestoreOnCancel;
+            return def;
+        }
+    }
+
+    /// <summary>
     /// Afterimage Timeline 클립을 SkillAfterimageEventDefinition Payload로 변환합니다.
     /// </summary>
     internal sealed class SkillAfterimagePayloadFactory : SkillPayloadFactoryBase<SkillAfterimageClip>

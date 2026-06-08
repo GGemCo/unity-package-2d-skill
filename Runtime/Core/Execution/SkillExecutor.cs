@@ -45,6 +45,11 @@ namespace GGemCo2DSkill
         private readonly SkillScreenFadeController _screenFadeController = new();
 
         /// <summary>
+        /// 스킬 캐스터 페이드 재생과 종료 시 복구 정책을 관리합니다.
+        /// </summary>
+        private readonly SkillCasterFadeController _casterFadeController = new();
+
+        /// <summary>
         /// 스킬 캐릭터 잔상 재생과 종료 시 정리 정책을 관리합니다.
         /// </summary>
         private readonly SkillAfterimageController _afterimageController = new();
@@ -172,6 +177,7 @@ namespace GGemCo2DSkill
                 this,
                 _dummyActors,
                 _casterActorHandle,
+                _casterFadeController,
                 _afterimageController);
 
             if (_current == null)
@@ -239,6 +245,7 @@ namespace GGemCo2DSkill
                 _casterActorHandle,
                 _attackSequence,
                 _screenFadeController,
+                _casterFadeController,
                 _afterimageController,
                 _groundSlamAnimationController,
                 _arcLungeAnimationController);
@@ -318,6 +325,21 @@ namespace GGemCo2DSkill
         internal void HandleScreenFade(UnityEngine.Object payloadObj, float eventDurationSeconds)
         {
             _screenFadeController.Play(this, payloadObj, eventDurationSeconds);
+        }
+
+        /// <summary>
+        /// 캐스터 페이드 이벤트 정의를 현재 스킬 캐스터에 적용합니다.
+        /// 스킬 종료 또는 취소 시 복구 정책은 <see cref="SkillCasterFadeController"/>가 추적합니다.
+        /// </summary>
+        /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">Bake된 캐스터 페이드 이벤트 정의입니다.</param>
+        /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
+        internal void HandleCasterFade(
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            float eventDurationSeconds)
+        {
+            _casterFadeController.Play(this, ctx, payloadObj, eventDurationSeconds);
         }
 
         /// <summary>
@@ -790,6 +812,7 @@ namespace GGemCo2DSkill
                 _dummyActors,
                 _attackSequence,
                 _screenFadeController,
+                _casterFadeController,
                 _afterimageController);
             ExecutionFinished?.Invoke(report);
         }
@@ -825,6 +848,7 @@ namespace GGemCo2DSkill
                 _ownedVfxTracker,
                 _dummyActors,
                 _screenFadeController,
+                _casterFadeController,
                 _afterimageController,
                 _groundSlamAnimationController,
                 _arcLungeAnimationController);

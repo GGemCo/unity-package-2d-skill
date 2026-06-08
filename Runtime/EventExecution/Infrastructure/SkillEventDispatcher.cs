@@ -116,6 +116,10 @@ namespace GGemCo2DSkill
                     executor.HandleScreenFade(payload, context.EventDurationSeconds);
                     break;
 
+                case ConfigCommonSkill.SkillEventType.CasterFade:
+                    executor.HandleCasterFade(targetContext, payload, context.EventDurationSeconds);
+                    break;
+
                 case ConfigCommonSkill.SkillEventType.Afterimage:
                     executor.HandleAfterimage(targetContext, payload, context.EventDurationSeconds);
                     break;

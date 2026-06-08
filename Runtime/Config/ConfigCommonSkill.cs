@@ -117,6 +117,11 @@ namespace Config
             /// 스킬 실행 중 특정 시점의 타겟 또는 기준 위치를 이름 있는 위치 앵커로 저장합니다.
             /// </summary>
             CaptureTargetPosition = 20,
+
+            /// <summary>
+            /// 스킬 실행 중 캐스터 캐릭터를 페이드 인 또는 페이드 아웃합니다.
+            /// </summary>
+            CasterFade = 21,
         }
 
         /// <summary>

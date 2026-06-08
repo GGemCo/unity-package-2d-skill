@@ -17,6 +17,7 @@ namespace GGemCo2DSkill
         /// <param name="casterActorHandle">Caster 참조에 재사용하는 임시 더미 핸들입니다.</param>
         /// <param name="attackSequence">공격 식별자와 연계 해제 상태 관리자입니다.</param>
         /// <param name="screenFadeController">화면 페이드 정리 정책 관리자입니다.</param>
+        /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
         /// <param name="afterimageController">캐릭터 잔상 정리 정책 관리자입니다.</param>
         /// <param name="groundSlamAnimationController">그라운드슬램 애니메이션 상태 관리자입니다.</param>
         /// <param name="arcLungeAnimationController">아크 런지 애니메이션 상태 관리자입니다.</param>
@@ -27,6 +28,7 @@ namespace GGemCo2DSkill
             SkillDummyActorHandle casterActorHandle,
             SkillAttackSequence attackSequence,
             SkillScreenFadeController screenFadeController,
+            SkillCasterFadeController casterFadeController,
             SkillAfterimageController afterimageController,
             SkillGroundSlamAnimationController groundSlamAnimationController,
             SkillArcLungeAnimationController arcLungeAnimationController)
@@ -36,6 +38,7 @@ namespace GGemCo2DSkill
             SkillDummyActorReferenceUtility.ResetCasterTransientState(runner, casterActorHandle, clearCharacter: true);
             attackSequence?.Clear();
             screenFadeController?.ResetCleanupFlags();
+            casterFadeController?.Cleanup(runner, forCancel: false, forceRestore: true);
             afterimageController?.ResetCleanupFlags();
             groundSlamAnimationController?.Clear();
             arcLungeAnimationController?.Clear();
@@ -47,15 +50,18 @@ namespace GGemCo2DSkill
         /// <param name="runner">코루틴 중단에 사용할 실행기입니다.</param>
         /// <param name="dummyActors">더미 액터 레지스트리입니다.</param>
         /// <param name="casterActorHandle">Caster 참조에 재사용하는 임시 더미 핸들입니다.</param>
+        /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
         /// <param name="afterimageController">캐릭터 잔상 정리 정책 관리자입니다.</param>
         public static void CleanupOnDisable(
             MonoBehaviour runner,
             Dictionary<string, SkillDummyActorHandle> dummyActors,
             SkillDummyActorHandle casterActorHandle,
+            SkillCasterFadeController casterFadeController,
             SkillAfterimageController afterimageController)
         {
             CleanupDummyActors(runner, dummyActors, forceAll: true, forCancel: false);
             SkillDummyActorReferenceUtility.ResetCasterTransientState(runner, casterActorHandle, clearCharacter: true);
+            casterFadeController?.Cleanup(runner, forCancel: false, forceRestore: true);
             afterimageController?.Cleanup(forCancel: false);
         }
 
@@ -66,17 +72,20 @@ namespace GGemCo2DSkill
         /// <param name="dummyActors">더미 액터 레지스트리입니다.</param>
         /// <param name="attackSequence">공격 식별자와 연계 해제 상태 관리자입니다.</param>
         /// <param name="screenFadeController">화면 페이드 정리 정책 관리자입니다.</param>
+        /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
         /// <param name="afterimageController">캐릭터 잔상 정리 정책 관리자입니다.</param>
         public static void CleanupOnRunEnd(
             MonoBehaviour runner,
             Dictionary<string, SkillDummyActorHandle> dummyActors,
             SkillAttackSequence attackSequence,
             SkillScreenFadeController screenFadeController,
+            SkillCasterFadeController casterFadeController,
             SkillAfterimageController afterimageController)
         {
             attackSequence?.Clear();
             CleanupDummyActors(runner, dummyActors, forceAll: false, forCancel: false);
             screenFadeController?.Cleanup(runner, forCancel: false);
+            casterFadeController?.Cleanup(runner, forCancel: false);
             afterimageController?.Cleanup(forCancel: false);
         }
 
@@ -88,6 +97,7 @@ namespace GGemCo2DSkill
         /// <param name="vfxTracker">실행기가 소유한 VFX 추적기입니다.</param>
         /// <param name="dummyActors">더미 액터 레지스트리입니다.</param>
         /// <param name="screenFadeController">화면 페이드 정리 정책 관리자입니다.</param>
+        /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
         /// <param name="afterimageController">캐릭터 잔상 정리 정책 관리자입니다.</param>
         /// <param name="groundSlamAnimationController">그라운드슬램 애니메이션 상태 관리자입니다.</param>
         /// <param name="arcLungeAnimationController">아크 런지 애니메이션 상태 관리자입니다.</param>
@@ -97,6 +107,7 @@ namespace GGemCo2DSkill
             SkillOwnedVfxTracker vfxTracker,
             Dictionary<string, SkillDummyActorHandle> dummyActors,
             SkillScreenFadeController screenFadeController,
+            SkillCasterFadeController casterFadeController,
             SkillAfterimageController afterimageController,
             SkillGroundSlamAnimationController groundSlamAnimationController,
             SkillArcLungeAnimationController arcLungeAnimationController)
@@ -105,6 +116,7 @@ namespace GGemCo2DSkill
             vfxTracker?.Cleanup();
             CleanupDummyActors(runner, dummyActors, forceAll: false, forCancel: true);
             screenFadeController?.Cleanup(runner, forCancel: true);
+            casterFadeController?.Cleanup(runner, forCancel: true);
             afterimageController?.Cleanup(forCancel: true);
             groundSlamAnimationController?.Clear();
             arcLungeAnimationController?.Clear();
