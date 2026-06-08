@@ -54,6 +54,7 @@ namespace GGemCo2DSkill
             if (laserInfo == null)
                 return;
 
+            CharacterBase combatOwner = ResolveLaserCombatOwner(ctx, sourceChar);
             Vector3 casterPos = sourceObject.transform.position;
             Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
             Vector3 groundPoint = ctx.groundPoint;
@@ -122,14 +123,21 @@ namespace GGemCo2DSkill
                 resolvedStartPositionOverride = ResolveLaserStartPointByAnchor(laserInfo, def, startAnchorPosition);
                 resolvedStartPointUpdateMode = LaserConstants.StartPointUpdateMode.SnapshotAtLaunch;
             }
+            else if (!ReferenceEquals(sourceChar, combatOwner))
+            {
+                // 더미 Actor는 발사 위치를 대표하고, 원 캐스터는 적대 관계와 데미지 계산을 대표합니다.
+                resolvedStartPositionOverrideMode = LaserConstants.StartPositionOverrideMode.WorldPosition;
+                resolvedStartPositionOverride = ResolveLaserStartPointFromActor(laserInfo, def, sourceChar);
+                resolvedStartPointUpdateMode = LaserConstants.StartPointUpdateMode.SnapshotAtLaunch;
+            }
 
             int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
             var meta = new MetadataLaser(
                 uid: def.laserUid,
                 damageType: ResolveLaserDamageType(skill, def),
-                damage: ResolveLaserDamage(skill, def, ctx.executionOptions, sourceChar, targetChar),
+                damage: ResolveLaserDamage(skill, def, ctx.executionOptions, combatOwner, targetChar),
                 target: targetChar,
-                owner: sourceChar,
+                owner: combatOwner,
                 scaleMultiplier: def.scaleMultiplier,
                 visualType: def.visualType,
                 visualSprite: def.visualSprite,
@@ -193,6 +201,22 @@ namespace GGemCo2DSkill
 
             Vector2 currentFacing = SkillDirectionResolver.ResolveCurrentFacing2D(sourceObject);
             return currentFacing.sqrMagnitude > 1e-6f ? (Vector3)currentFacing : Vector3.right;
+        }
+
+        /// <summary>
+        /// 레이저 데미지, 적대 관계, 데미지 공식 계산에 사용할 전투 owner를 해석합니다.
+        /// </summary>
+        /// <remarks>
+        /// 더미 Actor는 레이저의 시작 위치와 방향을 대신 표현하는 주체이고,
+        /// 실제 전투 판정은 스킬을 사용한 원 캐스터 기준으로 유지해야 합니다.
+        /// </remarks>
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <param name="fallbackOwner">원 캐스터를 찾지 못했을 때 사용할 발사 Actor입니다.</param>
+        /// <returns>전투 판정에 사용할 캐릭터입니다.</returns>
+        private static CharacterBase ResolveLaserCombatOwner(SkillTargetContext ctx, CharacterBase fallbackOwner)
+        {
+            CharacterBase caster = SkillCharacterComponentResolver.ResolveCharacterBase(ctx.caster);
+            return caster != null ? caster : fallbackOwner;
         }
 
         /// <summary>
@@ -840,6 +864,65 @@ namespace GGemCo2DSkill
                 default:
                     return anchorPosition2D + tableOffset;
             }
+        }
+
+        /// <summary>
+        /// 더미 Actor 기준으로 레이저 시작점을 계산합니다.
+        /// </summary>
+        /// <remarks>
+        /// Core 레이저 메타데이터의 Owner를 원 캐스터로 유지하면 기본 Caster 시작점이 원 캐스터 위치로 돌아가므로,
+        /// Skill 레이어에서 더미 기준 시작점을 월드 좌표로 미리 계산해 전달합니다.
+        /// </remarks>
+        /// <param name="laserInfo">레이저 테이블 정보입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="sourceChar">레이저 시작점 기준으로 사용할 더미 Actor 캐릭터입니다.</param>
+        /// <returns>더미 Actor 기준으로 계산된 레이저 시작점 월드 좌표입니다.</returns>
+        private static Vector2 ResolveLaserStartPointFromActor(
+            StruckTableLaser laserInfo,
+            LaserEventDefinition def,
+            CharacterBase sourceChar)
+        {
+            Vector2 sourcePosition = sourceChar != null ? sourceChar.transform.position : Vector2.zero;
+            Vector2 tableOffset = laserInfo != null ? laserInfo.StartPosition : Vector2.zero;
+            if (def == null)
+                return sourcePosition + tableOffset;
+
+            switch (def.startPositionOverrideMode)
+            {
+                case LaserConstants.StartPositionOverrideMode.ReplaceTableOffset:
+                    return sourcePosition + ResolveActorFlipStartOffset(def.startPositionOverride, def, sourceChar);
+
+                case LaserConstants.StartPositionOverrideMode.AddToTableOffset:
+                    return sourcePosition + ResolveActorFlipStartOffset(tableOffset + def.startPositionOverride, def, sourceChar);
+
+                case LaserConstants.StartPositionOverrideMode.WorldPosition:
+                    return def.startPositionOverride;
+
+                case LaserConstants.StartPositionOverrideMode.UseLaserTable:
+                default:
+                    return sourcePosition + ResolveActorFlipStartOffset(tableOffset, def, sourceChar);
+            }
+        }
+
+        /// <summary>
+        /// 더미 Actor의 좌우 반전 상태를 기준으로 시작점 오프셋 X 값을 보정합니다.
+        /// </summary>
+        /// <param name="offset">더미 Actor 기준 오프셋입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="sourceChar">좌우 반전 상태를 확인할 더미 Actor 캐릭터입니다.</param>
+        /// <returns>반전 정책이 적용된 오프셋입니다.</returns>
+        private static Vector2 ResolveActorFlipStartOffset(
+            Vector2 offset,
+            LaserEventDefinition def,
+            CharacterBase sourceChar)
+        {
+            if (def == null || !def.useCasterFlipStartOffsetX)
+                return offset;
+
+            if (sourceChar == null || !sourceChar.IsFlipped())
+                return offset;
+
+            return new Vector2(-offset.x, offset.y);
         }
 
         /// <summary>
