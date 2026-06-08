@@ -95,7 +95,7 @@ namespace GGemCo2DSkill
                     moveTarget = targetPos;
                     return true;
                 case DummyMoveTargetMode.LockedTargetFront:
-                    moveTarget = targetPos + ResolveSignedTargetFrontOffset(actorPos, targetPos, def.targetFrontDistance);
+                    moveTarget = ResolveLockedTargetFrontMoveTarget(def, actorPos, targetPos, groundPoint);
                     return true;
                 case DummyMoveTargetMode.AbsoluteWorld:
                     moveTarget = def.absoluteWorldPosition;
@@ -145,6 +145,41 @@ namespace GGemCo2DSkill
         {
             float sideSign = ResolveTargetFrontSideSign(actorPos, targetPos);
             return new Vector3(sideSign * signedDistance, 0f, 0f);
+        }
+
+        /// <summary>
+        /// LockedTargetFront 모드의 이동 목표 좌표를 계산하고, 설정된 Y 좌표 정책을 적용합니다.
+        /// </summary>
+        /// <param name="def">더미 이동 이벤트 정의입니다.</param>
+        /// <param name="actorGroundPos">이동 대상 Actor의 현재 지면 기준 좌표입니다.</param>
+        /// <param name="targetPos">해석된 타겟 위치입니다.</param>
+        /// <param name="groundPoint">스킬 컨텍스트의 지면 기준점입니다.</param>
+        /// <returns>LockedTargetFront 정책이 적용된 이동 목표 좌표입니다.</returns>
+        private static Vector3 ResolveLockedTargetFrontMoveTarget(
+            MoveDummyCharacterEventDefinition def,
+            Vector3 actorGroundPos,
+            Vector3 targetPos,
+            Vector3 groundPoint)
+        {
+            Vector3 moveTarget = targetPos + ResolveSignedTargetFrontOffset(actorGroundPos, targetPos, def.targetFrontDistance);
+            if (Mathf.Abs(def.targetFrontDistance) <= 1e-4f)
+                return moveTarget;
+
+            // 타겟이 공중에 떠 있는 연출 중에도 더미가 지면선을 따라 접근하도록 Y 기준을 선택적으로 보정합니다.
+            switch (def.lockedTargetFrontYPolicy)
+            {
+                case DummyLockedTargetFrontYPolicy.KeepActorGroundY:
+                    moveTarget.y = actorGroundPos.y;
+                    break;
+                case DummyLockedTargetFrontYPolicy.UseGroundPointY:
+                    moveTarget.y = groundPoint.y;
+                    break;
+                case DummyLockedTargetFrontYPolicy.UseTargetY:
+                default:
+                    break;
+            }
+
+            return moveTarget;
         }
 
         /// <summary>

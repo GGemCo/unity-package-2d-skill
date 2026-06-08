@@ -504,6 +504,7 @@ namespace GGemCo2DSkillEditor
             def.namedAnchorKey = moveDummy.NamedAnchorKey;
             def.absoluteWorldPosition = moveDummy.AbsoluteWorldPosition;
             def.targetFrontDistance = moveDummy.TargetFrontDistance;
+            def.lockedTargetFrontYPolicy = moveDummy.LockedTargetFrontYPolicy;
             def.localOffset = moveDummy.LocalOffset;
             def.useSnapshotCenter = moveDummy.UseSnapshotCenter;
             def.screenClampPolicy = moveDummy.ScreenClampPolicy;

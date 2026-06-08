@@ -109,7 +109,8 @@ namespace GGemCo2DSkill
                 out Vector3 targetPos,
                 out Vector3 groundPoint);
 
-            Vector3 actorPos = handle.Character.transform.position;
+            SkillDummyActorRuntimeUtility.SyncGroundFromTransform(handle);
+            Vector3 actorPos = handle.GroundPosition;
             if (!SkillDummyEventUtility.TryResolveMoveTargetPosition(run, def, actorPos, targetPos, groundPoint, out moveTarget))
                 return false;
 

@@ -92,6 +92,27 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// LockedTargetFront 이동 목표를 계산할 때 Y 좌표를 어떤 기준으로 사용할지 정의합니다.
+    /// </summary>
+    public enum DummyLockedTargetFrontYPolicy
+    {
+        /// <summary>
+        /// 기존 동작처럼 타겟 중심의 Y 좌표를 사용합니다.
+        /// </summary>
+        UseTargetY = 0,
+
+        /// <summary>
+        /// 이동 시작 시점 Actor의 지면 Y 좌표를 유지합니다.
+        /// </summary>
+        KeepActorGroundY = 1,
+
+        /// <summary>
+        /// 스킬 컨텍스트의 지면 기준점 Y 좌표를 사용합니다.
+        /// </summary>
+        UseGroundPointY = 2,
+    }
+
+    /// <summary>
     /// 더미 관련 이벤트가 어떤 주체를 대상으로 실행될지 정의합니다.
     /// </summary>
     public enum DummyActorReferenceType
