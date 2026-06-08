@@ -23,8 +23,32 @@ namespace GGemCo2DSkill
         [Tooltip("BG 사용 전")]
         [SerializeField] private Sprite imageBgNext;
 
+        private const float CompletedSlotMpIconAlpha = 0.3f;
+
+        private enum ComboHudMainSlotState
+        {
+            /// <summary>
+            /// 아직 사용하지 않은 기본 슬롯 상태입니다.
+            /// </summary>
+            Normal,
+
+            /// <summary>
+            /// 다음 입력으로 사용할 슬롯 상태입니다.
+            /// </summary>
+            Next,
+
+            /// <summary>
+            /// 이미 사용을 완료한 슬롯 상태입니다.
+            /// </summary>
+            Completed,
+        }
+
         private PlayerSkillComboController _comboController;
         private readonly Dictionary<GameObject, List<GameObject>> _mpIconPoolBySlot = new();
+        private readonly List<RuntimeSkillComboNode> _cachedMainNodes = new();
+        private readonly Dictionary<int, int> _slotIndexByNodeIndex = new();
+        private int _activeMainSlotCount;
+        private int _nextMainSlotIndex;
 
         /// <summary>
         /// 윈도우 기본 초기화와 맵 로드 완료 이벤트 구독을 처리합니다.
@@ -129,6 +153,7 @@ namespace GGemCo2DSkill
 
             ShowComboHud();
             RefreshMainSlots();
+            ApplyMainSlotProgress(0);
 
             // result.SkillUid: 첫 번째 Main 입력으로 실행될 스킬 UID
             // result.LastSkillUid: 첫 번째 Last 입력으로 실행될 마무리 스킬 UID
@@ -223,48 +248,25 @@ namespace GGemCo2DSkill
         /// <param name="definition">HUD에 표시할 콤보 정의입니다.</param>
         private void RefreshMainSlots(RuntimeSkillComboDefinition definition)
         {
-            if (mainSlot == null || mainSlot.Length == 0)
-            {
-                return;
-            }
-
-            List<RuntimeSkillComboNode> mainNodes = CollectMainNodes(definition);
-            int activeCount = Mathf.Min(mainNodes.Count, mainSlot.Length);
-
-            for (int i = 0; i < mainSlot.Length; i++)
-            {
-                GameObject slotObject = mainSlot[i];
-                if (slotObject == null)
-                {
-                    continue;
-                }
-
-                bool isActive = i < activeCount;
-                slotObject.SetActive(isActive);
-
-                if (!isActive)
-                {
-                    DeactivateMpIcons(slotObject);
-                    continue;
-                }
-
-                RuntimeSkillComboNode node = mainNodes[i];
-                int needMp = ResolveNeedMp(node.SkillUid);
-                CreateMpIcons(slotObject, needMp);
-            }
+            CacheMainNodes(definition);
+            RefreshMainSlotObjects();
+            RefreshMainLines();
         }
 
         /// <summary>
-        /// 콤보 정의에서 메인 타입 노드만 인덱스 순서로 수집합니다.
+        /// 콤보 정의에서 Main 노드를 수집하고, 콤보 노드 인덱스와 HUD 슬롯 인덱스 매핑을 갱신합니다.
         /// </summary>
         /// <param name="definition">노드를 수집할 콤보 정의입니다.</param>
-        /// <returns>인덱스 기준으로 정렬된 메인 콤보 노드 목록입니다.</returns>
-        private static List<RuntimeSkillComboNode> CollectMainNodes(RuntimeSkillComboDefinition definition)
+        private void CacheMainNodes(RuntimeSkillComboDefinition definition)
         {
-            List<RuntimeSkillComboNode> result = new();
+            _cachedMainNodes.Clear();
+            _slotIndexByNodeIndex.Clear();
+
             if (definition?.Nodes == null)
             {
-                return result;
+                _activeMainSlotCount = 0;
+                _nextMainSlotIndex = 0;
+                return;
             }
 
             for (int i = 0; i < definition.Nodes.Count; i++)
@@ -275,11 +277,58 @@ namespace GGemCo2DSkill
                     continue;
                 }
 
-                result.Add(node);
+                _cachedMainNodes.Add(node);
             }
 
-            result.Sort(CompareNodeIndex);
-            return result;
+            _cachedMainNodes.Sort(CompareNodeIndex);
+            _activeMainSlotCount = Mathf.Min(_cachedMainNodes.Count, mainSlot != null ? mainSlot.Length : 0);
+            _nextMainSlotIndex = Mathf.Clamp(_nextMainSlotIndex, 0, _activeMainSlotCount);
+
+            for (int i = 0; i < _activeMainSlotCount; i++)
+            {
+                RuntimeSkillComboNode node = _cachedMainNodes[i];
+                if (node == null)
+                {
+                    continue;
+                }
+
+                _slotIndexByNodeIndex[node.Index] = i;
+            }
+        }
+
+        /// <summary>
+        /// 캐시된 Main 노드 수에 맞춰 슬롯 오브젝트와 MP 아이콘 표시를 갱신합니다.
+        /// </summary>
+        private void RefreshMainSlotObjects()
+        {
+            if (mainSlot == null || mainSlot.Length == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < mainSlot.Length; i++)
+            {
+                GameObject slotObject = mainSlot[i];
+                if (slotObject == null)
+                {
+                    continue;
+                }
+
+                bool isActive = i < _activeMainSlotCount;
+                slotObject.SetActive(isActive);
+
+                if (!isActive)
+                {
+                    ApplyMainSlotState(slotObject, ComboHudMainSlotState.Normal);
+                    DeactivateMpIcons(slotObject);
+                    continue;
+                }
+
+                RuntimeSkillComboNode node = _cachedMainNodes[i];
+                int needMp = ResolveNeedMp(node.SkillUid);
+                CreateMpIcons(slotObject, needMp);
+                ApplyMainSlotState(slotObject, ComboHudMainSlotState.Normal);
+            }
         }
 
         /// <summary>
@@ -396,17 +445,101 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 모든 메인 슬롯의 MP 아이콘을 비활성화하고 슬롯을 숨깁니다.
-        /// 아이콘 오브젝트는 재사용을 위해 파괴하지 않습니다.
+        /// 모든 메인 슬롯과 연결 라인을 기본 상태로 되돌리고 슬롯을 숨깁니다.
+        /// MP 아이콘 오브젝트는 재사용을 위해 파괴하지 않습니다.
         /// </summary>
         private void ClearMainSlots()
         {
-            if (mainSlot == null)
+            _cachedMainNodes.Clear();
+            _slotIndexByNodeIndex.Clear();
+            _activeMainSlotCount = 0;
+            _nextMainSlotIndex = 0;
+
+            if (mainSlot != null)
+            {
+                for (int i = 0; i < mainSlot.Length; i++)
+                {
+                    GameObject slotObject = mainSlot[i];
+                    if (slotObject == null)
+                    {
+                        continue;
+                    }
+
+                    ApplyMainSlotState(slotObject, ComboHudMainSlotState.Normal);
+                    DeactivateMpIcons(slotObject);
+                    slotObject.SetActive(false);
+                }
+            }
+
+            ClearMainLines();
+        }
+
+        /// <summary>
+        /// 모든 콤보 연결 라인을 비활성화합니다.
+        /// </summary>
+        private void ClearMainLines()
+        {
+            if (mainLine == null)
             {
                 return;
             }
 
-            for (int i = 0; i < mainSlot.Length; i++)
+            for (int i = 0; i < mainLine.Length; i++)
+            {
+                if (mainLine[i] != null)
+                {
+                    mainLine[i].SetActive(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Main 슬롯의 활성 상태에 맞춰 슬롯 사이 연결 라인을 갱신합니다.
+        /// mainLine[i]는 mainSlot[i - 1]과 mainSlot[i] 사이의 라인으로 사용합니다.
+        /// </summary>
+        private void RefreshMainLines()
+        {
+            if (mainLine == null)
+            {
+                return;
+            }
+
+            for (int i = 0; i < mainLine.Length; i++)
+            {
+                GameObject lineObject = mainLine[i];
+                if (lineObject == null)
+                {
+                    continue;
+                }
+
+                bool isActive =
+                    i > 0 &&
+                    mainSlot != null &&
+                    i < mainSlot.Length &&
+                    mainSlot[i - 1] != null &&
+                    mainSlot[i] != null &&
+                    mainSlot[i - 1].activeSelf &&
+                    mainSlot[i].activeSelf;
+
+                lineObject.SetActive(isActive);
+            }
+        }
+
+        /// <summary>
+        /// 현재 콤보 진행 상태에 맞춰 완료 슬롯, 다음 슬롯, 기본 슬롯 표시를 갱신합니다.
+        /// </summary>
+        /// <param name="nextSlotIndex">다음 입력으로 사용할 Main 슬롯 인덱스입니다.</param>
+        private void ApplyMainSlotProgress(int nextSlotIndex)
+        {
+            if (mainSlot == null || _activeMainSlotCount <= 0)
+            {
+                RefreshMainLines();
+                return;
+            }
+
+            _nextMainSlotIndex = Mathf.Clamp(nextSlotIndex, 0, _activeMainSlotCount);
+
+            for (int i = 0; i < _activeMainSlotCount; i++)
             {
                 GameObject slotObject = mainSlot[i];
                 if (slotObject == null)
@@ -414,8 +547,129 @@ namespace GGemCo2DSkill
                     continue;
                 }
 
-                DeactivateMpIcons(slotObject);
-                slotObject.SetActive(false);
+                ComboHudMainSlotState state = ComboHudMainSlotState.Normal;
+                if (i < _nextMainSlotIndex)
+                {
+                    state = ComboHudMainSlotState.Completed;
+                }
+                else if (i == _nextMainSlotIndex)
+                {
+                    state = ComboHudMainSlotState.Next;
+                }
+
+                ApplyMainSlotState(slotObject, state);
+            }
+
+            RefreshMainLines();
+        }
+
+        /// <summary>
+        /// 콤보 노드 인덱스를 HUD Main 슬롯 인덱스로 변환합니다.
+        /// </summary>
+        /// <param name="nodeIndex">변환할 콤보 노드 인덱스입니다.</param>
+        /// <returns>HUD 슬롯 인덱스입니다. 찾지 못하면 -1입니다.</returns>
+        private int ResolveMainSlotIndexByNodeIndex(int nodeIndex)
+        {
+            return _slotIndexByNodeIndex.TryGetValue(nodeIndex, out int slotIndex)
+                ? slotIndex
+                : -1;
+        }
+
+        /// <summary>
+        /// 지정한 Main 슬롯 오브젝트에 배경 이미지와 MP 아이콘 알파 상태를 적용합니다.
+        /// </summary>
+        /// <param name="slotObject">상태를 적용할 슬롯 오브젝트입니다.</param>
+        /// <param name="state">적용할 슬롯 상태입니다.</param>
+        private void ApplyMainSlotState(GameObject slotObject, ComboHudMainSlotState state)
+        {
+            if (slotObject == null)
+            {
+                return;
+            }
+
+            Sprite backgroundSprite = state == ComboHudMainSlotState.Next ? imageBgNext : imageBg;
+            SetSlotBackground(slotObject, backgroundSprite);
+
+            float iconAlpha = state == ComboHudMainSlotState.Completed ? CompletedSlotMpIconAlpha : 1f;
+            SetMpIconAlpha(slotObject, iconAlpha);
+        }
+
+        /// <summary>
+        /// 슬롯 오브젝트에 연결된 Image 컴포넌트의 배경 스프라이트를 변경합니다.
+        /// </summary>
+        /// <param name="slotObject">배경 이미지를 변경할 슬롯 오브젝트입니다.</param>
+        /// <param name="sprite">적용할 배경 스프라이트입니다.</param>
+        private static void SetSlotBackground(GameObject slotObject, Sprite sprite)
+        {
+            if (slotObject == null || sprite == null)
+            {
+                return;
+            }
+
+            if (slotObject.TryGetComponent(out Image image))
+            {
+                image.sprite = sprite;
+            }
+        }
+
+        /// <summary>
+        /// 지정한 슬롯에 생성된 MP 아이콘들의 알파 값을 변경합니다.
+        /// </summary>
+        /// <param name="slotObject">MP 아이콘을 포함한 슬롯 오브젝트입니다.</param>
+        /// <param name="alpha">적용할 알파 값입니다.</param>
+        private void SetMpIconAlpha(GameObject slotObject, float alpha)
+        {
+            if (slotObject == null ||
+                !_mpIconPoolBySlot.TryGetValue(slotObject, out List<GameObject> iconPool))
+            {
+                return;
+            }
+
+            alpha = Mathf.Clamp01(alpha);
+            for (int i = 0; i < iconPool.Count; i++)
+            {
+                GameObject iconObject = iconPool[i];
+                if (iconObject == null)
+                {
+                    continue;
+                }
+
+                SetGraphicAlpha(iconObject, alpha);
+            }
+        }
+
+        /// <summary>
+        /// 지정한 UI 오브젝트와 하위 Graphic 컴포넌트의 알파 값을 변경합니다.
+        /// CanvasGroup이 있으면 CanvasGroup을 우선 사용합니다.
+        /// </summary>
+        /// <param name="target">알파 값을 변경할 대상 오브젝트입니다.</param>
+        /// <param name="alpha">적용할 알파 값입니다.</param>
+        private static void SetGraphicAlpha(GameObject target, float alpha)
+        {
+            if (target == null)
+            {
+                return;
+            }
+
+            alpha = Mathf.Clamp01(alpha);
+            if (target.TryGetComponent(out CanvasGroup canvasGroup))
+            {
+                canvasGroup.alpha = alpha;
+                return;
+            }
+
+            Graphic[] graphics = target.GetComponentsInChildren<Graphic>(true);
+            for (int i = 0; i < graphics.Length; i++)
+            {
+                Graphic graphic = graphics[i];
+                if (graphic == null)
+                {
+                    continue;
+                }
+
+                Color color = graphic.color;
+                color.a = alpha;
+                graphic.color = color;
             }
         }
 
@@ -432,12 +686,14 @@ namespace GGemCo2DSkill
 
             for (int i = 0; i < iconPool.Count; i++)
             {
-                if (iconPool[i] != null)
+                GameObject iconObject = iconPool[i];
+                if (iconObject == null)
                 {
-                    if (iconPool[i].GetComponent<Image>())
-                        iconPool[i].GetComponent<Image>().sprite = imageBg;
-                    iconPool[i].SetActive(false);
+                    continue;
                 }
+
+                SetGraphicAlpha(iconObject, 1f);
+                iconObject.SetActive(false);
             }
         }
 
@@ -469,10 +725,18 @@ namespace GGemCo2DSkill
             int nodeIndex,
             SkillComboNodeType nodeType)
         {
-            // TODO:
-            // - 현재 실행 중인 스킬 슬롯 강조
-            // - nodeType이 Last이면 마무리 스킬 UI 강조
-            // - 다음 입력 가능 상태 표시
+            if (nodeType != SkillComboNodeType.Main)
+            {
+                return;
+            }
+
+            int usedSlotIndex = ResolveMainSlotIndexByNodeIndex(nodeIndex);
+            if (usedSlotIndex < 0)
+            {
+                return;
+            }
+
+            ApplyMainSlotProgress(usedSlotIndex + 1);
         }
 
         /// <summary>
