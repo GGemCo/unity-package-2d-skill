@@ -1,4 +1,4 @@
-﻿using Config;
+using Config;
 using GGemCo2DCore;
 using UnityEngine;
 

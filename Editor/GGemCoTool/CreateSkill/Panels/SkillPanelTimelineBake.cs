@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using GGemCo2DSkill;

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Config;
 using GGemCo2DCore;
 using GGemCo2DSkill;
