@@ -231,6 +231,16 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 현재 장착 상태 기준으로 HUD가 표시할 콤보 정의를 조회합니다.
+        /// </summary>
+        /// <param name="definition">HUD에 표시할 런타임 콤보 정의입니다.</param>
+        /// <returns>사용 가능한 콤보 정의를 찾으면 <see langword="true"/>입니다.</returns>
+        public bool TryGetComboDefinitionForUi(out RuntimeSkillComboDefinition definition)
+        {
+            return TryResolveComboDefinition(out definition, out _);
+        }
+
+        /// <summary>
         /// 현재 콤보 진행 상태를 초기화합니다.
         /// </summary>
         public void ResetCombo()
