@@ -11,6 +11,16 @@ namespace GGemCo2DSkill
     /// </summary>
     public sealed class LaserEventDefinition : ScriptableObject
     {
+        [Header("Actor")]
+        [Tooltip("레이저를 발사할 캐릭터 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        public DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Caster;
+
+        [Tooltip("actorReferenceType이 Actor일 때 사용할 더미 캐릭터 식별 키입니다.")]
+        public string actorKey = "dummy_1";
+
+        [Tooltip("actorKey에 해당하는 더미 캐릭터를 찾지 못했을 때 처리 정책입니다.")]
+        public DummyMissingActorPolicy missingActorPolicy = DummyMissingActorPolicy.Warn;
+
         [Header("Laser (Core Laser Table)")]
         [Tooltip("Core laser 테이블 UID입니다.")]
         public int laserUid;

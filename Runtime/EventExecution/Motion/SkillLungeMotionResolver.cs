@@ -97,6 +97,7 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 대상 컨텍스트입니다.</param>
+        /// <param name="sourceObject">런지를 수행하는 실제 캐릭터 오브젝트입니다.</param>
         /// <param name="def">직선 런지 이벤트 정의입니다.</param>
         /// <param name="fallbackDirection">타겟 해석 실패 시 사용할 기본 방향입니다.</param>
         /// <param name="resolvedDirection">계산된 이동 방향입니다.</param>
@@ -105,6 +106,7 @@ namespace GGemCo2DSkill
         public static bool TryResolveLungeMotion(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
+            GameObject sourceObject,
             LungeEventDefinition def,
             Vector2 fallbackDirection,
             out Vector2 resolvedDirection,
@@ -116,19 +118,19 @@ namespace GGemCo2DSkill
             switch (def.resolveMode)
             {
                 case SkillLungeResolveMode.FixedDistance:
-                    return EnsureFallbackDirection(ctx, def, ref resolvedDirection);
+                    return EnsureFallbackDirection(sourceObject, def.horizontalOnly, ref resolvedDirection);
 
                 case SkillLungeResolveMode.ToLockedTarget:
-                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: false, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
+                    return TryResolveLockedTargetMotion(skill, ctx, sourceObject, def, fallbackDirection, requireWithinResolveRange: false, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
 
                 case SkillLungeResolveMode.ToLockedTargetIfWithinResolveRange:
-                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
+                    return TryResolveLockedTargetMotion(skill, ctx, sourceObject, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: false, out resolvedDirection, out resolvedDistance);
 
                 case SkillLungeResolveMode.ToLockedTargetElseFixedDistance:
-                    return TryResolveLockedTargetMotion(skill, ctx, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: true, out resolvedDirection, out resolvedDistance);
+                    return TryResolveLockedTargetMotion(skill, ctx, sourceObject, def, fallbackDirection, requireWithinResolveRange: true, fallbackToFixedDistance: true, out resolvedDirection, out resolvedDistance);
 
                 default:
-                    return EnsureFallbackDirection(ctx, def, ref resolvedDirection);
+                    return EnsureFallbackDirection(sourceObject, def.horizontalOnly, ref resolvedDirection);
             }
         }
 
@@ -262,6 +264,7 @@ namespace GGemCo2DSkill
         private static bool TryResolveLockedTargetMotion(
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
+            GameObject sourceObject,
             LungeEventDefinition def,
             Vector2 fallbackDirection,
             bool requireWithinResolveRange,
@@ -272,23 +275,23 @@ namespace GGemCo2DSkill
             resolvedDirection = fallbackDirection;
             resolvedDistance = Mathf.Max(0f, def.distance);
 
-            if (ctx.caster == null || ctx.lockedTarget == null)
-                return fallbackToFixedDistance && EnsureFallbackDirection(ctx, def, ref resolvedDirection);
+            if (sourceObject == null || ctx.lockedTarget == null)
+                return fallbackToFixedDistance && EnsureFallbackDirection(sourceObject, def.horizontalOnly, ref resolvedDirection);
 
-            Vector2 delta = ResolveCasterToTargetDelta(ctx.caster.transform.position, ctx.lockedTarget.transform.position, def.horizontalOnly);
+            Vector2 delta = ResolveCasterToTargetDelta(sourceObject.transform.position, ctx.lockedTarget.transform.position, def.horizontalOnly);
             float targetDistance = delta.magnitude;
             float resolveRange = ResolveTargetResolveRange(skill, def);
 
             bool withinResolveRange = !requireWithinResolveRange || resolveRange <= 0f || targetDistance <= resolveRange;
             if (!withinResolveRange)
-                return fallbackToFixedDistance && EnsureFallbackDirection(ctx, def, ref resolvedDirection);
+                return fallbackToFixedDistance && EnsureFallbackDirection(sourceObject, def.horizontalOnly, ref resolvedDirection);
 
             if (targetDistance <= 1e-4f)
             {
                 if (def.targetRelationMode == SkillLungeTargetRelationMode.PassThroughTarget)
                 {
                     resolvedDistance = Mathf.Max(0f, def.passThroughExtraDistance);
-                    return resolvedDistance > 0f && EnsureFallbackDirection(ctx, def, ref resolvedDirection);
+                    return resolvedDistance > 0f && EnsureFallbackDirection(sourceObject, def.horizontalOnly, ref resolvedDirection);
                 }
 
                 resolvedDistance = 0f;
@@ -324,6 +327,49 @@ namespace GGemCo2DSkill
                 default:
                     return Mathf.Max(0f, targetDistance - Mathf.Max(0f, def.stopOffset));
             }
+        }
+
+        /// <summary>
+        /// 직선 런지 실행 주체를 기준으로 기본 방향 벡터를 보정합니다.
+        /// </summary>
+        /// <param name="sourceObject">런지를 수행하는 실제 캐릭터 오브젝트입니다.</param>
+        /// <param name="horizontalOnly">수평 방향만 사용할지 여부입니다.</param>
+        /// <param name="direction">보정할 방향 벡터입니다.</param>
+        /// <returns>방향 벡터를 사용할 수 있으면 <see langword="true"/>입니다.</returns>
+        private static bool EnsureFallbackDirection(GameObject sourceObject, bool horizontalOnly, ref Vector2 direction)
+        {
+            if (horizontalOnly)
+            {
+                if (Mathf.Abs(direction.x) < 1e-4f)
+                {
+                    float sign = 1f;
+                    if (sourceObject != null)
+                    {
+                        sign = Mathf.Sign(sourceObject.transform.localScale.x);
+                        if (Mathf.Approximately(sign, 0f))
+                            sign = 1f;
+                    }
+
+                    direction = new Vector2(sign, 0f);
+                }
+                else
+                {
+                    direction = new Vector2(Mathf.Sign(direction.x), 0f);
+                }
+
+                return true;
+            }
+
+            if (direction.sqrMagnitude <= 1e-6f)
+            {
+                direction = Vector2.right;
+            }
+            else
+            {
+                direction.Normalize();
+            }
+
+            return true;
         }
 
         /// <summary>

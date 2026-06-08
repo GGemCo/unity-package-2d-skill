@@ -13,6 +13,16 @@ namespace GGemCo2DSkillEditor
     [Serializable]
     public sealed class SkillLungeClip : SkillEventClipBase
     {
+        [Header("Actor")]
+        [Tooltip("런지를 수행할 캐릭터 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        [SerializeField] private DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Caster;
+
+        [Tooltip("actorReferenceType이 Actor일 때 사용할 더미 캐릭터 식별 키입니다.")]
+        [SerializeField] private string actorKey = "dummy_1";
+
+        [Tooltip("actorKey에 해당하는 더미 캐릭터를 찾지 못했을 때 처리 정책입니다.")]
+        [SerializeField] private DummyMissingActorPolicy missingActorPolicy = DummyMissingActorPolicy.Warn;
+
         [Header("Motion")]
         [Tooltip("총 이동 거리(월드 단위)입니다. Duration과 함께 실제 체감 속도가 결정됩니다.")]
         [SerializeField] private float distance = 2.5f;
@@ -75,6 +85,21 @@ namespace GGemCo2DSkillEditor
         /// 이 클립이 생성하는 스킬 이벤트 타입입니다.
         /// </summary>
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.Lunge;
+
+        /// <summary>
+        /// 런지를 수행할 캐릭터 참조 방식을 반환합니다.
+        /// </summary>
+        public DummyActorReferenceType ActorReferenceType => actorReferenceType;
+
+        /// <summary>
+        /// 런지를 수행할 더미 캐릭터의 actorKey를 반환합니다.
+        /// </summary>
+        public string ActorKey => actorKey;
+
+        /// <summary>
+        /// 런지 실행 주체를 찾지 못했을 때 사용할 처리 정책을 반환합니다.
+        /// </summary>
+        public DummyMissingActorPolicy MissingActorPolicy => missingActorPolicy;
 
         /// <summary>
         /// 총 이동 거리(월드 단위)입니다.

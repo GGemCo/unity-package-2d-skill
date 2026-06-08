@@ -206,6 +206,9 @@ namespace GGemCo2DSkillEditor
         protected override UnityEngine.Object CreatePayload(SkillLungeClip lunge)
         {
             var def = ScriptableObject.CreateInstance<LungeEventDefinition>();
+            def.actorReferenceType = lunge.ActorReferenceType;
+            def.actorKey = lunge.ActorKey;
+            def.missingActorPolicy = lunge.MissingActorPolicy;
             def.distance = Mathf.Max(0f, lunge.Distance);
             def.durationOverrideSeconds = lunge.DurationOverrideSeconds;
             def.easing = lunge.Easing;
@@ -393,6 +396,9 @@ namespace GGemCo2DSkillEditor
         protected override UnityEngine.Object CreatePayload(SkillLaserClip laser)
         {
             var def = ScriptableObject.CreateInstance<LaserEventDefinition>();
+            def.actorReferenceType = laser.ActorReferenceType;
+            def.actorKey = laser.ActorKey;
+            def.missingActorPolicy = laser.MissingActorPolicy;
             def.laserUid = laser.LaserUid;
             def.damageType = laser.DamageType;
             def.damage = laser.Damage;

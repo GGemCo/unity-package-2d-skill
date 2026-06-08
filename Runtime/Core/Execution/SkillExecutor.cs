@@ -427,10 +427,13 @@ namespace GGemCo2DSkill
             float eventDurationSeconds)
         {
             SkillLungeEventHandler.Handle(
+                this,
                 skill,
                 ctx,
                 payloadObj,
                 eventDurationSeconds,
+                _dummyActors,
+                _casterActorHandle,
                 _arcLungeAnimationController);
         }
 
@@ -469,6 +472,7 @@ namespace GGemCo2DSkill
             Vector3 snapshotGroundPoint)
         {
             SkillLaserEventHandler.Handle(
+                this,
                 run,
                 skill,
                 ctx,
@@ -476,6 +480,8 @@ namespace GGemCo2DSkill
                 snapshotCasterPos,
                 snapshotTargetPos,
                 snapshotGroundPoint,
+                _dummyActors,
+                _casterActorHandle,
                 gameObject,
                 _attackSequence);
         }

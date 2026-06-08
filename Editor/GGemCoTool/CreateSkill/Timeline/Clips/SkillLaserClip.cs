@@ -14,6 +14,16 @@ namespace GGemCo2DSkillEditor
     [Serializable]
     public sealed class SkillLaserClip : SkillEventClipBase
     {
+        [Header("Actor")]
+        [Tooltip("레이저를 발사할 캐릭터 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        [SerializeField] private DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Caster;
+
+        [Tooltip("actorReferenceType이 Actor일 때 사용할 더미 캐릭터 식별 키입니다.")]
+        [SerializeField] private string actorKey = "dummy_1";
+
+        [Tooltip("actorKey에 해당하는 더미 캐릭터를 찾지 못했을 때 처리 정책입니다.")]
+        [SerializeField] private DummyMissingActorPolicy missingActorPolicy = DummyMissingActorPolicy.Warn;
+
         [Header("Laser (Core Laser Table)")]
         [Tooltip("Core laser 테이블 UID입니다.")]
         [SerializeField] private int laserUid = 0;
@@ -146,6 +156,21 @@ namespace GGemCo2DSkillEditor
         /// 이 클립이 표현하는 스킬 이벤트 유형입니다.
         /// </summary>
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.Laser;
+
+        /// <summary>
+        /// 레이저를 발사할 캐릭터 참조 방식을 반환합니다.
+        /// </summary>
+        public DummyActorReferenceType ActorReferenceType => actorReferenceType;
+
+        /// <summary>
+        /// 레이저를 발사할 더미 캐릭터의 actorKey를 반환합니다.
+        /// </summary>
+        public string ActorKey => actorKey;
+
+        /// <summary>
+        /// 레이저 발사 주체를 찾지 못했을 때 사용할 처리 정책을 반환합니다.
+        /// </summary>
+        public DummyMissingActorPolicy MissingActorPolicy => missingActorPolicy;
 
         /// <summary>
         /// 사용할 레이저 정의 UID입니다.

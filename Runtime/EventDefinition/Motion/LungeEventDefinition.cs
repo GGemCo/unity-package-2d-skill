@@ -66,6 +66,16 @@ namespace GGemCo2DSkill
     /// </summary>
     public sealed class LungeEventDefinition : ScriptableObject
     {
+        [Header("Actor")]
+        [Tooltip("런지를 수행할 캐릭터 참조 방식입니다. Caster를 선택하면 actorKey는 무시됩니다.")]
+        public DummyActorReferenceType actorReferenceType = DummyActorReferenceType.Caster;
+
+        [Tooltip("actorReferenceType이 Actor일 때 사용할 더미 캐릭터 식별 키입니다.")]
+        public string actorKey = "dummy_1";
+
+        [Tooltip("actorKey에 해당하는 더미 캐릭터를 찾지 못했을 때 처리 정책입니다.")]
+        public DummyMissingActorPolicy missingActorPolicy = DummyMissingActorPolicy.Warn;
+
         [Header("Motion")]
         [Tooltip("이벤트 구간 동안 이동할 총 거리(월드 단위)입니다.")]
         public float distance = 2.5f;

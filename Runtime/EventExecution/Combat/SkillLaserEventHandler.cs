@@ -1,4 +1,5 @@
 ﻿using Config;
+using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -12,6 +13,7 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 레이저 이벤트 정의를 바탕으로 발사 대상과 좌표를 계산하고 Core 레이저 시스템을 호출합니다.
         /// </summary>
+        /// <param name="runner">더미 Actor 해석 시 캐스터 임시 핸들의 코루틴 정리에 사용할 실행기입니다.</param>
         /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
@@ -19,9 +21,12 @@ namespace GGemCo2DSkill
         /// <param name="snapshotCasterPos">이벤트 스냅샷 시점의 캐스터 위치입니다.</param>
         /// <param name="snapshotTargetPos">이벤트 스냅샷 시점의 타겟 위치입니다.</param>
         /// <param name="snapshotGroundPoint">이벤트 스냅샷 시점의 지면 기준점입니다.</param>
+        /// <param name="dummyActors">현재 스킬 실행에서 actorKey 기준으로 등록된 더미 Actor 레지스트리입니다.</param>
+        /// <param name="casterActorHandle">Caster 참조를 더미 Actor처럼 다룰 때 사용하는 임시 핸들입니다.</param>
         /// <param name="ownerObject">OnHit 부가 효과 조건 확인에 사용할 실행기 GameObject입니다.</param>
         /// <param name="attackSequence">공격 식별자를 발급하고 연계 해제 정책을 저장할 시퀀스입니다.</param>
         public static void Handle(
+            MonoBehaviour runner,
             SkillRun run,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
@@ -29,16 +34,17 @@ namespace GGemCo2DSkill
             Vector3 snapshotCasterPos,
             Vector3 snapshotTargetPos,
             Vector3 snapshotGroundPoint,
+            Dictionary<string, SkillDummyActorHandle> dummyActors,
+            SkillDummyActorHandle casterActorHandle,
             GameObject ownerObject,
             SkillAttackSequence attackSequence)
         {
             if (payloadObj is not LaserEventDefinition def)
                 return;
-            if (ctx.caster == null || attackSequence == null)
+            if (attackSequence == null)
                 return;
 
-            CharacterBase casterChar = ctx.caster.GetComponent<CharacterBase>();
-            if (casterChar == null)
+            if (!TryResolveLaserActor(runner, ctx, def, dummyActors, casterActorHandle, out GameObject sourceObject, out CharacterBase sourceChar))
                 return;
 
             if (TableLoaderManager.Instance == null)
@@ -48,13 +54,15 @@ namespace GGemCo2DSkill
             if (laserInfo == null)
                 return;
 
-            Vector3 casterPos = ctx.caster.transform.position;
+            Vector3 casterPos = sourceObject.transform.position;
             Vector3 targetPos = ctx.lockedTarget != null ? ctx.lockedTarget.transform.position : snapshotTargetPos;
             Vector3 groundPoint = ctx.groundPoint;
+            Vector3 sourceForward = ResolveLaserSourceForward(sourceObject, ctx);
 
             if (def.targetingOverride.enabled && def.targetingOverride.useSnapshotCenter)
             {
-                casterPos = snapshotCasterPos;
+                // 더미 Actor가 발사 주체이면 캐스터 스냅샷 대신 더미의 현재 위치를 유지해야 시작점이 원본 캐스터로 되돌아가지 않습니다.
+                casterPos = sourceObject == ctx.caster ? snapshotCasterPos : sourceObject.transform.position;
                 targetPos = snapshotTargetPos;
                 groundPoint = snapshotGroundPoint;
             }
@@ -73,7 +81,8 @@ namespace GGemCo2DSkill
                 ctx,
                 def,
                 mode,
-                casterChar,
+                sourceForward,
+                sourceChar,
                 casterPos,
                 targetPos,
                 groundPoint,
@@ -118,9 +127,9 @@ namespace GGemCo2DSkill
             var meta = new MetadataLaser(
                 uid: def.laserUid,
                 damageType: ResolveLaserDamageType(skill, def),
-                damage: ResolveLaserDamage(skill, def, ctx.executionOptions, casterChar, targetChar),
+                damage: ResolveLaserDamage(skill, def, ctx.executionOptions, sourceChar, targetChar),
                 target: targetChar,
-                owner: casterChar,
+                owner: sourceChar,
                 scaleMultiplier: def.scaleMultiplier,
                 visualType: def.visualType,
                 visualSprite: def.visualSprite,
@@ -159,16 +168,73 @@ namespace GGemCo2DSkill
                 useCasterFlipStartOffsetX: def.startAnchor == LaserStartAnchor.Caster && def.useCasterFlipStartOffsetX);
 #if UNITY_EDITOR
             RegisterLaserDebugGizmo(
-                casterChar,
+                sourceChar,
                 targetChar,
                 usePosOverride,
                 posOverride,
-                ctx.forward,
+                sourceForward,
                 laserInfo,
                 def,
                 meta);
 #endif
-            casterChar.LaunchLaser(meta);
+            sourceChar.LaunchLaser(meta);
+        }
+
+        /// <summary>
+        /// 레이저 발사 주체 기준의 기본 전방 벡터를 계산합니다.
+        /// </summary>
+        /// <param name="sourceObject">레이저를 발사할 실제 캐릭터 오브젝트입니다.</param>
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <returns>레이저 조준 실패 시 사용할 전방 벡터입니다.</returns>
+        private static Vector3 ResolveLaserSourceForward(GameObject sourceObject, SkillTargetContext ctx)
+        {
+            if (sourceObject == ctx.caster)
+                return ctx.forward;
+
+            Vector2 currentFacing = SkillDirectionResolver.ResolveCurrentFacing2D(sourceObject);
+            return currentFacing.sqrMagnitude > 1e-6f ? (Vector3)currentFacing : Vector3.right;
+        }
+
+        /// <summary>
+        /// 레이저를 실제로 발사할 캐릭터를 Caster 또는 더미 Actor 설정에서 해석합니다.
+        /// </summary>
+        /// <param name="runner">Caster 참조 임시 핸들을 정리할 실행기입니다.</param>
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="dummyActors">현재 스킬 실행에서 생성된 더미 Actor 레지스트리입니다.</param>
+        /// <param name="casterActorHandle">Caster를 Actor 핸들처럼 다루기 위한 임시 핸들입니다.</param>
+        /// <param name="sourceObject">해석된 레이저 발사 오브젝트입니다.</param>
+        /// <param name="sourceChar">해석된 레이저 발사 캐릭터입니다.</param>
+        /// <returns>레이저를 발사할 캐릭터를 찾았으면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveLaserActor(
+            MonoBehaviour runner,
+            SkillTargetContext ctx,
+            LaserEventDefinition def,
+            Dictionary<string, SkillDummyActorHandle> dummyActors,
+            SkillDummyActorHandle casterActorHandle,
+            out GameObject sourceObject,
+            out CharacterBase sourceChar)
+        {
+            sourceObject = null;
+            sourceChar = null;
+
+            // 더미 이벤트와 같은 Actor 참조 유틸리티를 사용해 Caster/Actor 선택 정책과 경고 정책을 공유합니다.
+            if (!SkillDummyActorReferenceUtility.TryResolveActorHandle(
+                    runner,
+                    dummyActors,
+                    casterActorHandle,
+                    ctx,
+                    def.actorReferenceType,
+                    def.actorKey,
+                    def.missingActorPolicy,
+                    out SkillDummyActorHandle handle))
+            {
+                return false;
+            }
+
+            sourceChar = handle.Character;
+            sourceObject = sourceChar != null ? sourceChar.gameObject : null;
+            return sourceObject != null;
         }
 
         /// <summary>
@@ -178,6 +244,7 @@ namespace GGemCo2DSkill
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="def">레이저 이벤트 정의입니다.</param>
         /// <param name="mode">최종 적용할 스킬 타겟팅 모드입니다.</param>
+        /// <param name="sourceForward">레이저 발사 주체 기준의 기본 전방 벡터입니다.</param>
         /// <param name="casterChar">레이저를 발사하는 캐스터 캐릭터입니다.</param>
         /// <param name="casterPos">이벤트 시점에 해석된 캐스터 위치입니다.</param>
         /// <param name="targetPos">이벤트 시점에 해석된 타겟 위치입니다.</param>
@@ -190,6 +257,7 @@ namespace GGemCo2DSkill
             SkillTargetContext ctx,
             LaserEventDefinition def,
             ConfigCommonSkill.SkillTargetingMode mode,
+            Vector3 sourceForward,
             CharacterBase casterChar,
             Vector3 casterPos,
             Vector3 targetPos,
@@ -228,7 +296,7 @@ namespace GGemCo2DSkill
                     break;
 
                 default:
-                    Vector3 fwd = ctx.forward.sqrMagnitude < 1e-6f ? Vector3.right : ctx.forward.normalized;
+                    Vector3 fwd = sourceForward.sqrMagnitude < 1e-6f ? Vector3.right : sourceForward.normalized;
                     float range = SkillRangeResolver.GetPlacementRange(skill);
                     if (def.targetingOverride.enabled && def.targetingOverride.rangeOverride > 0f)
                         range = def.targetingOverride.rangeOverride;

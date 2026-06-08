@@ -1,4 +1,5 @@
 ﻿using GGemCo2DCore;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -11,16 +12,22 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 런지 계열 이벤트 페이로드를 판별하고 직선 또는 아크 런지 실행 흐름으로 위임합니다.
         /// </summary>
+        /// <param name="runner">더미 Actor 해석 시 캐스터 임시 핸들의 코루틴 정리에 사용할 실행기입니다.</param>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">런지 이벤트 페이로드 오브젝트입니다.</param>
         /// <param name="eventDurationSeconds">이벤트 구간에서 계산된 기본 지속 시간입니다.</param>
+        /// <param name="dummyActors">현재 스킬 실행에서 actorKey 기준으로 등록된 더미 Actor 레지스트리입니다.</param>
+        /// <param name="casterActorHandle">Caster 참조를 더미 Actor처럼 다룰 때 사용하는 임시 핸들입니다.</param>
         /// <param name="arcAnimationController">아크 런지 모션 시작 후 단계별 애니메이션을 관리할 컨트롤러입니다.</param>
         public static void Handle(
+            MonoBehaviour runner,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             UnityEngine.Object payloadObj,
             float eventDurationSeconds,
+            Dictionary<string, SkillDummyActorHandle> dummyActors,
+            SkillDummyActorHandle casterActorHandle,
             SkillArcLungeAnimationController arcAnimationController)
         {
             if (payloadObj is ArcLungeEventDefinition arcDef)
@@ -30,26 +37,35 @@ namespace GGemCo2DSkill
             }
 
             if (payloadObj is LungeEventDefinition def)
-                HandleLinearLunge(skill, ctx, def, eventDurationSeconds);
+                HandleLinearLunge(runner, skill, ctx, def, eventDurationSeconds, dummyActors, casterActorHandle);
         }
 
         /// <summary>
         /// 직선 런지 이벤트 정의를 해석하여 코어 모션 컨트롤러에 직선 이동 요청을 전달합니다.
         /// </summary>
+        /// <param name="runner">더미 Actor 해석 시 캐스터 임시 핸들의 코루틴 정리에 사용할 실행기입니다.</param>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="def">직선 런지 이벤트 정의입니다.</param>
         /// <param name="eventDurationSeconds">이벤트 구간에서 계산된 기본 지속 시간입니다.</param>
+        /// <param name="dummyActors">현재 스킬 실행에서 actorKey 기준으로 등록된 더미 Actor 레지스트리입니다.</param>
+        /// <param name="casterActorHandle">Caster 참조를 더미 Actor처럼 다룰 때 사용하는 임시 핸들입니다.</param>
         private static void HandleLinearLunge(
+            MonoBehaviour runner,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             LungeEventDefinition def,
-            float eventDurationSeconds)
+            float eventDurationSeconds,
+            Dictionary<string, SkillDummyActorHandle> dummyActors,
+            SkillDummyActorHandle casterActorHandle)
         {
-            if (def == null || ctx.caster == null)
+            if (def == null)
                 return;
 
-            var motion = ResolveMotionController(ctx.caster);
+            if (!TryResolveLinearLungeActor(runner, ctx, def, dummyActors, casterActorHandle, out GameObject actorObject))
+                return;
+
+            var motion = ResolveMotionController(actorObject);
             if (motion == null)
                 return;
 
@@ -57,12 +73,12 @@ namespace GGemCo2DSkill
             if (duration <= 0f)
                 return;
 
-            Vector2 fallbackDirection = ResolveFallbackDirection(ctx.caster, ctx.forward, def.useSnapshotForward);
-            if (!SkillLungeMotionResolver.TryResolveLungeMotion(skill, ctx, def, fallbackDirection, out var resolvedDirection, out float resolvedDistance))
+            Vector2 fallbackDirection = ResolveFallbackDirection(actorObject, ctx.forward, def.useSnapshotForward);
+            if (!SkillLungeMotionResolver.TryResolveLungeMotion(skill, ctx, actorObject, def, fallbackDirection, out var resolvedDirection, out float resolvedDistance))
                 return;
 
-            resolvedDirection = ApplyDirectionPolicy(ctx.caster, resolvedDirection, def.invertForward, def.horizontalOnly);
-            resolvedDistance = ApplyScreenClampDistancePolicy(def, ctx.caster, resolvedDirection, resolvedDistance);
+            resolvedDirection = ApplyDirectionPolicy(actorObject, resolvedDirection, def.invertForward, def.horizontalOnly);
+            resolvedDistance = ApplyScreenClampDistancePolicy(def, actorObject, resolvedDirection, resolvedDistance);
             if (resolvedDistance <= 0f)
                 return;
 
@@ -81,6 +97,53 @@ namespace GGemCo2DSkill
                 collisionTarget: SkillLungeMotionResolver.ResolveMotionCollisionTarget(ctx, def));
 
             motion.TryStartMotion(in req);
+        }
+
+        /// <summary>
+        /// 직선 런지를 실제로 수행할 캐릭터 오브젝트를 Caster 또는 더미 Actor 설정에서 해석합니다.
+        /// </summary>
+        /// <param name="runner">Caster 참조 임시 핸들을 정리할 실행기입니다.</param>
+        /// <param name="ctx">현재 스킬 실행 컨텍스트입니다.</param>
+        /// <param name="def">직선 런지 이벤트 정의입니다.</param>
+        /// <param name="dummyActors">현재 스킬 실행에서 생성된 더미 Actor 레지스트리입니다.</param>
+        /// <param name="casterActorHandle">Caster를 Actor 핸들처럼 다루기 위한 임시 핸들입니다.</param>
+        /// <param name="actorObject">해석된 런지 수행 오브젝트입니다.</param>
+        /// <returns>런지를 수행할 캐릭터를 찾았으면 <see langword="true"/>입니다.</returns>
+        private static bool TryResolveLinearLungeActor(
+            MonoBehaviour runner,
+            SkillTargetContext ctx,
+            LungeEventDefinition def,
+            Dictionary<string, SkillDummyActorHandle> dummyActors,
+            SkillDummyActorHandle casterActorHandle,
+            out GameObject actorObject)
+        {
+            actorObject = null;
+
+            if (def.actorReferenceType == DummyActorReferenceType.Caster)
+            {
+                actorObject = ctx.caster;
+                if (actorObject == null && def.missingActorPolicy == DummyMissingActorPolicy.Warn)
+                    Debug.LogWarning("[SkillExecutor] Lunge actor is Caster, but caster is null.");
+
+                return actorObject != null;
+            }
+
+            // 더미 Actor 선택 시에는 기존 더미 이벤트와 같은 조회/경고 정책을 사용합니다.
+            if (!SkillDummyActorReferenceUtility.TryResolveActorHandle(
+                    runner,
+                    dummyActors,
+                    casterActorHandle,
+                    ctx,
+                    def.actorReferenceType,
+                    def.actorKey,
+                    def.missingActorPolicy,
+                    out SkillDummyActorHandle handle))
+            {
+                return false;
+            }
+
+            actorObject = handle.Character != null ? handle.Character.gameObject : null;
+            return actorObject != null;
         }
 
         /// <summary>
