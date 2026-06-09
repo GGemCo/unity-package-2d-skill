@@ -321,7 +321,7 @@ namespace GGemCo2DSkill
                     // CalculateManager가 StatStrength 변수로 공식에 별도 전달합니다.
                     long attack = useDamageFormula
                         ? System.Math.Max(0L, caster.TotalBaseAtk.Value)
-                        : System.Math.Max(0L, caster.TotalAtk.Value);
+                        : System.Math.Max(0L, caster.ResolvedAtk.Value);
                     if (attack <= 0L)
                         return 0d;
 
