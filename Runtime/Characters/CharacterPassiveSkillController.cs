@@ -15,6 +15,7 @@ namespace GGemCo2DSkill
     public class CharacterPassiveSkillController : MonoBehaviour
     {
         private CharacterBase _character;
+        private PassiveFormulaVariableProvider _formulaVariableProvider;
         private readonly HashSet<int> _appliedAffects = new();
         private readonly HashSet<ConfigCommon.DamageType> _suppressedOnHitElementGaugeTypes = new();
         private bool _suppressAllOnHitElementGauge;
@@ -37,6 +38,7 @@ namespace GGemCo2DSkill
         private void Awake()
         {
             _character = GetComponent<CharacterBase>();
+            _formulaVariableProvider = GetComponent<PassiveFormulaVariableProvider>();
             if (_character == null)
             {
                 Debug.LogError($"{nameof(CharacterPassiveSkillController)} requires {nameof(CharacterBase)}.");
@@ -186,6 +188,7 @@ namespace GGemCo2DSkill
             var flat = new Dictionary<string, int>(32);
             var percent = new Dictionary<string, float>(32);
             var desiredAffects = new HashSet<int>();
+            var formulaVariables = new List<StruckTableSkillPassiveOption>(8);
 
             var tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
             var tableOption = TableLoaderManagerSkill.Instance.TableSkillPassiveOption;
@@ -225,6 +228,10 @@ namespace GGemCo2DSkill
                         case SkillOptionKind.SuppressOnHitElementGauge:
                             AccumulateOnHitElementGaugeSuppression(op);
                             break;
+
+                        case SkillOptionKind.FormulaVariable:
+                            AccumulateFormulaVariable(formulaVariables, op);
+                            break;
                     }
                 }
             }
@@ -232,6 +239,7 @@ namespace GGemCo2DSkill
             // 3) modifier 적용
             _character.SetPassiveSkillModifiers(flat, percent, recalculate: false);
             SyncAffects(desiredAffects);
+            SyncFormulaVariables(formulaVariables);
             _character.RecalculateStats();
 
             // 4) 패시브 임시 HP 최대치 동기화
@@ -293,6 +301,7 @@ namespace GGemCo2DSkill
         {
             _suppressAllOnHitElementGauge = false;
             _suppressedOnHitElementGaugeTypes.Clear();
+            _formulaVariableProvider?.ClearVariables();
         }
 
         /// <summary>
@@ -330,6 +339,90 @@ namespace GGemCo2DSkill
 
             statId = normalizedStatId;
             return true;
+        }
+
+
+        /// <summary>
+        /// 패시브 옵션 한 줄을 공식 변수 적용 목록에 추가합니다.
+        /// </summary>
+        /// <param name="formulaVariables">공식 변수 옵션을 임시로 누적할 목록입니다.</param>
+        /// <param name="option">패시브 옵션 테이블 행입니다.</param>
+        /// <remarks>
+        /// FormulaVariable 옵션은 CharacterStat에 반영하지 않고, 데미지 공식 계산 직전 Provider를 통해서만 주입합니다.
+        /// </remarks>
+        private static void AccumulateFormulaVariable(
+            List<StruckTableSkillPassiveOption> formulaVariables,
+            StruckTableSkillPassiveOption option)
+        {
+            if (formulaVariables == null || option == null || option.Kind != SkillOptionKind.FormulaVariable)
+            {
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(option.FormulaVariableId))
+            {
+                return;
+            }
+
+            formulaVariables.Add(option);
+        }
+
+        /// <summary>
+        /// 패시브 공식 변수 Provider에 현재 장착 패시브의 공식 변수를 전체 교체 방식으로 반영합니다.
+        /// </summary>
+        /// <param name="formulaVariables">현재 장착 패시브에서 계산된 공식 변수 옵션 목록입니다.</param>
+        /// <remarks>
+        /// 패시브는 장착 목록을 기준으로 전체 리빌드되므로, 기존 값을 모두 제거한 뒤 현재 값만 다시 등록합니다.
+        /// </remarks>
+        private void SyncFormulaVariables(IReadOnlyList<StruckTableSkillPassiveOption> formulaVariables)
+        {
+            if (formulaVariables == null || formulaVariables.Count == 0)
+            {
+                _formulaVariableProvider?.ClearVariables();
+                return;
+            }
+
+            PassiveFormulaVariableProvider provider = EnsureFormulaVariableProvider();
+            if (provider == null)
+            {
+                return;
+            }
+
+            provider.ClearVariables();
+            for (int i = 0; i < formulaVariables.Count; i++)
+            {
+                StruckTableSkillPassiveOption option = formulaVariables[i];
+                if (option == null || string.IsNullOrWhiteSpace(option.FormulaVariableId))
+                {
+                    continue;
+                }
+
+                provider.AddVariable(
+                    option.FormulaVariableId,
+                    option.FormulaVariableValue,
+                    option.FormulaVariableValueType,
+                    option.FormulaVariableOperation);
+            }
+        }
+
+        /// <summary>
+        /// 공식 변수 Provider를 반환하고, 필요하면 현재 캐릭터 오브젝트에 자동 부착합니다.
+        /// </summary>
+        /// <returns>공식 변수 Provider 컴포넌트입니다.</returns>
+        private PassiveFormulaVariableProvider EnsureFormulaVariableProvider()
+        {
+            if (_formulaVariableProvider != null)
+            {
+                return _formulaVariableProvider;
+            }
+
+            _formulaVariableProvider = GetComponent<PassiveFormulaVariableProvider>();
+            if (_formulaVariableProvider == null)
+            {
+                _formulaVariableProvider = gameObject.AddComponent<PassiveFormulaVariableProvider>();
+            }
+
+            return _formulaVariableProvider;
         }
 
         /// <summary>

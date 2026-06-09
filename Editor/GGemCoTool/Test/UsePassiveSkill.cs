@@ -226,6 +226,7 @@ namespace GGemCo2DSkillEditor
                 }
 
                 var result = new StatPreviewResult();
+                var formulaVariables = new List<StruckTableSkillPassiveOption>();
                 
                 for (int i = 0; i < options.Count; i++)
                 {
@@ -241,6 +242,13 @@ namespace GGemCo2DSkillEditor
 
                         case SkillOptionKind.Affect:
                             StatModifierHelper.AccumulateAffect(result.AffectUids, op.TargetId);
+                            break;
+
+                        case SkillOptionKind.FormulaVariable:
+                            if (!string.IsNullOrWhiteSpace(op.FormulaVariableId))
+                            {
+                                formulaVariables.Add(op);
+                            }
                             break;
                     }
                 }
@@ -271,6 +279,22 @@ namespace GGemCo2DSkillEditor
                 {
                     for (int i = 0; i < result.AffectUids.Count; i++)
                         EditorGUILayout.LabelField($"- {result.AffectUids[i]}");
+                }
+
+                EditorGUILayout.Space(6);
+                EditorGUILayout.LabelField("Formula Variable", EditorStyles.boldLabel);
+                if (formulaVariables.Count == 0)
+                {
+                    EditorGUILayout.LabelField("- (없음)");
+                }
+                else
+                {
+                    for (int i = 0; i < formulaVariables.Count; i++)
+                    {
+                        StruckTableSkillPassiveOption option = formulaVariables[i];
+                        EditorGUILayout.LabelField(
+                            $"- {option.FormulaVariableId}: {option.FormulaVariableOperation} {option.FormulaVariableValue:0.###} ({option.FormulaVariableValueType})");
+                    }
                 }
                 
                 EditorGUILayout.EndScrollView();
