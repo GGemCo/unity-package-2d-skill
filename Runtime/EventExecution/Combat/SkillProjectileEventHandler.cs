@@ -82,6 +82,11 @@ namespace GGemCo2DSkill
             }
 
             int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
+            ProjectileDamageFormulaContext damageFormulaContext = BuildProjectileDamageFormulaContext(
+                skill,
+                def,
+                ctx.executionOptions,
+                casterChar);
 
             var meta = new MetadataProjectile(
                 uid: def.projectileUid,
@@ -122,9 +127,46 @@ namespace GGemCo2DSkill
                 environmentHitLayerMaskOverride: def.customEnvironmentHitLayerMask.value,
                 hitVfxPositionPolicy: def.hitVfxPositionPolicy,
                 hitVfxOffset: def.hitVfxOffset,
-                hitVfxHitAreaNormalized: def.hitVfxHitAreaNormalized);
+                hitVfxHitAreaNormalized: def.hitVfxHitAreaNormalized,
+                damageFormulaContext: damageFormulaContext);
 
             casterChar.LaunchProjectile(meta);
+        }
+
+        /// <summary>
+        /// 프로젝타일이 실제 대상에 적중한 시점에 다시 계산할 데미지 공식 컨텍스트를 생성합니다.
+        /// </summary>
+        /// <remarks>
+        /// 발사 시점에는 실제 충돌 대상이 확정되지 않았으므로, 최종 데미지 대신 공식 입력값만 스냅샷으로 보관합니다.
+        /// 이후 Core 프로젝타일 충돌 처리에서 실제 target을 넣어 <see cref="CalculateManager.CalculateSkillDamage"/>를 호출합니다.
+        /// </remarks>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">프로젝타일 이벤트 정의입니다.</param>
+        /// <param name="options">이번 스킬 실행에 적용된 옵션 스냅샷입니다.</param>
+        /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <returns>Core 프로젝타일 시스템에 전달할 적중 시점 재계산 컨텍스트입니다.</returns>
+        private static ProjectileDamageFormulaContext BuildProjectileDamageFormulaContext(
+            RuntimeSkillDefinition skill,
+            ProjectileEventDefinition def,
+            in SkillExecutionOptions options,
+            CharacterBase caster)
+        {
+            bool useDamageFormula = skill != null && !string.IsNullOrWhiteSpace(skill.DamageFormulaKey);
+            double baseDamage = ResolveBaseProjectileDamage(skill, def, caster, useDamageFormula);
+            double skillDamageRate = ResolveProjectileDamageRate(skill, def);
+            float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
+            float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
+            ConfigCommon.DamageType damageType = ResolveProjectileDamageType(skill, def);
+
+            return new ProjectileDamageFormulaContext(
+                skill != null ? skill.DamageFormulaKey : string.Empty,
+                baseDamage,
+                skillDamageRate,
+                eventMultiplier,
+                optionMultiplier,
+                0d,
+                damageType,
+                false);
         }
 
         /// <summary>
