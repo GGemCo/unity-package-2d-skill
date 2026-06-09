@@ -20,6 +20,7 @@ namespace GGemCo2DSkill
         private readonly Rigidbody2D _casterRigidbody2D;
         private readonly SkillRunChargeController _chargeController;
         private readonly SkillRunPlaybackController _playbackController;
+        private readonly List<SkillBundleRuntimeEntry> _additionalBundleEntries;
 
         private Vector3 _snapshotCasterPos;
         private Vector3 _snapshotTargetPos;
@@ -64,10 +65,33 @@ namespace GGemCo2DSkill
         public SkillRun(SkillExecutor owner, RuntimeSkillDefinition skill, SkillTargetContext ctx,
             ICharacterAnimationController animController,
             ICharacterActionController actionController)
+            : this(owner, skill, ctx, animController, actionController, null)
+        {
+        }
+
+        /// <summary>
+        /// 스킬 1회 실행 상태를 생성하고, 대표 스킬 애니메이션과 함께 실행할 추가 스킬 시퀀스를 연결합니다.
+        /// </summary>
+        /// <param name="owner">스킬 실행을 소유하고 이벤트 실행과 종료 알림을 담당하는 실행기입니다.</param>
+        /// <param name="skill">대표 애니메이션과 기본 실행 상태를 담당할 스킬 정의입니다.</param>
+        /// <param name="ctx">대표 스킬 실행 컨텍스트입니다.</param>
+        /// <param name="animController">스킬 단계별 애니메이션을 재생할 컨트롤러입니다.</param>
+        /// <param name="actionController">스킬 사용 중 캐릭터 액션 상태를 고정할 컨트롤러입니다.</param>
+        /// <param name="additionalBundleEntries">대표 스킬과 동시에 이벤트를 실행할 추가 스킬 목록입니다.</param>
+        internal SkillRun(
+            SkillExecutor owner,
+            RuntimeSkillDefinition skill,
+            SkillTargetContext ctx,
+            ICharacterAnimationController animController,
+            ICharacterActionController actionController,
+            IReadOnlyList<SkillBundleRuntimeEntry> additionalBundleEntries)
         {
             _owner = owner;
             _skill = skill;
             _ctx = ctx;
+            _additionalBundleEntries = additionalBundleEntries != null
+                ? new List<SkillBundleRuntimeEntry>(additionalBundleEntries)
+                : new List<SkillBundleRuntimeEntry>();
             _motionController = _ctx.caster != null ? _ctx.caster.GetComponentInParent<ICharacterMotionController>() : null;
             _casterRigidbody2D = _ctx.caster != null ? _ctx.caster.GetComponentInParent<Rigidbody2D>() : null;
             _chargeController = new SkillRunChargeController(
@@ -128,7 +152,8 @@ namespace GGemCo2DSkill
         public void Start()
         {
             SnapshotContext();
-            ApplyStartExecutionOptions();
+            ApplyStartExecutionOptions(_skill, _ctx);
+            ApplyAdditionalStartExecutionOptions();
 
             _playbackController.ApplyInitialActionState(HasCharge);
             _isLoading = true;
@@ -138,25 +163,42 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 스킬 시작 시점에 고정된 실행 옵션 중 즉시 적용해야 하는 효과를 처리합니다.
         /// </summary>
-        private void ApplyStartExecutionOptions()
+        /// <param name="skill">실행 옵션의 기본 source key를 제공하는 스킬 정의입니다.</param>
+        /// <param name="context">즉시 적용 옵션을 포함한 실행 컨텍스트입니다.</param>
+        private void ApplyStartExecutionOptions(RuntimeSkillDefinition skill, in SkillTargetContext context)
         {
-            if (_ctx.executionOptions.RuntimeTempHpOnStart <= 0L || _ctx.caster == null)
+            if (skill == null || context.executionOptions.RuntimeTempHpOnStart <= 0L || context.caster == null)
                 return;
 
             CharacterBase targetCharacter =
-                _ctx.caster.GetComponent<CharacterBase>() ??
-                _ctx.caster.GetComponentInParent<CharacterBase>();
+                context.caster.GetComponent<CharacterBase>() ??
+                context.caster.GetComponentInParent<CharacterBase>();
             if (targetCharacter == null)
                 return;
 
-            int sourceKey = _ctx.executionOptions.RuntimeTempHpSourceKeyOverride != 0
-                ? _ctx.executionOptions.RuntimeTempHpSourceKeyOverride
-                : SkillUid;
+            int sourceKey = context.executionOptions.RuntimeTempHpSourceKeyOverride != 0
+                ? context.executionOptions.RuntimeTempHpSourceKeyOverride
+                : skill.Uid;
 
             targetCharacter.SetRuntimeBonusHpTemp(
                 sourceKey,
-                _ctx.executionOptions.RuntimeTempHpOnStart,
+                context.executionOptions.RuntimeTempHpOnStart,
                 fillToMax: true);
+        }
+
+        /// <summary>
+        /// 묶음 실행에 포함된 추가 스킬의 시작 즉시 실행 옵션을 적용합니다.
+        /// </summary>
+        private void ApplyAdditionalStartExecutionOptions()
+        {
+            if (_additionalBundleEntries == null)
+                return;
+
+            for (int i = 0; i < _additionalBundleEntries.Count; i++)
+            {
+                SkillBundleRuntimeEntry entry = _additionalBundleEntries[i];
+                ApplyStartExecutionOptions(entry.Skill, entry.Context);
+            }
         }
 
         /// <summary>
@@ -181,26 +223,9 @@ namespace GGemCo2DSkill
                     return;
                 }
 
-                SkillRuntimeSequence sequence = null;
-                if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Monster)
-                {
-                    sequence = await AddressableLoaderSkillRuntimeSequenceMonster.LoadAsyncMonster(runtimeSequenceKey);
-                }
-                else if (_skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Player)
-                {
-                    // 플레이어 시퀀스는 시작 로딩에서 제외될 수 있으므로,
-                    // 실제 스킬 사용 시점에 필요한 키만 지연 로드합니다.
-                    var runtimeSequenceLoader = AddressableLoaderSkillRuntimeSequencePlayer.Instance;
-                    if (runtimeSequenceLoader == null)
-                    {
-                        runtimeSequenceLoader = new GameObject(nameof(AddressableLoaderSkillRuntimeSequencePlayer))
-                            .AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
-                    }
-
-                    sequence = await runtimeSequenceLoader.LoadByKeyAsync(runtimeSequenceKey);
-                }
-
+                SkillRuntimeSequence sequence = await LoadRuntimeSequenceAsync(_skill, runtimeSequenceKey);
                 _playbackController.SetSequence(sequence);
+                _playbackController.SetAdditionalSequences(await LoadAdditionalBundleSequencesAsync());
 
             }
             catch (Exception e)
@@ -213,6 +238,72 @@ namespace GGemCo2DSkill
             {
                 _isLoading = false;
             }
+        }
+
+
+        /// <summary>
+        /// 스킬 소유자 타입에 맞는 RuntimeSequence를 로드합니다.
+        /// </summary>
+        /// <param name="skill">시퀀스를 로드할 스킬 정의입니다.</param>
+        /// <param name="runtimeSequenceKey">Addressables RuntimeSequence 키입니다.</param>
+        /// <returns>로드된 RuntimeSequence입니다.</returns>
+        private static async Task<SkillRuntimeSequence> LoadRuntimeSequenceAsync(
+            RuntimeSkillDefinition skill,
+            string runtimeSequenceKey)
+        {
+            if (skill == null || string.IsNullOrEmpty(runtimeSequenceKey))
+                return null;
+
+            if (skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Monster)
+            {
+                return await AddressableLoaderSkillRuntimeSequenceMonster.LoadAsyncMonster(runtimeSequenceKey);
+            }
+
+            if (skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Player)
+            {
+                // 플레이어 시퀀스는 시작 로딩에서 제외될 수 있으므로,
+                // 실제 스킬 사용 시점에 필요한 키만 지연 로드합니다.
+                var runtimeSequenceLoader = AddressableLoaderSkillRuntimeSequencePlayer.Instance;
+                if (runtimeSequenceLoader == null)
+                {
+                    runtimeSequenceLoader = new GameObject(nameof(AddressableLoaderSkillRuntimeSequencePlayer))
+                        .AddComponent<AddressableLoaderSkillRuntimeSequencePlayer>();
+                }
+
+                return await runtimeSequenceLoader.LoadByKeyAsync(runtimeSequenceKey);
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// 묶음 실행에 포함된 추가 스킬들의 RuntimeSequence를 로드합니다.
+        /// </summary>
+        /// <returns>추가 스킬 재생 상태 목록입니다.</returns>
+        private async Task<List<SkillRunPlaybackSequence>> LoadAdditionalBundleSequencesAsync()
+        {
+            var sequences = new List<SkillRunPlaybackSequence>();
+            if (_additionalBundleEntries == null || _additionalBundleEntries.Count == 0)
+                return sequences;
+
+            for (int i = 0; i < _additionalBundleEntries.Count; i++)
+            {
+                SkillBundleRuntimeEntry entry = _additionalBundleEntries[i];
+                RuntimeSkillDefinition skill = entry.Skill;
+                if (skill == null)
+                    continue;
+
+                string key = skill.OwnerType == ConfigCommonSkill.SkillOwnerType.Monster
+                    ? ConfigAddressableKeySkill.GetRuntimeSequenceKeyMonster(skill.Uid)
+                    : ConfigAddressableKeySkill.GetRuntimeSequenceKeyPlayer(skill.Uid);
+                SkillRuntimeSequence sequence = string.IsNullOrEmpty(key)
+                    ? null
+                    : await LoadRuntimeSequenceAsync(skill, key);
+
+                sequences.Add(new SkillRunPlaybackSequence(skill, entry.Context, sequence));
+            }
+
+            return sequences;
         }
 
         /// <summary>

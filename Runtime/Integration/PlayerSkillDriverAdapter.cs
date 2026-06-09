@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
@@ -11,7 +11,7 @@ namespace GGemCo2DSkill
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier
+    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, ICharacterSkillBundleDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier
     {
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
@@ -111,17 +111,10 @@ namespace GGemCo2DSkill
                 return SkillUseResult.Fail(SkillUseFailReason.InvalidDefinition);
 
             // LockOnGuaranteedHit 모드는 잠금 대상이 반드시 필요합니다.
-            var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
-            if (mode == ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit && request.LockedTarget == null)
+            if (RequiresLockedTarget(skill) && request.LockedTarget == null)
                 return SkillUseResult.Fail(SkillUseFailReason.NoTarget);
 
-            var ctx = new SkillTargetContext(
-                caster: gameObject,
-                lockedTarget: request.LockedTarget != null ? request.LockedTarget.gameObject : null,
-                groundPoint: request.GroundPoint,
-                forward: new Vector3(request.Forward.x, request.Forward.y, 0f),
-                executionOptions: ResolveExecutionOptions(skill, request.ExecutionOptions)
-            );
+            SkillTargetContext ctx = BuildSkillTargetContext(skill, request);
 
             if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, ctx))
                 return SkillUseResult.Fail(SkillUseFailReason.OutOfRange);
@@ -159,6 +152,158 @@ namespace GGemCo2DSkill
             _chainConsumed = false;
 
             return SkillUseResult.Started;
+        }
+
+
+        /// <summary>
+        /// 여러 플레이어 스킬을 하나의 대표 애니메이션으로 묶어 실행합니다.
+        /// </summary>
+        /// <param name="request">묶음 실행에 포함할 스킬과 공통 타겟팅 정보입니다.</param>
+        /// <returns>묶음 실행이 시작되면 <see cref="SkillUseResult.Started"/>입니다.</returns>
+        public SkillUseResult TryUseSkillBundle(in SkillBundleUseRequest request)
+        {
+            if (request.Request.Source != ConfigCommon.SkillTableSource.Player)
+                return SkillUseResult.Fail(SkillUseFailReason.InvalidSource);
+
+            if (_executor == null || request.Entries == null || request.Entries.Count == 0)
+                return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
+
+            if (_character != null && (_character.IsStatusDead() || _character.IsDontControl()))
+                return SkillUseResult.Fail(SkillUseFailReason.ControlLocked);
+
+            if (_executor.IsBusy)
+                return SkillUseResult.Fail(SkillUseFailReason.Busy);
+
+            var runtimeEntries = new List<SkillBundleRuntimeEntry>();
+            int totalNeedMp = 0;
+            for (int i = 0; i < request.Entries.Count; i++)
+            {
+                SkillBundleSkillEntry entry = request.Entries[i];
+                if (entry.SkillUid <= 0)
+                    return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
+
+                if (_cooldownReadyAt.TryGetValue(entry.SkillUid, out float readyAt) && Time.time < readyAt)
+                    return SkillUseResult.Fail(SkillUseFailReason.Cooldown);
+
+                if (!SkillDefinitionResolver.TryResolve(entry.SkillUid, ConfigCommon.SkillTableSource.Player, out var skill) || skill == null)
+                    return SkillUseResult.Fail(SkillUseFailReason.InvalidDefinition);
+
+                SkillExecutionOptions executionOptions = request.Request.ExecutionOptions.Combine(entry.ExecutionOptions);
+                SkillTargetContext context = BuildSkillTargetContext(skill, request.Request.WithExecutionOptions(executionOptions));
+
+                if (RequiresLockedTarget(skill) && request.Request.LockedTarget == null)
+                    return SkillUseResult.Fail(SkillUseFailReason.NoTarget);
+
+                if (!SkillRangeResolver.IsWithinCastRange(skill, gameObject, context))
+                    return SkillUseResult.Fail(SkillUseFailReason.OutOfRange);
+
+                totalNeedMp += Mathf.Max(0, skill.NeedMp);
+                runtimeEntries.Add(new SkillBundleRuntimeEntry(skill, context));
+            }
+
+            if (!HasEnoughMp(totalNeedMp))
+                return SkillUseResult.Fail(SkillUseFailReason.InsufficientMp);
+
+            int resolvedPrimarySkillUid = ResolvePrimarySkillUid(runtimeEntries, request.PrimarySkillUid);
+            if (resolvedPrimarySkillUid <= 0)
+                return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
+
+            _skillStartActionCanceler?.CancelActionsOnSkillStart();
+
+            bool started = _executor.TryUseBundle(runtimeEntries, resolvedPrimarySkillUid);
+            if (!started)
+                return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
+
+            SpendMp(totalNeedMp);
+            ApplyBundleCooldowns(runtimeEntries);
+
+            _currentRunningSkillUid = resolvedPrimarySkillUid;
+            _chainUnlockedByConfirmedDamage = false;
+            _chainConsumed = false;
+
+            return SkillUseResult.Started;
+        }
+
+
+        /// <summary>
+        /// 요청된 대표 스킬 UID가 묶음에 포함되어 있는지 확인하고, 없으면 첫 번째 유효 스킬을 대표로 사용합니다.
+        /// </summary>
+        /// <param name="runtimeEntries">검증된 묶음 실행 항목입니다.</param>
+        /// <param name="requestedPrimarySkillUid">요청된 대표 스킬 UID입니다.</param>
+        /// <returns>실제로 사용할 대표 스킬 UID입니다.</returns>
+        private static int ResolvePrimarySkillUid(
+            IReadOnlyList<SkillBundleRuntimeEntry> runtimeEntries,
+            int requestedPrimarySkillUid)
+        {
+            if (runtimeEntries == null || runtimeEntries.Count == 0)
+                return 0;
+
+            for (int i = 0; i < runtimeEntries.Count; i++)
+            {
+                RuntimeSkillDefinition skill = runtimeEntries[i].Skill;
+                if (skill != null && skill.Uid == requestedPrimarySkillUid)
+                    return skill.Uid;
+            }
+
+            for (int i = 0; i < runtimeEntries.Count; i++)
+            {
+                RuntimeSkillDefinition skill = runtimeEntries[i].Skill;
+                if (skill != null)
+                    return skill.Uid;
+            }
+
+            return 0;
+        }
+
+        /// <summary>
+        /// 스킬 정의와 요청 정보를 실제 실행 컨텍스트로 변환합니다.
+        /// </summary>
+        /// <param name="skill">실행할 스킬 정의입니다.</param>
+        /// <param name="request">타겟팅 요청입니다.</param>
+        /// <returns>SkillExecutor에 전달할 실행 컨텍스트입니다.</returns>
+        private SkillTargetContext BuildSkillTargetContext(RuntimeSkillDefinition skill, in SkillDriverRequest request)
+        {
+            return new SkillTargetContext(
+                caster: gameObject,
+                lockedTarget: request.LockedTarget != null ? request.LockedTarget.gameObject : null,
+                groundPoint: request.GroundPoint,
+                forward: new Vector3(request.Forward.x, request.Forward.y, 0f),
+                executionOptions: ResolveExecutionOptions(skill, request.ExecutionOptions));
+        }
+
+        /// <summary>
+        /// 스킬이 락온 대상을 반드시 필요로 하는지 확인합니다.
+        /// </summary>
+        /// <param name="skill">검사할 스킬 정의입니다.</param>
+        /// <returns>락온 대상이 필요하면 <see langword="true"/>입니다.</returns>
+        private static bool RequiresLockedTarget(RuntimeSkillDefinition skill)
+        {
+            if (skill == null)
+                return false;
+
+            var mode = (ConfigCommonSkill.SkillTargetingMode)Mathf.Clamp((int)skill.TargetingMode, 0, int.MaxValue);
+            return mode == ConfigCommonSkill.SkillTargetingMode.LockOnGuaranteedHit;
+        }
+
+        /// <summary>
+        /// 묶음 실행에 포함된 모든 스킬에 쿨다운을 적용합니다.
+        /// </summary>
+        /// <param name="runtimeEntries">실행을 시작한 스킬 목록입니다.</param>
+        private void ApplyBundleCooldowns(IReadOnlyList<SkillBundleRuntimeEntry> runtimeEntries)
+        {
+            if (runtimeEntries == null)
+                return;
+
+            for (int i = 0; i < runtimeEntries.Count; i++)
+            {
+                RuntimeSkillDefinition skill = runtimeEntries[i].Skill;
+                if (skill == null)
+                    continue;
+
+                float cd = Mathf.Max(0f, skill.CoolTime);
+                if (cd > 0f)
+                    _cooldownReadyAt[skill.Uid] = Time.time + cd;
+            }
         }
 
         /// <summary>
@@ -222,10 +367,23 @@ namespace GGemCo2DSkill
             if (skill == null || skill.NeedMp <= 0)
                 return true;
 
+            return HasEnoughMp(skill.NeedMp);
+        }
+
+        /// <summary>
+        /// 지정한 MP 합산 비용을 현재 캐릭터가 지불할 수 있는지 확인합니다.
+        /// </summary>
+        /// <param name="needMp">필요 MP 합계입니다.</param>
+        /// <returns>MP가 충분하면 <see langword="true"/>입니다.</returns>
+        private bool HasEnoughMp(int needMp)
+        {
+            if (needMp <= 0)
+                return true;
+
             if (_character == null)
                 return true;
 
-            return _character.CheckNeedMp(skill.NeedMp);
+            return _character.CheckNeedMp(needMp);
         }
 
         private void SpendMp(RuntimeSkillDefinition skill)
@@ -233,7 +391,19 @@ namespace GGemCo2DSkill
             if (skill == null || skill.NeedMp <= 0)
                 return;
 
-            _character?.MinusMp(skill.NeedMp);
+            SpendMp(skill.NeedMp);
+        }
+
+        /// <summary>
+        /// 지정한 MP 합산 비용을 한 번만 차감합니다.
+        /// </summary>
+        /// <param name="needMp">차감할 MP 합계입니다.</param>
+        private void SpendMp(int needMp)
+        {
+            if (needMp <= 0)
+                return;
+
+            _character?.MinusMp(needMp);
         }
 
         public bool RequestCancelSkill(SkillCancelReason reason)

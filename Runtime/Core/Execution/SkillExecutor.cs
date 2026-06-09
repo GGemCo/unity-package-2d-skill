@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine;
@@ -266,6 +266,103 @@ namespace GGemCo2DSkill
             _hasPendingFinishReport = false;
             _current.Start();
             return true;
+        }
+
+
+        /// <summary>
+        /// 여러 플레이어 스킬을 하나의 대표 스킬 애니메이션에 맞춰 동시에 실행합니다.
+        /// </summary>
+        /// <remarks>
+        /// 첫 번째 또는 지정된 대표 스킬은 캐릭터 액션 상태와 Use 애니메이션을 담당하고,
+        /// 나머지 스킬은 같은 Use 시작 시점부터 RuntimeSequence 이벤트만 함께 실행합니다.
+        /// </remarks>
+        /// <param name="entries">검증이 끝난 묶음 스킬 실행 항목입니다.</param>
+        /// <param name="primarySkillUid">대표 애니메이션으로 사용할 스킬 UID입니다.</param>
+        /// <returns>묶음 실행이 시작되면 <see langword="true"/>입니다.</returns>
+        internal bool TryUseBundle(IReadOnlyList<SkillBundleRuntimeEntry> entries, int primarySkillUid)
+        {
+            if (!_isInitialized)
+                Initialize(null);
+            if (!_isActivated)
+                Activate(null);
+
+            if (!_isInitialized || !_isActivated) return false;
+            if (_current != null) return false;
+            if (entries == null || entries.Count == 0) return false;
+
+            int primaryIndex = ResolvePrimaryBundleIndex(entries, primarySkillUid);
+            if (primaryIndex < 0) return false;
+
+            SkillBundleRuntimeEntry primaryEntry = entries[primaryIndex];
+            if (primaryEntry.Skill == null) return false;
+
+            var additionalEntries = new List<SkillBundleRuntimeEntry>();
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (i == primaryIndex || entries[i].Skill == null)
+                    continue;
+
+                additionalEntries.Add(entries[i]);
+            }
+
+            SkillExecutorCleanupUtility.PrepareForNewRun(
+                this,
+                _ownedVfxTracker,
+                _dummyActors,
+                _casterActorHandle,
+                _attackSequence,
+                _screenFadeController,
+                _casterFadeController,
+                _afterimageController,
+                _groundSlamAnimationController,
+                _arcLungeAnimationController);
+
+            var motion = SkillCharacterComponentResolver.ResolveMotionController(primaryEntry.Context.caster);
+            motion?.CancelMotion(MotionChannel.Skill, 2002);
+
+            if (primaryEntry.Context.caster != null)
+            {
+                var rb = primaryEntry.Context.caster.GetComponentInParent<Rigidbody2D>();
+                if (rb != null)
+                    rb.SetLinearVelocity(Vector2.zero);
+            }
+
+            _current = new SkillRun(
+                this,
+                primaryEntry.Skill,
+                primaryEntry.Context,
+                SkillCharacterComponentResolver.ResolveAnimationController(primaryEntry.Context.caster),
+                SkillCharacterComponentResolver.ResolveActionController(primaryEntry.Context.caster),
+                additionalEntries);
+            _hasPendingFinishReport = false;
+            _current.Start();
+            return true;
+        }
+
+        /// <summary>
+        /// 묶음 실행 요청에서 대표 스킬로 사용할 항목 인덱스를 찾습니다.
+        /// </summary>
+        /// <param name="entries">묶음 스킬 실행 항목입니다.</param>
+        /// <param name="primarySkillUid">대표 스킬 UID입니다.</param>
+        /// <returns>대표 스킬 인덱스이며, 찾지 못하면 첫 번째 유효 스킬 인덱스입니다.</returns>
+        private static int ResolvePrimaryBundleIndex(IReadOnlyList<SkillBundleRuntimeEntry> entries, int primarySkillUid)
+        {
+            if (entries == null || entries.Count == 0)
+                return -1;
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i].Skill != null && entries[i].Skill.Uid == primarySkillUid)
+                    return i;
+            }
+
+            for (int i = 0; i < entries.Count; i++)
+            {
+                if (entries[i].Skill != null)
+                    return i;
+            }
+
+            return -1;
         }
 
         /// <summary>
