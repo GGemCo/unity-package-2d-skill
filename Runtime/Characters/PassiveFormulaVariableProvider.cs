@@ -64,6 +64,7 @@ namespace GGemCo2DSkill
         /// <remarks>
         /// 같은 컴포넌트가 공격자에게 붙어 있으면 <c>Attacker*</c>, 피격자에게 붙어 있으면 <c>Target*</c> 접두어 변수를 함께 등록합니다.
         /// 원본 변수 ID도 등록하므로, 단일 캐릭터 테스트 공식에서도 바로 사용할 수 있습니다.
+        /// 같은 변수 ID가 다른 Provider에서 이미 등록된 경우에는 덮어쓰지 않고 합산합니다.
         /// </remarks>
         public void FillDamageFormulaVariables(CharacterBase attacker, CharacterBase target, DamageFormulaVariableBag variables)
         {
@@ -78,18 +79,18 @@ namespace GGemCo2DSkill
             foreach (KeyValuePair<string, List<PassiveFormulaVariableEntry>> pair in _entriesById)
             {
                 double resolvedValue = ResolveValue(pair.Value);
-                variables.Set(pair.Key, resolvedValue);
+                variables.Add(pair.Key, resolvedValue);
 
                 string pascalName = ToPascalVariableName(pair.Key);
                 if (!string.Equals(pair.Key, pascalName, StringComparison.OrdinalIgnoreCase))
                 {
-                    variables.Set(pascalName, resolvedValue);
+                    variables.Add(pascalName, resolvedValue);
                 }
 
                 if (!string.IsNullOrEmpty(rolePrefix))
                 {
-                    variables.Set(rolePrefix + pair.Key, resolvedValue);
-                    variables.Set(rolePrefix + pascalName, resolvedValue);
+                    variables.Add(rolePrefix + pair.Key, resolvedValue);
+                    variables.Add(rolePrefix + pascalName, resolvedValue);
                 }
             }
         }
