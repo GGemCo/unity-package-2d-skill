@@ -131,11 +131,18 @@ namespace GGemCo2DSkill
                 resolvedStartPointUpdateMode = LaserConstants.StartPointUpdateMode.SnapshotAtLaunch;
             }
 
+            DamageFormulaRuntimeContext damageFormulaContext = BuildLaserDamageFormulaContext(
+                skill,
+                def,
+                ctx.executionOptions,
+                combatOwner);
+
             int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
             var meta = new MetadataLaser(
                 uid: def.laserUid,
                 damageType: ResolveLaserDamageType(skill, def),
                 damage: ResolveLaserDamage(skill, def, ctx.executionOptions, combatOwner, targetChar),
+                damageFormulaContext: damageFormulaContext,
                 target: targetChar,
                 owner: combatOwner,
                 scaleMultiplier: def.scaleMultiplier,
@@ -361,6 +368,41 @@ namespace GGemCo2DSkill
             }
 
             return skill != null ? skill.DamageType : ConfigCommon.DamageType.None;
+        }
+
+        /// <summary>
+        /// 레이저가 실제 대상에 적중한 시점에 데미지를 다시 계산하기 위한 공식 입력 스냅샷을 생성합니다.
+        /// </summary>
+        /// <remarks>
+        /// 레이저는 Raycast 결과에 따라 발사 시점의 락온 대상과 실제 피격 대상이 달라질 수 있으므로,
+        /// 발사 시점에는 공식 계산 재료만 저장하고 Core 레이저 적중 처리에서 실제 target 기준으로 계산합니다.
+        /// </remarks>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">레이저 이벤트 정의입니다.</param>
+        /// <param name="options">이번 스킬 실행에 적용된 옵션 스냅샷입니다.</param>
+        /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <returns>Core 레이저 시스템에 전달할 공식 입력 스냅샷입니다.</returns>
+        private static DamageFormulaRuntimeContext BuildLaserDamageFormulaContext(
+            RuntimeSkillDefinition skill,
+            LaserEventDefinition def,
+            in SkillExecutionOptions options,
+            CharacterBase caster)
+        {
+            bool useDamageFormula = skill != null && !string.IsNullOrWhiteSpace(skill.DamageFormulaKey);
+            double baseDamage = ResolveBaseLaserDamage(skill, def, caster, useDamageFormula);
+            double skillDamageRate = ResolveLaserDamageRate(skill, def);
+            float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
+            float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
+
+            return new DamageFormulaRuntimeContext(
+                skill != null ? skill.DamageFormulaKey : string.Empty,
+                baseDamage,
+                skillDamageRate,
+                eventMultiplier,
+                optionMultiplier,
+                0d,
+                ResolveLaserDamageType(skill, def),
+                false);
         }
 
         /// <summary>
