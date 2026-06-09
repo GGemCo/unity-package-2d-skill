@@ -305,6 +305,7 @@ namespace GGemCo2DSkill
         /// skill_passive_option.TargetId 컬럼은 여러 옵션 종류가 공유합니다.
         /// Stat 옵션에서는 TargetId를 stat 테이블의 ID로 사용하므로, BASE_*와 STAT_*만 modifier 버킷에 누적합니다.
         /// STAT_ATK는 Core 계산 정책에 따라 TotalStatAtk에 반영되고, BASE_ATK는 TotalBaseAtk에 반영됩니다.
+        /// STAT_HP_TEMP는 마이그레이션 호환을 위해 BASE_HP_TEMP로 정규화합니다.
         /// </remarks>
         private static bool TryResolvePassiveStatId(StruckTableSkillPassiveOption option, out string statId)
         {
@@ -320,7 +321,7 @@ namespace GGemCo2DSkill
                 return false;
             }
 
-            string normalizedStatId = rawStatId.Trim();
+            string normalizedStatId = ConfigCommon.NormalizeStatId(rawStatId);
             ConfigCommon.StatGroup statGroup = ConfigCommon.ResolveStatGroupById(normalizedStatId);
             if (statGroup == ConfigCommon.StatGroup.None)
             {
