@@ -16,6 +16,7 @@ namespace GGemCo2DSkill
     {
         private CharacterBase _character;
         private PassiveFormulaVariableProvider _formulaVariableProvider;
+        private PassiveMpGainBonusProvider _mpGainBonusProvider;
         private readonly HashSet<int> _appliedAffects = new();
         private readonly HashSet<ConfigCommon.DamageType> _suppressedOnHitElementGaugeTypes = new();
         private bool _suppressAllOnHitElementGauge;
@@ -39,6 +40,7 @@ namespace GGemCo2DSkill
         {
             _character = GetComponent<CharacterBase>();
             _formulaVariableProvider = GetComponent<PassiveFormulaVariableProvider>();
+            _mpGainBonusProvider = GetComponent<PassiveMpGainBonusProvider>();
             if (_character == null)
             {
                 Debug.LogError($"{nameof(CharacterPassiveSkillController)} requires {nameof(CharacterBase)}.");
@@ -189,6 +191,7 @@ namespace GGemCo2DSkill
             var percent = new Dictionary<string, float>(32);
             var desiredAffects = new HashSet<int>();
             var formulaVariables = new List<StruckTableSkillPassiveOption>(8);
+            var mpGainBonuses = new List<StruckTableSkillPassiveOption>(4);
 
             var tableSkillPassive = TableLoaderManagerSkill.Instance.TableSkillPassive;
             var tableOption = TableLoaderManagerSkill.Instance.TableSkillPassiveOption;
@@ -232,6 +235,10 @@ namespace GGemCo2DSkill
                         case SkillOptionKind.FormulaVariable:
                             AccumulateFormulaVariable(formulaVariables, op);
                             break;
+
+                        case SkillOptionKind.MpGainBonus:
+                            AccumulateMpGainBonus(mpGainBonuses, op);
+                            break;
                     }
                 }
             }
@@ -240,6 +247,7 @@ namespace GGemCo2DSkill
             _character.SetPassiveSkillModifiers(flat, percent, recalculate: false);
             SyncAffects(desiredAffects);
             SyncFormulaVariables(formulaVariables);
+            SyncMpGainBonuses(mpGainBonuses);
             _character.RecalculateStats();
 
             // 4) 패시브 임시 HP 최대치 동기화
@@ -302,6 +310,7 @@ namespace GGemCo2DSkill
             _suppressAllOnHitElementGauge = false;
             _suppressedOnHitElementGaugeTypes.Clear();
             _formulaVariableProvider?.ClearVariables();
+            _mpGainBonusProvider?.ClearBonuses();
         }
 
         /// <summary>
@@ -406,6 +415,54 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 패시브 옵션 한 줄을 MP 획득 보너스 적용 목록에 추가합니다.
+        /// </summary>
+        /// <param name="mpGainBonuses">MP 획득 보너스 옵션을 임시로 누적할 목록입니다.</param>
+        /// <param name="option">패시브 옵션 테이블 행입니다.</param>
+        /// <remarks>
+        /// MP 획득 보너스는 CharacterStat에 직접 반영하지 않고, 실제 MP 지급 시점에 Provider를 통해 계산합니다.
+        /// </remarks>
+        private static void AccumulateMpGainBonus(
+            List<StruckTableSkillPassiveOption> mpGainBonuses,
+            StruckTableSkillPassiveOption option)
+        {
+            if (mpGainBonuses == null || option == null || option.Kind != SkillOptionKind.MpGainBonus)
+            {
+                return;
+            }
+
+            mpGainBonuses.Add(option);
+        }
+
+        /// <summary>
+        /// MP 획득 보너스 Provider에 현재 장착 패시브의 MP 획득 보너스를 전체 교체 방식으로 반영합니다.
+        /// </summary>
+        /// <param name="mpGainBonuses">현재 장착 패시브에서 계산된 MP 획득 보너스 옵션 목록입니다.</param>
+        /// <remarks>
+        /// 패시브는 장착 목록을 기준으로 전체 리빌드되므로, 기존 값을 모두 제거한 뒤 현재 값만 다시 등록합니다.
+        /// </remarks>
+        private void SyncMpGainBonuses(IReadOnlyList<StruckTableSkillPassiveOption> mpGainBonuses)
+        {
+            if (mpGainBonuses == null || mpGainBonuses.Count == 0)
+            {
+                _mpGainBonusProvider?.ClearBonuses();
+                return;
+            }
+
+            PassiveMpGainBonusProvider provider = EnsureMpGainBonusProvider();
+            if (provider == null)
+            {
+                return;
+            }
+
+            provider.ClearBonuses();
+            for (int i = 0; i < mpGainBonuses.Count; i++)
+            {
+                provider.AddBonus(mpGainBonuses[i]);
+            }
+        }
+
+        /// <summary>
         /// 공식 변수 Provider를 반환하고, 필요하면 현재 캐릭터 오브젝트에 자동 부착합니다.
         /// </summary>
         /// <returns>공식 변수 Provider 컴포넌트입니다.</returns>
@@ -423,6 +480,27 @@ namespace GGemCo2DSkill
             }
 
             return _formulaVariableProvider;
+        }
+
+
+        /// <summary>
+        /// MP 획득 보너스 Provider를 반환하고, 필요하면 현재 캐릭터 오브젝트에 자동 부착합니다.
+        /// </summary>
+        /// <returns>MP 획득 보너스 Provider 컴포넌트입니다.</returns>
+        private PassiveMpGainBonusProvider EnsureMpGainBonusProvider()
+        {
+            if (_mpGainBonusProvider != null)
+            {
+                return _mpGainBonusProvider;
+            }
+
+            _mpGainBonusProvider = GetComponent<PassiveMpGainBonusProvider>();
+            if (_mpGainBonusProvider == null)
+            {
+                _mpGainBonusProvider = gameObject.AddComponent<PassiveMpGainBonusProvider>();
+            }
+
+            return _mpGainBonusProvider;
         }
 
         /// <summary>
