@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using Config;
@@ -13,6 +13,11 @@ namespace GGemCo2DSkill
     public sealed class SkillRun
     {
         private readonly SkillExecutor _owner;
+        /// <summary>
+        /// 스킬 UID 기반 Runtime Temp HP 이벤트 source key와 실행 옵션 source key가 충돌하지 않도록 분리하는 오프셋입니다.
+        /// </summary>
+        private const int ExecutionOptionRuntimeTempHpSourceKeyOffset = 1_000_000;
+
         private readonly RuntimeSkillDefinition _skill;
         private readonly SkillTargetContext _ctx;
 
@@ -178,7 +183,7 @@ namespace GGemCo2DSkill
 
             int sourceKey = context.executionOptions.RuntimeTempHpSourceKeyOverride != 0
                 ? context.executionOptions.RuntimeTempHpSourceKeyOverride
-                : skill.Uid;
+                : ExecutionOptionRuntimeTempHpSourceKeyOffset + skill.Uid;
 
             targetCharacter.SetRuntimeBonusHpTemp(
                 sourceKey,

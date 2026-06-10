@@ -112,7 +112,7 @@ namespace GGemCo2DSkill
                     target,
                     damageApplied: false,
                     timing: OnHitAffectTiming.BeforeDamage,
-                    durationBonusSeconds: ctx.executionOptions.StatusDurationBonusSeconds);
+                    executionOptions: ctx.executionOptions);
                 int crowdControlUid = ResolveOnHitCrowdControlUid(
                     def.onHitCrowdControls,
                     damageApplied: false,
@@ -180,7 +180,7 @@ namespace GGemCo2DSkill
                     target,
                     didApplyDamage,
                     OnHitAffectTiming.AfterDamage,
-                    ctx.executionOptions.StatusDurationBonusSeconds);
+                    ctx.executionOptions);
             }
         }
 
@@ -591,14 +591,14 @@ namespace GGemCo2DSkill
         /// <param name="target">효과를 적용할 대상입니다.</param>
         /// <param name="damageApplied">실제 데미지가 적용되었는지 여부입니다.</param>
         /// <param name="timing">현재 처리 중인 OnHit 적용 시점입니다.</param>
-        /// <param name="durationBonusSeconds">Affect 기본 또는 오버라이드 지속시간에 추가로 더할 초 단위 보너스입니다.</param>
+        /// <param name="executionOptions">Affect 적용 시 전달할 스킬 실행 옵션입니다.</param>
         private static void ApplyOnHitAffects(
             OnHitAffectEntry[] entries,
             GameObject caster,
             CharacterBase target,
             bool damageApplied,
             OnHitAffectTiming timing,
-            float durationBonusSeconds)
+            SkillExecutionOptions executionOptions)
         {
             if (entries == null || entries.Length == 0)
                 return;
@@ -626,7 +626,14 @@ namespace GGemCo2DSkill
 
                 for (int s = 0; s < stacks; s++)
                 {
-                    AffectApi.Apply(target.gameObject, entry.affectUid, caster, duration, durationBonusSeconds);
+                    AffectApi.Apply(
+                        target.gameObject,
+                        entry.affectUid,
+                        caster,
+                        duration,
+                        executionOptions.StatusDurationBonusSeconds,
+                        executionOptions.HealHpBonus,
+                        executionOptions.HealHpMultiplier);
                 }
             }
         }
