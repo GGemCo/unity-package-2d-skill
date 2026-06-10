@@ -90,6 +90,10 @@ namespace GGemCo2DSkill
         [Tooltip("종료 시 정지(velocity 기반 구현에서 유효)")]
         public bool stopAtEnd = true;
 
+        [Header("Airborne State")]
+        [Tooltip("true면 이 아크 런지 이벤트가 진행되는 동안 캐릭터를 공통 공중 상태로 등록합니다.")]
+        public bool acquireAirborneDuringEvent = true;
+
         [Header("Policy")]
         [Tooltip("true면 동일 채널(Skill)에서 진행 중인 모션을 덮어쓸 수 있습니다.")]
         public bool allowReplace = false;

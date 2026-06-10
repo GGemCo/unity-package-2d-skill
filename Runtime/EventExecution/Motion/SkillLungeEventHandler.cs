@@ -1,4 +1,4 @@
-﻿using GGemCo2DCore;
+using GGemCo2DCore;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -32,7 +32,7 @@ namespace GGemCo2DSkill
         {
             if (payloadObj is ArcLungeEventDefinition arcDef)
             {
-                HandleArcLunge(skill, ctx, arcDef, eventDurationSeconds, arcAnimationController);
+                HandleArcLunge(runner, skill, ctx, arcDef, eventDurationSeconds, arcAnimationController);
                 return;
             }
 
@@ -96,7 +96,11 @@ namespace GGemCo2DSkill
                 collisionPolicy: SkillLungeMotionResolver.ResolveMotionCollisionPolicy(def),
                 collisionTarget: SkillLungeMotionResolver.ResolveMotionCollisionTarget(ctx, def));
 
-            motion.TryStartMotion(in req);
+            if (!motion.TryStartMotion(in req))
+                return;
+
+            if (def.acquireAirborneDuringEvent)
+                BeginLungeAirborneState(runner, actorObject, motion, "SkillLinearLunge");
         }
 
         /// <summary>
@@ -149,12 +153,14 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 아크 런지 이벤트 정의를 해석하여 포물선 이동 요청을 전달하고 애니메이션 컨트롤러를 시작합니다.
         /// </summary>
+        /// <param name="runner">런지 공중 상태 해제 코루틴을 실행할 실행기입니다.</param>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="def">아크 런지 이벤트 정의입니다.</param>
         /// <param name="eventDurationSeconds">이벤트 구간에서 계산된 기본 지속 시간입니다.</param>
         /// <param name="arcAnimationController">아크 런지 단계별 애니메이션 컨트롤러입니다.</param>
         private static void HandleArcLunge(
+            MonoBehaviour runner,
             RuntimeSkillDefinition skill,
             SkillTargetContext ctx,
             ArcLungeEventDefinition def,
@@ -221,7 +227,56 @@ namespace GGemCo2DSkill
             if (!motion.TryStartMotion(in req))
                 return;
 
+            if (def.acquireAirborneDuringEvent)
+                BeginLungeAirborneState(runner, ctx.caster, motion, "SkillArcLunge");
+
             arcAnimationController?.Begin(ctx.caster, motion, def, riseDuration, apexHoldDuration);
+        }
+
+        /// <summary>
+        /// 런지 이벤트가 진행되는 동안 캐릭터를 공통 공중 상태로 등록합니다.
+        /// 모션 채널이 종료되면 등록한 핸들을 자동으로 해제합니다.
+        /// </summary>
+        /// <param name="runner">해제 코루틴을 실행할 MonoBehaviour입니다.</param>
+        /// <param name="actorObject">런지를 수행하는 캐릭터 오브젝트입니다.</param>
+        /// <param name="motion">런지 모션을 재생 중인 모션 컨트롤러입니다.</param>
+        /// <param name="reason">디버그 확인용 등록 사유입니다.</param>
+        private static void BeginLungeAirborneState(
+            MonoBehaviour runner,
+            GameObject actorObject,
+            ICharacterMotionController motion,
+            string reason)
+        {
+            if (runner == null || actorObject == null || motion == null)
+                return;
+
+            CharacterBase character = actorObject.GetComponentInParent<CharacterBase>();
+            if (character == null)
+                return;
+
+            CharacterAirborneHandle handle = character.AcquireAirborne(CharacterAirborneSource.Lunge, reason);
+            if (!handle.IsValid)
+                return;
+
+            runner.StartCoroutine(ReleaseLungeAirborneWhenMotionEnds(character, motion, handle));
+        }
+
+        /// <summary>
+        /// Skill 모션 채널이 종료될 때까지 대기한 뒤 런지 공중 상태를 해제합니다.
+        /// </summary>
+        /// <param name="character">공중 상태를 해제할 캐릭터입니다.</param>
+        /// <param name="motion">상태 종료 기준으로 사용할 모션 컨트롤러입니다.</param>
+        /// <param name="handle">해제할 공중 상태 핸들입니다.</param>
+        private static System.Collections.IEnumerator ReleaseLungeAirborneWhenMotionEnds(
+            CharacterBase character,
+            ICharacterMotionController motion,
+            CharacterAirborneHandle handle)
+        {
+            while (character != null && motion != null && motion.IsPlaying(MotionChannel.Skill))
+                yield return null;
+
+            if (character != null)
+                character.ReleaseAirborne(handle);
         }
 
         /// <summary>
