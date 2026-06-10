@@ -15,7 +15,7 @@ namespace GGemCo2DSkill
     /// - 패시브 스킬은 장착 목록을 기준으로 전체 리빌드되므로, 토큰 방식이 아니라 전체 교체 방식으로 관리합니다.
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class PassiveFormulaVariableProvider : MonoBehaviour, IDamageFormulaVariableProvider
+    public sealed class PassiveFormulaVariableProvider : MonoBehaviour, IDamageFormulaVariableProvider, IDamageFormulaVariableDebugProvider
     {
         private readonly Dictionary<string, List<PassiveFormulaVariableEntry>> _entriesById = new(StringComparer.OrdinalIgnoreCase);
 
@@ -92,6 +92,37 @@ namespace GGemCo2DSkill
                     variables.Add(rolePrefix + pair.Key, resolvedValue);
                     variables.Add(rolePrefix + pascalName, resolvedValue);
                 }
+            }
+        }
+
+        /// <summary>
+        /// 디버그 HUD와 마지막 데미지 스냅샷에서 사용할 패시브 공식 변수 기여도를 수집합니다.
+        /// </summary>
+        /// <param name="attacker">공격자 캐릭터입니다.</param>
+        /// <param name="target">피격 대상 캐릭터입니다.</param>
+        /// <param name="results">수집 결과를 추가할 목록입니다.</param>
+        public void CollectDamageFormulaVariableDebugRecords(
+            CharacterBase attacker,
+            CharacterBase target,
+            List<DamageFormulaVariableDebugRecord> results)
+        {
+            if (results == null || _entriesById.Count == 0)
+            {
+                return;
+            }
+
+            CharacterBase owner = GetComponent<CharacterBase>();
+            string rolePrefix = ResolveRolePrefix(owner, attacker, target);
+
+            foreach (KeyValuePair<string, List<PassiveFormulaVariableEntry>> pair in _entriesById)
+            {
+                double resolvedValue = ResolveValue(pair.Value);
+                results.Add(new DamageFormulaVariableDebugRecord(
+                    pair.Key,
+                    resolvedValue,
+                    StatModifierDebugSourceType.Skill,
+                    "PassiveSkill",
+                    rolePrefix));
             }
         }
 
