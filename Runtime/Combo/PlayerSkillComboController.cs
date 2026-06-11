@@ -641,8 +641,90 @@ namespace GGemCo2DSkill
             }
 
             _state.Activate(node);
+            if (!CanContinueComboFromNode(node))
+            {
+                return FinishComboBecauseNoNextSkill(node);
+            }
+
             SkillComboUseResult useResult = SkillComboUseResult.Started(node, false);
             NotifyComboSkillStartedForUi(useResult);
+            return useResult;
+        }
+
+        /// <summary>
+        /// 현재 메인 콤보 노드에서 이어갈 다음 스킬이 있는지 확인합니다.
+        /// </summary>
+        /// <remarks>
+        /// Main 또는 Last 명령 중 하나라도 유효한 다음 노드로 해석되면 콤보 가능 상태를 유지합니다.
+        /// 두 명령 모두 다음 노드가 없거나 손상된 연결이라면 더 받을 입력이 없으므로 즉시 종료 대상으로 판단합니다.
+        /// </remarks>
+        /// <param name="currentNode">현재 실행을 시작한 메인 콤보 노드입니다.</param>
+        /// <returns>이어갈 수 있는 다음 콤보 스킬이 있으면 <see langword="true"/>입니다.</returns>
+        private bool CanContinueComboFromNode(RuntimeSkillComboNode currentNode)
+        {
+            if (currentNode == null || currentNode.IsLast)
+            {
+                return false;
+            }
+
+            return CanContinueComboFromNodeIndex(currentNode.Index);
+        }
+
+        /// <summary>
+        /// 현재 활성 콤보 상태에서 이어갈 다음 스킬이 있는지 확인합니다.
+        /// </summary>
+        /// <returns>현재 노드에서 이어갈 다음 콤보 스킬이 있으면 <see langword="true"/>입니다.</returns>
+        private bool CanContinueComboFromCurrentState()
+        {
+            if (!_state.IsActive ||
+                _state.IsEntryGateActive ||
+                _state.CurrentNodeIndex == RuntimeSkillComboDefinition.InvalidNodeIndex)
+            {
+                return false;
+            }
+
+            return CanContinueComboFromNodeIndex(_state.CurrentNodeIndex);
+        }
+
+        /// <summary>
+        /// 지정한 메인 콤보 노드 인덱스에서 실제로 이어갈 수 있는 다음 스킬이 있는지 확인합니다.
+        /// </summary>
+        /// <param name="currentNodeIndex">현재 메인 콤보 노드 인덱스입니다.</param>
+        /// <returns>Main 또는 Last 명령으로 이동할 수 있는 다음 스킬이 있으면 <see langword="true"/>입니다.</returns>
+        private bool CanContinueComboFromNodeIndex(int currentNodeIndex)
+        {
+            if (!TryResolveComboDefinition(out RuntimeSkillComboDefinition definition, out _))
+            {
+                return false;
+            }
+
+            return SkillComboGraphResolver.TryResolveNextNode(
+                       definition,
+                       currentNodeIndex,
+                       SkillComboCommand.Main,
+                       out _,
+                       out _) ||
+                   SkillComboGraphResolver.TryResolveNextNode(
+                       definition,
+                       currentNodeIndex,
+                       SkillComboCommand.Last,
+                       out _,
+                       out _);
+        }
+
+        /// <summary>
+        /// 다음 스킬이 없는 메인 콤보 노드를 시작한 직후 콤보 가능 상태를 종료합니다.
+        /// </summary>
+        /// <param name="node">실행을 시작했지만 이어갈 다음 스킬이 없는 메인 콤보 노드입니다.</param>
+        /// <returns>콤보 종료가 반영된 스킬 사용 결과입니다.</returns>
+        private SkillComboUseResult FinishComboBecauseNoNextSkill(RuntimeSkillComboNode node)
+        {
+            SkillComboUseResult useResult = SkillComboUseResult.Started(node, true);
+            NotifyComboSkillStartedForUi(useResult);
+
+            SkillComboCancelEvent cancelEvent = CreateCancelEvent(SkillComboCancelReason.NoNextSkill);
+            ResetComboInternal();
+            NotifyComboCanceledForUi(cancelEvent);
             return useResult;
         }
 
@@ -945,6 +1027,12 @@ namespace GGemCo2DSkill
             if (!_state.IsActive || _state.IsEntryGateActive || skillUid != _state.CurrentSkillUid)
                 return;
 
+            if (!CanContinueComboFromCurrentState())
+            {
+                CancelCombo(SkillComboCancelReason.NoNextSkill);
+                return;
+            }
+
             if (chainInputWindowSeconds <= 0f)
                 return;
 
@@ -998,6 +1086,12 @@ namespace GGemCo2DSkill
             if (report.State != MonsterSkillExecutionState.Succeeded)
             {
                 CancelCombo(SkillComboCancelReason.SkillExecutionFailed);
+                return;
+            }
+
+            if (!CanContinueComboFromCurrentState())
+            {
+                CancelCombo(SkillComboCancelReason.NoNextSkill);
                 return;
             }
 

@@ -750,6 +750,7 @@ namespace GGemCo2DSkill
             // - SkillExecutionFailed: 실패 연출
             // - Manual: 즉시 닫기
             // - ChainInputWindowDisabled: 자연 종료 또는 닫기
+            // - NoNextSkill: 다음 스킬이 없는 자연 종료 또는 닫기
         }
 
         /// <summary>

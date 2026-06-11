@@ -29,6 +29,11 @@ namespace GGemCo2DSkill
         /// 다음 콤보 입력 대기 시간이 비활성화되어 콤보가 이어지지 않고 취소되었습니다.
         /// </summary>
         ChainInputWindowDisabled = 4,
+
+        /// <summary>
+        /// 현재 콤보 노드에서 이어갈 다음 메인 또는 마무리 스킬이 없어 콤보 가능 상태를 종료했습니다.
+        /// </summary>
+        NoNextSkill = 5,
     }
 
     /// <summary>
