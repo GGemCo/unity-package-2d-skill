@@ -34,6 +34,11 @@ namespace GGemCo2DSkill
         /// 현재 콤보 노드에서 이어갈 다음 메인 또는 마무리 스킬이 없어 콤보 가능 상태를 종료했습니다.
         /// </summary>
         NoNextSkill = 5,
+
+        /// <summary>
+        /// 스킬이 정상 종료되었지만 확정 타격으로 체인 입력 게이트가 열리지 않아 콤보가 취소되었습니다.
+        /// </summary>
+        ChainInputNotUnlockedByConfirmedDamage = 6,
     }
 
     /// <summary>

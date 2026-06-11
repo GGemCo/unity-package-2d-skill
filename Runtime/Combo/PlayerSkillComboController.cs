@@ -38,6 +38,7 @@ namespace GGemCo2DSkill
         private float _inputWindowExpireTime = InputWindowDisabledTime;
         private readonly List<object> _inputWindowHoldOwners = new();
         private float _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
+        private bool _chainGateOpenedByConfirmedDamage;
 
         /// <summary>
         /// 현재 플레이어 콤보 진행 상태입니다.
@@ -387,6 +388,7 @@ namespace GGemCo2DSkill
         private void ResetComboInternal()
         {
             _state.Reset();
+            ResetCurrentSkillChainGate();
             ClearInputWindow();
             ClearBufferedMainInput();
         }
@@ -502,7 +504,7 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <remarks>
         /// 콤보는 진행 중이지만 아직 체인 입력 창이 열리지 않은 상태에서 호출됩니다.
-        /// 이후 확정 타격으로 체인 게이트가 열리거나 현재 스킬이 정상 종료되면 저장된 입력을 즉시 실행합니다.
+        /// 이후 확정 타격으로 체인 게이트가 열리거나, 확정 타격으로 열린 현재 스킬이 정상 종료되면 저장된 입력을 즉시 실행합니다.
         /// </remarks>
         /// <returns>공격 입력을 선입력으로 저장했으면 <see langword="true"/>입니다.</returns>
         public bool TryBufferMainInput()
@@ -679,6 +681,7 @@ namespace GGemCo2DSkill
             }
 
             _state.Activate(node);
+            ResetCurrentSkillChainGate();
             if (!CanContinueComboFromNode(node))
             {
                 return FinishComboBecauseNoNextSkill(node);
@@ -833,10 +836,24 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 지정한 시간 동안 다음 콤보 입력을 기다리도록 만료 시간을 설정합니다.
         /// </summary>
+        /// <remarks>
+        /// 공중 콤보 대시처럼 입력창 만료를 보류한 소유자가 있으면 실제 만료 시간은 진행하지 않고,
+        /// 보류 해제 후 다시 적용할 남은 시간만 저장합니다.
+        /// </remarks>
         /// <param name="windowSeconds">입력을 기다릴 시간입니다. 0 이하이면 만료를 사용하지 않습니다.</param>
         private void ArmInputWindow(float windowSeconds)
         {
             _isInputWindowArmed = true;
+
+            if (_inputWindowHoldOwners.Count > 0)
+            {
+                _heldInputWindowRemainingSeconds = windowSeconds > 0f
+                    ? windowSeconds
+                    : InputWindowDisabledTime;
+                _inputWindowExpireTime = InputWindowDisabledTime;
+                return;
+            }
+
             _inputWindowExpireTime = windowSeconds > 0f
                 ? Time.time + windowSeconds
                 : InputWindowDisabledTime;
@@ -851,6 +868,14 @@ namespace GGemCo2DSkill
             _inputWindowExpireTime = InputWindowDisabledTime;
             _inputWindowHoldOwners.Clear();
             _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
+        }
+
+        /// <summary>
+        /// 현재 실행 중인 메인 콤보 스킬에서 확정 타격으로 체인 게이트가 열렸는지 기록한 상태를 초기화합니다.
+        /// </summary>
+        private void ResetCurrentSkillChainGate()
+        {
+            _chainGateOpenedByConfirmedDamage = false;
         }
 
         /// <summary>
@@ -1057,8 +1082,12 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 확정 타격으로 현재 스킬의 체인 게이트가 열리면 콤보 입력 창을 즉시 엽니다.
+        /// 확정 타격으로 현재 스킬의 체인 게이트가 열리면 현재 스킬이 종료될 때까지 콤보 입력 창을 엽니다.
         /// </summary>
+        /// <remarks>
+        /// 확정 타격 시점은 <c>UseClipTimingPolicy</c>와 무관한 체인 시작 기준입니다.
+        /// <see cref="chainInputWindowSeconds"/>는 여기서 사용하지 않고, 현재 스킬이 정상 종료된 뒤 추가 입력 유예 시간으로만 사용합니다.
+        /// </remarks>
         /// <param name="skillUid">확정 타격으로 체인을 연 현재 실행 스킬 UID입니다.</param>
         private void OnSkillChainReady(int skillUid)
         {
@@ -1071,10 +1100,8 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            if (chainInputWindowSeconds <= 0f)
-                return;
-
-            ArmInputWindow(chainInputWindowSeconds);
+            _chainGateOpenedByConfirmedDamage = true;
+            ArmInputWindow(0f);
             TryConsumeBufferedMainInputIfReady();
         }
 
@@ -1133,12 +1160,19 @@ namespace GGemCo2DSkill
                 return;
             }
 
+            if (!_chainGateOpenedByConfirmedDamage)
+            {
+                CancelCombo(SkillComboCancelReason.ChainInputNotUnlockedByConfirmedDamage);
+                return;
+            }
+
             if (chainInputWindowSeconds <= 0f)
             {
                 CancelCombo(SkillComboCancelReason.ChainInputWindowDisabled);
                 return;
             }
 
+            ResetCurrentSkillChainGate();
             ArmInputWindow(chainInputWindowSeconds);
             TryConsumeBufferedMainInputIfReady();
         }

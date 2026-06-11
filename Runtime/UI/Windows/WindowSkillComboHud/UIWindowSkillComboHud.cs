@@ -751,6 +751,7 @@ namespace GGemCo2DSkill
             // - Manual: 즉시 닫기
             // - ChainInputWindowDisabled: 자연 종료 또는 닫기
             // - NoNextSkill: 다음 스킬이 없는 자연 종료 또는 닫기
+            // - ChainInputNotUnlockedByConfirmedDamage: 확정 타격 없이 종료되어 닫기
         }
 
         /// <summary>
