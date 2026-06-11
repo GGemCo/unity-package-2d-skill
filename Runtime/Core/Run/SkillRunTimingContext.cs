@@ -1,10 +1,10 @@
-﻿using Config;
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
 {
     /// <summary>
-    /// UseClip 실제 재생 시간과 RuntimeSequence 논리 시간을 연결하는 런타임 시간 보정 정보입니다.
+    /// UseClip 재생 속도 정책과 RuntimeSequence 논리 시간을 연결하는 런타임 시간 보정 정보입니다.
     /// </summary>
     public readonly struct SkillRunTimingContext
     {
@@ -33,7 +33,8 @@ namespace GGemCo2DSkill
         public float DurationScale => 1f / TimelineRate;
 
         /// <summary>
-        /// UseClip 길이와 재생 속도를 반영한 실제 재생 시간입니다. 클립을 찾지 못하면 0입니다.
+        /// UseClip 길이와 재생 속도를 반영한 실제 재생 시간입니다.
+        /// ScaleSequenceToUseClip 정책에서는 종료 기준으로 사용하지 않고, RuntimeSequence 시간축 배율이 종료를 결정합니다.
         /// </summary>
         public float RealUseDurationSeconds { get; }
 
@@ -47,7 +48,7 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="policy">UseClip 동기화 정책입니다.</param>
         /// <param name="timelineRate">실제 시간에서 RuntimeSequence 논리 시간으로 진행되는 배율입니다.</param>
-        /// <param name="realUseDurationSeconds">UseClip 실제 재생 시간입니다.</param>
+        /// <param name="realUseDurationSeconds">UseClip 실제 재생 시간입니다. 정책에 따라 종료 기준으로 사용하지 않을 수 있습니다.</param>
         /// <param name="logicalSequenceDurationSeconds">RuntimeSequence 원본 길이입니다.</param>
         public SkillRunTimingContext(
             ConfigCommonSkill.SkillUseClipTimingPolicy policy,

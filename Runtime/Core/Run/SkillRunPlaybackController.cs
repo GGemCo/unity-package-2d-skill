@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -311,21 +311,24 @@ namespace GGemCo2DSkill
             var policy = skill.UseClipTimingPolicy;
             float sequenceDuration = sequence != null ? Mathf.Max(0f, sequence.Duration) : 0f;
             float useClipTimeScale = Mathf.Max(0.001f, skill.UseClipTimeScale);
-            float useClipDuration = ResolveUseClipDurationSeconds(skill);
-            float realUseDuration = useClipDuration > 0f ? useClipDuration / useClipTimeScale : 0f;
-            float referenceDuration = skill.UseClipReferenceDurationSeconds > 0f
-                ? skill.UseClipReferenceDurationSeconds
-                : sequenceDuration;
 
-            float timelineRate = 1f;
-            if (policy == ConfigCommonSkill.SkillUseClipTimingPolicy.ScaleSequenceToUseClip &&
-                realUseDuration > 0f &&
-                referenceDuration > 0f)
+            if (policy == ConfigCommonSkill.SkillUseClipTimingPolicy.ScaleSequenceToUseClip)
             {
-                timelineRate = referenceDuration / realUseDuration;
+                return new SkillRunTimingContext(
+                    policy,
+                    timelineRate: useClipTimeScale,
+                    realUseDurationSeconds: 0f,
+                    logicalSequenceDurationSeconds: sequenceDuration);
             }
 
-            return new SkillRunTimingContext(policy, timelineRate, realUseDuration, sequenceDuration);
+            float useClipDuration = ResolveUseClipDurationSeconds(skill);
+            float realUseDuration = useClipDuration > 0f ? useClipDuration / useClipTimeScale : 0f;
+
+            return new SkillRunTimingContext(
+                policy,
+                timelineRate: 1f,
+                realUseDurationSeconds: realUseDuration,
+                logicalSequenceDurationSeconds: sequenceDuration);
         }
 
         /// <summary>

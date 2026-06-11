@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
 
@@ -60,10 +60,10 @@ namespace GGemCo2DSkill
         /// <summary>UseClip 애니메이션 재생 속도 배율입니다. 1보다 크면 빠르게, 1보다 작으면 느리게 재생합니다.</summary>
         public float UseClipTimeScale;
 
-        /// <summary>UseClip 실제 재생 시간을 스킬 런타임 시퀀스에 반영하는 정책입니다.</summary>
+        /// <summary>UseClip 재생 속도와 스킬 런타임 시퀀스 시간축을 연결하는 정책입니다.</summary>
         public ConfigCommonSkill.SkillUseClipTimingPolicy UseClipTimingPolicy;
 
-        /// <summary>UseClip 시간 보정 기준이 되는 시퀀스 길이입니다. 0이면 RuntimeSequence.Duration을 사용합니다.</summary>
+        /// <summary>UseClip 길이 동기화 기준 시간입니다. ScaleSequenceToUseClip 정책에서는 UseClipTimeScale이 직접 적용되므로 사용하지 않습니다.</summary>
         public float UseClipReferenceDurationSeconds;
 
 

@@ -1,4 +1,4 @@
-﻿// TODO: 네임스페이스 구조를 정리하고 명칭을 변경할 필요가 있습니다.
+// TODO: 네임스페이스 구조를 정리하고 명칭을 변경할 필요가 있습니다.
 namespace Config
 {
     /// <summary>
@@ -230,7 +230,8 @@ namespace Config
             RuntimeSequence = 0,
 
             /// <summary>
-            /// UseClip의 실제 재생 시간에 맞춰 RuntimeSequence의 이벤트 시작 시간과 이벤트 구간 길이를 함께 스케일합니다.
+            /// UseClipTimeScale을 UseClip 애니메이션과 RuntimeSequence 시간축에 함께 적용합니다.
+            /// 예: RuntimeSequence.Duration이 5초이고 UseClipTimeScale이 2이면 실제 스킬 시간은 2.5초가 됩니다.
             /// </summary>
             ScaleSequenceToUseClip = 1,
 
