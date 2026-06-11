@@ -14,14 +14,10 @@ namespace GGemCo2DSkillEditor
     [Serializable]
     public sealed class SkillPlayAudioClip : SkillEventClipBase
     {
-        [Header("Audio")]
+        [Header("Sound")]
 
-        [Tooltip("재생할 AudioClip 리소스입니다.")]
-        [SerializeField] private AudioClip clip;
-
-        [Tooltip("오디오 재생 볼륨입니다. 0은 음소거, 1은 원본 볼륨입니다.")]
-        [Range(0f, 1f)]
-        [SerializeField] private float volume = 1f;
+        [Tooltip("재생할 sound 테이블의 대표 UID입니다.")]
+        [SerializeField] private int soundUid;
 
         /// <summary>
         /// 이 클립이 생성하는 스킬 이벤트 유형입니다.
@@ -29,13 +25,8 @@ namespace GGemCo2DSkillEditor
         public override ConfigCommonSkill.SkillEventType EventType => ConfigCommonSkill.SkillEventType.PlayAudio;
 
         /// <summary>
-        /// 재생할 오디오 클립을 반환합니다.
+        /// 재생할 sound 테이블의 대표 UID를 반환합니다.
         /// </summary>
-        public AudioClip Clip => clip;
-
-        /// <summary>
-        /// 오디오 재생 볼륨 값을 반환합니다.
-        /// </summary>
-        public float Volume => volume;
+        public int SoundUid => soundUid;
     }
 }

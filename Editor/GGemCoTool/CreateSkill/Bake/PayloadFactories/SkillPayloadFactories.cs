@@ -138,8 +138,7 @@ namespace GGemCo2DSkillEditor
         protected override UnityEngine.Object CreatePayload(SkillPlayAudioClip audio)
         {
             var def = ScriptableObject.CreateInstance<PlayAudioEventDefinition>();
-            def.clip = audio.Clip;
-            def.volume = Mathf.Clamp01(audio.Volume);
+            def.soundUid = audio.SoundUid;
             return def;
         }
     }
