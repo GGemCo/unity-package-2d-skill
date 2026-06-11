@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine;
@@ -927,6 +927,27 @@ namespace GGemCo2DSkill
                 return false;
 
             return _current.TryApplyChargeGaugeDamage(reason, gaugeDamage);
+        }
+
+        /// <summary>
+        /// 스킬이 아닌 외부 액션이 즉시 이어질 수 있도록 현재 스킬과 잔여 스킬 표현 상태를 정리합니다.
+        /// </summary>
+        /// <remarks>
+        /// 콤보 대시처럼 스킬 체인 입력창은 유지해야 하지만 대시 애니메이션이 즉시 우선되어야 하는 경우에 사용합니다.
+        /// 실행 중인 스킬은 전달된 사유로 취소하고, 이미 스킬이 끝난 뒤 남아 있는 ArcLunge/GroundSlam 후속 애니메이션과 Skill 모션도 함께 정리합니다.
+        /// </remarks>
+        /// <param name="runningSkillCancelReason">실행 중인 스킬이 있을 때 사용할 취소 사유입니다.</param>
+        public void PrepareForExternalActionOverride(SkillCancelReason runningSkillCancelReason)
+        {
+            if (_current != null)
+            {
+                TryCancel(runningSkillCancelReason);
+            }
+
+            SkillExecutorCleanupUtility.CleanupForExternalActionOverride(
+                gameObject,
+                _groundSlamAnimationController,
+                _arcLungeAnimationController);
         }
 
         /// <summary>

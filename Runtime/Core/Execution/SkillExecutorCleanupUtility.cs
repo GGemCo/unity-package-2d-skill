@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using GGemCo2DCore;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -90,6 +91,26 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 대시, 회피, 프로젝트 전용 입력 전환처럼 스킬이 아닌 외부 액션이 즉시 이어질 때 남은 스킬 모션과 특수 애니메이션 상태를 정리합니다.
+        /// </summary>
+        /// <remarks>
+        /// 정상 종료 후 착지 연출을 재생하는 ArcLunge/GroundSlam 컨트롤러가 외부 액션 애니메이션을 덮지 않도록,
+        /// 외부 액션이 Animator를 사용하기 직전에 Skill 채널 모션과 후속 애니메이션 상태만 제거합니다.
+        /// </remarks>
+        /// <param name="caster">잔여 스킬 모션을 정리할 캐스터 오브젝트입니다.</param>
+        /// <param name="groundSlamAnimationController">그라운드슬램 후속 애니메이션 상태 관리자입니다.</param>
+        /// <param name="arcLungeAnimationController">아크 런지 후속 애니메이션 상태 관리자입니다.</param>
+        public static void CleanupForExternalActionOverride(
+            GameObject caster,
+            SkillGroundSlamAnimationController groundSlamAnimationController,
+            SkillArcLungeAnimationController arcLungeAnimationController)
+        {
+            CancelResidualSkillMotion(caster);
+            groundSlamAnimationController?.Clear();
+            arcLungeAnimationController?.Clear();
+        }
+
+        /// <summary>
         /// 스킬이 취소될 때 즉시 중단되어야 하는 VFX, 더미, 페이드, 잔상, 특수 애니메이션 상태를 정리합니다.
         /// </summary>
         /// <param name="runner">코루틴 중단과 화면 페이드 소유자 식별에 사용할 실행기입니다.</param>
@@ -136,6 +157,19 @@ namespace GGemCo2DSkill
             bool forCancel)
         {
             SkillDummyActorLifecycleUtility.Cleanup(runner, dummyActors, forceAll, forCancel);
+        }
+
+        /// <summary>
+        /// 외부 액션 전환 직전에 Skill 채널에 남아 있는 이동 모션을 중단합니다.
+        /// </summary>
+        /// <param name="caster">모션 컨트롤러를 찾을 기준 캐스터 오브젝트입니다.</param>
+        private static void CancelResidualSkillMotion(GameObject caster)
+        {
+            ICharacterMotionController motion = SkillCharacterComponentResolver.ResolveMotionController(caster);
+            if (motion == null || !motion.IsPlaying(MotionChannel.Skill))
+                return;
+
+            motion.CancelMotion(MotionChannel.Skill, 3101);
         }
 
         /// <summary>
