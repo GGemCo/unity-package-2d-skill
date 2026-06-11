@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -35,6 +36,8 @@ namespace GGemCo2DSkill
         private bool _isInputWindowArmed;
         private bool _hasBufferedMainInput;
         private float _inputWindowExpireTime = InputWindowDisabledTime;
+        private readonly List<object> _inputWindowHoldOwners = new();
+        private float _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
 
         /// <summary>
         /// 현재 플레이어 콤보 진행 상태입니다.
@@ -193,6 +196,82 @@ namespace GGemCo2DSkill
         {
             entryInputWindowSeconds = Mathf.Max(0f, entryWindowSeconds);
             chainInputWindowSeconds = Mathf.Max(0f, chainWindowSeconds);
+        }
+
+        /// <summary>
+        /// 현재 콤보 입력창의 만료 시간을 지정한 소유자가 해제할 때까지 보류합니다.
+        /// </summary>
+        /// <param name="owner">입력창 보류를 요청하는 소유자 객체입니다.</param>
+        /// <returns>입력창 보류가 적용되었거나 이미 같은 소유자로 적용 중이면 <see langword="true"/>입니다.</returns>
+        public bool HoldInputWindowExpiration(object owner)
+        {
+            if (owner == null)
+            {
+                return false;
+            }
+
+            ResetExpiredComboIfNeeded();
+            if (!_state.IsActive || !_isInputWindowArmed)
+            {
+                return false;
+            }
+
+            if (_inputWindowHoldOwners.Contains(owner))
+            {
+                return true;
+            }
+
+            if (_inputWindowHoldOwners.Count == 0)
+            {
+                _heldInputWindowRemainingSeconds = _inputWindowExpireTime > 0f
+                    ? Mathf.Max(0f, _inputWindowExpireTime - Time.time)
+                    : InputWindowDisabledTime;
+                _inputWindowExpireTime = InputWindowDisabledTime;
+            }
+
+            _inputWindowHoldOwners.Add(owner);
+            return true;
+        }
+
+        /// <summary>
+        /// 지정한 소유자가 보류 중이던 콤보 입력창 만료 시간을 다시 진행합니다.
+        /// </summary>
+        /// <param name="owner">입력창 보류를 해제할 소유자 객체입니다.</param>
+        /// <param name="minRemainingSeconds">보류 해제 후 최소로 보장할 남은 입력 시간입니다.</param>
+        public void ReleaseInputWindowExpirationHold(object owner, float minRemainingSeconds = 0f)
+        {
+            if (owner == null || !_inputWindowHoldOwners.Remove(owner))
+            {
+                return;
+            }
+
+            if (_inputWindowHoldOwners.Count > 0)
+            {
+                return;
+            }
+
+            float safeMinRemainingSeconds = Mathf.Max(0f, minRemainingSeconds);
+            if (!_state.IsActive || !_isInputWindowArmed)
+            {
+                _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
+                return;
+            }
+
+            if (_heldInputWindowRemainingSeconds <= InputWindowDisabledTime)
+            {
+                _inputWindowExpireTime = safeMinRemainingSeconds > 0f
+                    ? Time.time + safeMinRemainingSeconds
+                    : InputWindowDisabledTime;
+            }
+            else
+            {
+                float remainingSeconds = Mathf.Max(_heldInputWindowRemainingSeconds, safeMinRemainingSeconds);
+                _inputWindowExpireTime = remainingSeconds > 0f
+                    ? Time.time + remainingSeconds
+                    : Time.time;
+            }
+
+            _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
         }
 
         /// <summary>
@@ -650,6 +729,8 @@ namespace GGemCo2DSkill
         {
             _isInputWindowArmed = false;
             _inputWindowExpireTime = InputWindowDisabledTime;
+            _inputWindowHoldOwners.Clear();
+            _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
         }
 
         /// <summary>
