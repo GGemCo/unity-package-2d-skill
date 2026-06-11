@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Config;
 using GGemCo2DCore;
@@ -362,6 +362,11 @@ namespace GGemCo2DSkill
         }
 
 
+        /// <summary>
+        /// 스킬 정의 기준으로 현재 캐릭터가 필요한 MP를 지불할 수 있는지 확인합니다.
+        /// </summary>
+        /// <param name="skill">MP 비용을 확인할 플레이어 스킬 정의입니다.</param>
+        /// <returns>스킬 정의가 유효하지 않거나 MP가 충분하면 <see langword="true"/>입니다.</returns>
         private bool HasEnoughMp(RuntimeSkillDefinition skill)
         {
             if (skill == null || skill.NeedMp <= 0)
@@ -374,11 +379,17 @@ namespace GGemCo2DSkill
         /// 지정한 MP 합산 비용을 현재 캐릭터가 지불할 수 있는지 확인합니다.
         /// </summary>
         /// <param name="needMp">필요 MP 합계입니다.</param>
-        /// <returns>MP가 충분하면 <see langword="true"/>입니다.</returns>
+        /// <returns>MP가 충분하거나 개발용 MP 비용 무시 옵션이 켜져 있으면 <see langword="true"/>입니다.</returns>
         private bool HasEnoughMp(int needMp)
         {
             if (needMp <= 0)
                 return true;
+
+#if GGEMCO_ENABLE_CHEAT_TOOLS
+            // MP 비용 무시 옵션은 개발 환경에서만 컴파일되어 릴리즈 빌드에는 포함되지 않습니다.
+            if (ShouldIgnorePlayerSkillMpCost())
+                return true;
+#endif
 
             if (_character == null)
                 return true;
@@ -386,6 +397,10 @@ namespace GGemCo2DSkill
             return _character.CheckNeedMp(needMp);
         }
 
+        /// <summary>
+        /// 스킬 정의에 설정된 MP 비용을 차감합니다.
+        /// </summary>
+        /// <param name="skill">MP 비용을 차감할 플레이어 스킬 정의입니다.</param>
         private void SpendMp(RuntimeSkillDefinition skill)
         {
             if (skill == null || skill.NeedMp <= 0)
@@ -403,8 +418,27 @@ namespace GGemCo2DSkill
             if (needMp <= 0)
                 return;
 
+#if GGEMCO_ENABLE_CHEAT_TOOLS
+            // 테스트 중 MP 비용을 무시하는 경우, 비용 검사뿐 아니라 실제 차감도 건너뜁니다.
+            if (ShouldIgnorePlayerSkillMpCost())
+                return;
+#endif
+
             _character?.MinusMp(needMp);
         }
+
+#if GGEMCO_ENABLE_CHEAT_TOOLS
+        /// <summary>
+        /// 개발 환경에서 플레이어 스킬 MP 비용 무시 옵션이 활성화되어 있는지 확인합니다.
+        /// </summary>
+        /// <returns>플레이어 스킬 MP 비용 검사와 차감을 건너뛰어야 하면 <see langword="true"/>입니다.</returns>
+        private static bool ShouldIgnorePlayerSkillMpCost()
+        {
+            AddressableLoaderSettingsSkill loader = AddressableLoaderSettingsSkill.Instance;
+            GGemCoSkillSettings settings = loader != null ? loader.skillSettings : null;
+            return settings != null && settings.IgnorePlayerSkillMpCost;
+        }
+#endif
 
         public bool RequestCancelSkill(SkillCancelReason reason)
         {

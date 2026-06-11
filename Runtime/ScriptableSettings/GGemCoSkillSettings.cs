@@ -1,4 +1,4 @@
-﻿using GGemCo2DCore;
+using GGemCo2DCore;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -39,6 +39,17 @@ namespace GGemCo2DSkill
         [SerializeField, DebugOption("스킬 패키지 디버그 기능 전체 사용 여부입니다.")]
         private bool enableSkillDebug;
         public bool EnableSkillDebug => DebugOptionRuntimeUtility.Resolve(enableSkillDebug);
+
+#if GGEMCO_ENABLE_CHEAT_TOOLS
+        [SerializeField, DebugOption("플레이어 스킬 MP 비용 검사를 무시하고 MP 차감을 건너뛰는 개발 전용 옵션입니다.")]
+        [Tooltip("활성화하면 플레이어 스킬 사용 시 필요한 MP가 부족해도 스킬을 발동하고, MP를 차감하지 않습니다. 릴리즈 빌드에는 컴파일되지 않습니다.")]
+        private bool ignorePlayerSkillMpCost;
+
+        /// <summary>
+        /// 플레이어 스킬의 MP 비용 검사와 차감을 개발 환경에서 무시할지 여부입니다.
+        /// </summary>
+        public bool IgnorePlayerSkillMpCost => EnableSkillDebug && DebugOptionRuntimeUtility.Resolve(ignorePlayerSkillMpCost);
+#endif
 
         [SerializeField, Tooltip("Damage 이벤트 영역 Gizmo 표시 여부입니다.")]
         private bool enableDamageAreaGizmo;
