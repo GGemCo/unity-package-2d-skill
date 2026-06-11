@@ -1136,6 +1136,11 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 현재 메인 콤보 스킬이 종료되면 다음 입력 대기 시간을 열거나 콤보를 초기화합니다.
         /// </summary>
+        /// <remarks>
+        /// 확정 타격은 스킬 실행 중 체인 입력을 미리 열기 위한 조기 게이트로만 사용합니다.
+        /// 스킬이 정상 종료되면 확정 타격 여부와 관계없이 다음 노드가 있는 경우
+        /// <see cref="chainInputWindowSeconds"/> 동안 추가 입력을 받을 수 있습니다.
+        /// </remarks>
         /// <param name="report">스킬 실행 종료 리포트입니다.</param>
         private void OnSkillExecutionFinished(SkillExecutionReport report)
         {
@@ -1160,12 +1165,18 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            if (!_chainGateOpenedByConfirmedDamage)
-            {
-                CancelCombo(SkillComboCancelReason.ChainInputNotUnlockedByConfirmedDamage);
-                return;
-            }
+            OpenChainInputWindowAfterSkillSucceeded();
+        }
 
+        /// <summary>
+        /// 메인 콤보 스킬이 정상 종료된 뒤 다음 체인 입력창을 엽니다.
+        /// </summary>
+        /// <remarks>
+        /// 확정 타격으로 이미 열린 입력창은 스킬 실행 중 즉시 입력을 받기 위한 용도입니다.
+        /// 정상 종료 시점에는 타격 성공 여부를 실패 조건으로 보지 않고, 설정된 종료 후 유예 시간으로 다시 제한합니다.
+        /// </remarks>
+        private void OpenChainInputWindowAfterSkillSucceeded()
+        {
             if (chainInputWindowSeconds <= 0f)
             {
                 CancelCombo(SkillComboCancelReason.ChainInputWindowDisabled);
