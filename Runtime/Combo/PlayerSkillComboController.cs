@@ -141,6 +141,44 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 확정 피해 기반 체인 타이밍에서 메인 콤보 공격 입력을 받을 수 있는지 반환합니다.
+        /// </summary>
+        /// <remarks>
+        /// 스킬 실행 중 일반 공격 입력을 차단하는 입력 규칙이, 실제 체인 공격으로 이어질 수 있는 경우만
+        /// 기존 콤보 처리 흐름으로 통과시키기 위해 사용합니다.
+        /// </remarks>
+        public bool CanAcceptSkillChainMainInput
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive &&
+                       !_state.IsEntryGateActive &&
+                       _isInputWindowArmed &&
+                       TryResolveNextNode(SkillComboCommand.Main, out _, out _);
+            }
+        }
+
+        /// <summary>
+        /// 확정 피해 기반 체인 타이밍에서 마무리 콤보 공격 입력을 받을 수 있는지 반환합니다.
+        /// </summary>
+        /// <remarks>
+        /// 가드 유지 기반 마무리 입력을 사용하는 프로젝트 입력 규칙이 스킬 실행 중에도 유효한 Last 체인을
+        /// 기존 로직으로 처리할 수 있도록 읽기 전용 상태만 제공합니다.
+        /// </remarks>
+        public bool CanAcceptSkillChainLastInput
+        {
+            get
+            {
+                ResetExpiredComboIfNeeded();
+                return _state.IsActive &&
+                       !_state.IsEntryGateActive &&
+                       _isInputWindowArmed &&
+                       TryResolveNextNode(SkillComboCommand.Last, out _, out _);
+            }
+        }
+
+        /// <summary>
         /// 현재 공격 입력을 선입력 버퍼로 저장할 수 있는 콤보 진행 상태인지 반환합니다.
         /// </summary>
         public bool CanBufferComboInput

@@ -11,7 +11,7 @@ namespace GGemCo2DSkill
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, ICharacterSkillBundleDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier
+    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, ICharacterSkillBundleDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier, IPlayerSkillInputStateProvider
     {
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
