@@ -76,6 +76,10 @@ namespace GGemCo2DSkillEditor
         [Tooltip("프로젝타일 비행 사운드를 루프로 재생할지 여부입니다.")]
         [SerializeField] private bool flightSoundLoop = true;
 
+        [Tooltip("프로젝타일 비행 사운드를 어떤 기준으로 정지할지 결정합니다.")]
+        [SerializeField] private ProjectileFlightSoundLifetimePolicy flightSoundLifetimePolicy =
+            ProjectileFlightSoundLifetimePolicy.Default;
+
         [Header("Targeting Overrides")]
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private TargetingOverride targetingOverride;
@@ -223,6 +227,11 @@ namespace GGemCo2DSkillEditor
             flightSoundUid,
             flightSoundLoop,
             useLoopOverride: flightSoundUid > 0);
+
+        /// <summary>
+        /// 프로젝타일 비행 사운드 수명 정책입니다.
+        /// </summary>
+        public ProjectileFlightSoundLifetimePolicy FlightSoundLifetimePolicy => flightSoundLifetimePolicy;
 
         /// <summary>
         /// 프로젝타일의 타게팅 규칙을 보정하는 오버라이드 설정입니다.
