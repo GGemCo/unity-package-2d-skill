@@ -464,9 +464,10 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다.</param>
         /// <param name="payloadObj">Bake된 오디오 이벤트 정의입니다.</param>
-        internal void HandlePlayAudio(SkillTargetContext ctx, UnityEngine.Object payloadObj)
+        /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
+        internal void HandlePlayAudio(SkillTargetContext ctx, UnityEngine.Object payloadObj, float eventDurationSeconds)
         {
-            SkillPlayAudioEventHandler.Handle(ctx, payloadObj);
+            SkillPlayAudioEventHandler.Handle(ctx, payloadObj, eventDurationSeconds);
         }
 
         /// <summary>

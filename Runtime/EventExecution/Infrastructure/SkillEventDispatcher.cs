@@ -1,4 +1,4 @@
-﻿using Config;
+using Config;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -57,7 +57,7 @@ namespace GGemCo2DSkill
                     break;
 
                 case ConfigCommonSkill.SkillEventType.PlayAudio:
-                    executor.HandlePlayAudio(targetContext, payload);
+                    executor.HandlePlayAudio(targetContext, payload, context.EventDurationSeconds);
                     break;
 
                 case ConfigCommonSkill.SkillEventType.Lunge:

@@ -139,6 +139,7 @@ namespace GGemCo2DSkillEditor
         {
             var def = ScriptableObject.CreateInstance<PlayAudioEventDefinition>();
             def.soundUid = audio.SoundUid;
+            def.loop = audio.Loop;
             return def;
         }
     }

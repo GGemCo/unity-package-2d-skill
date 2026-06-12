@@ -13,7 +13,8 @@ namespace GGemCo2DSkill
         /// </summary>
         /// <param name="ctx">스킬 실행 대상 컨텍스트입니다. 현재는 향후 위치 기반 사운드 확장을 위해 유지합니다.</param>
         /// <param name="payloadObj">Bake된 오디오 이벤트 정의입니다.</param>
-        public static void Handle(SkillTargetContext ctx, Object payloadObj)
+        /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
+        public static void Handle(SkillTargetContext ctx, Object payloadObj, float eventDurationSeconds)
         {
             if (payloadObj is not PlayAudioEventDefinition def)
                 return;
@@ -24,8 +25,8 @@ namespace GGemCo2DSkill
             if (sceneGame == null || sceneGame.soundManager == null)
                 return;
 
-            // 사운드 해석, Addressables 로드, SFX 풀, 볼륨/피치 정책은 Core SoundManager가 일괄 처리합니다.
-            sceneGame.soundManager.PlayByUid(def.soundUid);
+            // 사운드 해석, Addressables 로드, 풀 관리, 볼륨/피치 정책은 Core SoundManager가 일괄 처리합니다.
+            sceneGame.soundManager.PlayByUid(def.soundUid, def.loop, eventDurationSeconds);
         }
     }
 }
