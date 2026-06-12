@@ -96,6 +96,12 @@ namespace GGemCo2DSkill
         /// <summary>차징 실패 애니메이션을 유지할 시간(초)입니다. 0이면 애니메이션 길이 또는 기본값을 사용합니다.</summary>
         public float ChargeFailDurationSeconds;
 
+        /// <summary>차징 전체가 진행되는 동안 재생할 사운드 UID입니다.</summary>
+        public int ChargeSoundUid;
+
+        /// <summary>차징 전체 사운드를 루프로 재생할지 여부입니다.</summary>
+        public bool ChargeSoundLoop;
+
         /// <summary>스킬 실행 직전에 자동으로 맞출 방향 정책입니다.</summary>
         public ConfigCommonSkill.SkillFacingMode FacingMode;
     }
@@ -149,6 +155,8 @@ namespace GGemCo2DSkill
                 ChargeCompleteDurationSeconds = System.Math.Max(0f, reader.Float("ChargeCompleteDurationSeconds", 0f)),
                 ChargeFailClip = reader.String("ChargeFailClip", string.Empty),
                 ChargeFailDurationSeconds = System.Math.Max(0f, reader.Float("ChargeFailDurationSeconds", 0f)),
+                ChargeSoundUid = System.Math.Max(0, reader.Int("ChargeSoundUid", 0)),
+                ChargeSoundLoop = reader.BoolYN("ChargeSoundLoop"),
                 UseClip = reader.String("UseClip"),
                 UseClipTimeScale = System.Math.Max(0.001f, reader.Float("UseClipTimeScale", 1f)),
                 UseClipTimingPolicy = reader.Enum<ConfigCommonSkill.SkillUseClipTimingPolicy>("UseClipTimingPolicy", ConfigCommonSkill.SkillUseClipTimingPolicy.RuntimeSequence),

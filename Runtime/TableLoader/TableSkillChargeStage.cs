@@ -41,6 +41,15 @@ namespace GGemCo2DSkill
         public float EndDurationSeconds;
 
         /// <summary>이 단계에서 표시할 VFX UID입니다. 0이면 VFX를 생성하지 않습니다.</summary>
+        /// <summary>이 단계에 진입할 때 1회 재생할 사운드 UID입니다. 0이면 재생하지 않습니다.</summary>
+        public int EnterSoundUid;
+
+        /// <summary>이 단계의 루프 구간 동안 재생할 사운드 UID입니다. 0이면 재생하지 않습니다.</summary>
+        public int LoopSoundUid;
+
+        /// <summary>단계 루프 사운드를 루프로 재생할지 여부입니다.</summary>
+        public bool LoopSoundLoop;
+
         public int VfxUid;
 
         /// <summary>VFX를 캐스터에 붙여 따라가게 할지 결정하는 Follow 모드입니다.</summary>
@@ -100,6 +109,9 @@ namespace GGemCo2DSkill
                 LoopClip = reader.String("LoopClip", string.Empty),
                 EndClip = reader.String("EndClip", string.Empty),
                 EndDurationSeconds = System.Math.Max(0f, reader.Float("EndDurationSeconds", 0f)),
+                EnterSoundUid = System.Math.Max(0, reader.Int("EnterSoundUid", 0)),
+                LoopSoundUid = System.Math.Max(0, reader.Int("LoopSoundUid", 0)),
+                LoopSoundLoop = reader.BoolYN("LoopSoundLoop"),
                 VfxUid = System.Math.Max(0, reader.Int("VfxUid", 0)),
                 VfxFollowMode = reader.Enum<VfxConstants.FollowMode>("VfxFollowMode", VfxConstants.FollowMode.Position),
                 VfxFollowAnchorMode = reader.Enum<VfxConstants.FollowAnchorMode>("VfxFollowAnchorMode", VfxConstants.FollowAnchorMode.FollowTargetOrigin),

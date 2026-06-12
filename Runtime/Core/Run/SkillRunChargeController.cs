@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Config;
 using GGemCo2DCore;
 using UnityEngine;
@@ -35,6 +35,7 @@ namespace GGemCo2DSkill
         private readonly SkillTargetContext _ctx;
         private readonly ICharacterAnimationController _animController;
         private readonly Func<Vector3> _snapshotCasterPositionProvider;
+        private readonly SkillChargeSoundController _chargeSoundController = new();
 
         private bool _didCharge;
         private bool _chargeCompleted;
@@ -182,6 +183,7 @@ namespace GGemCo2DSkill
         /// </summary>
         public void CleanupForRunEnd()
         {
+            _chargeSoundController.StopAll();
             CleanupActiveChargeVfx();
             NotifyInactive();
         }
@@ -259,6 +261,7 @@ namespace GGemCo2DSkill
                 _chargeGaugeMax = 1f;
             _chargeGaugeCurrent = _chargeGaugeMax;
 
+            _chargeSoundController.BeginCharge(_skill.Charge);
             EnterChargeStage(_chargeStageArrayIndex);
             NotifyChargeSnapshot();
         }
@@ -282,6 +285,7 @@ namespace GGemCo2DSkill
             _chargeStagePhaseElapsed = 0f;
             _chargeStagePhaseDuration = 0f;
             SpawnChargeVfx(stage);
+            _chargeSoundController.EnterStage(stage);
 
             float startDuration = ResolveChargeStageStartDuration(stage);
             if (startDuration > 0f)
@@ -317,6 +321,7 @@ namespace GGemCo2DSkill
             _chargeStagePhase = ChargeStagePhase.Loop;
             _chargeStagePhaseElapsed = 0f;
             _chargeStagePhaseDuration = stage != null ? Mathf.Max(0f, stage.DurationSeconds) : 0f;
+            _chargeSoundController.BeginStageLoop(stage);
             PlayChargeLoop(stage);
         }
 
@@ -358,6 +363,7 @@ namespace GGemCo2DSkill
         /// <param name="stage">현재 차징 단계 정의입니다.</param>
         private void BeginChargeStageEnd(RuntimeSkillChargeStageDefinition stage)
         {
+            _chargeSoundController.StopStageLoop();
             _chargeStagePhaseElapsed = 0f;
             _chargeStagePhaseDuration = 0f;
 
@@ -443,6 +449,7 @@ namespace GGemCo2DSkill
             _chargeStagePhase = ChargeStagePhase.None;
             _chargeStagePhaseElapsed = 0f;
             _chargeStagePhaseDuration = 0f;
+            _chargeSoundController.StopAll();
             CleanupActiveChargeVfx();
             PlayChargeComplete();
 
@@ -483,6 +490,7 @@ namespace GGemCo2DSkill
             _chargeFailElapsed = 0f;
             _chargeFailDuration = ResolveChargeFailDuration();
 
+            _chargeSoundController.StopAll();
             CleanupActiveChargeVfx();
             PlayChargeFail();
             _owner?.NotifyChargeFailed(_run);

@@ -39,6 +39,9 @@ namespace GGemCo2DSkillEditor
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.LoopClip)] = "Loop Animation Clip";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.EndClip)] = "End Animation Clip";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.EndDurationSeconds)] = "End Duration Seconds";
+            options.LabelByMemberName[nameof(StruckTableSkillChargeStage.EnterSoundUid)] = "Enter Sound Uid";
+            options.LabelByMemberName[nameof(StruckTableSkillChargeStage.LoopSoundUid)] = "Loop Sound Uid";
+            options.LabelByMemberName[nameof(StruckTableSkillChargeStage.LoopSoundLoop)] = "Loop Sound Loop";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxUid)] = "VFX Uid";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxFollowMode)] = "VFX Follow Mode";
             options.LabelByMemberName[nameof(StruckTableSkillChargeStage.VfxFollowAnchorMode)] = "VFX Follow Anchor Mode";
@@ -297,6 +300,9 @@ namespace GGemCo2DSkillEditor
                 LoopClip = string.Empty,
                 EndClip = string.Empty,
                 EndDurationSeconds = 0f,
+                EnterSoundUid = 0,
+                LoopSoundUid = 0,
+                LoopSoundLoop = true,
                 VfxUid = 0,
                 VfxFollowMode = VfxConstants.FollowMode.Position,
                 VfxFollowAnchorMode = VfxConstants.FollowAnchorMode.FollowTargetOrigin,
@@ -338,6 +344,12 @@ namespace GGemCo2DSkillEditor
                     break;
                 case nameof(StruckTableSkillChargeStage.EndDurationSeconds):
                     row.EndDurationSeconds = Mathf.Max(0f, row.EndDurationSeconds);
+                    break;
+                case nameof(StruckTableSkillChargeStage.EnterSoundUid):
+                    row.EnterSoundUid = Mathf.Max(0, row.EnterSoundUid);
+                    break;
+                case nameof(StruckTableSkillChargeStage.LoopSoundUid):
+                    row.LoopSoundUid = Mathf.Max(0, row.LoopSoundUid);
                     break;
                 case nameof(StruckTableSkillChargeStage.VfxUid):
                     row.VfxUid = Mathf.Max(0, row.VfxUid);
@@ -402,7 +414,7 @@ namespace GGemCo2DSkillEditor
                 if (!string.IsNullOrWhiteSpace(directory))
                     Directory.CreateDirectory(directory);
 
-                const string header = "Uid	SkillUid	OwnerType	StageIndex	StartClip	StartDurationSeconds	DurationSeconds	LoopClip	EndClip	EndDurationSeconds	VfxUid	VfxFollowMode	VfxFollowAnchorMode	VfxPositionYType	VfxPositionY	VfxScale	Memo";
+                const string header = "Uid	SkillUid	OwnerType	StageIndex	StartClip	StartDurationSeconds	DurationSeconds	LoopClip	EndClip	EndDurationSeconds	EnterSoundUid	LoopSoundUid	LoopSoundLoop	VfxUid	VfxFollowMode	VfxFollowAnchorMode	VfxPositionYType	VfxPositionY	VfxScale	Memo";
                 File.WriteAllText(fullPath, header + "\n", new UTF8Encoding(false));
                 AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceUpdate | ImportAssetOptions.ForceSynchronousImport);
                 AssetDatabase.Refresh();
@@ -426,6 +438,8 @@ namespace GGemCo2DSkillEditor
             row.StartDurationSeconds = Mathf.Max(0f, row.StartDurationSeconds);
             row.DurationSeconds = Mathf.Max(0f, row.DurationSeconds);
             row.EndDurationSeconds = Mathf.Max(0f, row.EndDurationSeconds);
+            row.EnterSoundUid = Mathf.Max(0, row.EnterSoundUid);
+            row.LoopSoundUid = Mathf.Max(0, row.LoopSoundUid);
             row.VfxUid = Mathf.Max(0, row.VfxUid);
             row.VfxScale = Mathf.Max(0f, row.VfxScale);
         }
