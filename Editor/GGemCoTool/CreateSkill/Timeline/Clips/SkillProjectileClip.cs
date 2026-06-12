@@ -69,6 +69,13 @@ namespace GGemCo2DSkillEditor
         [Tooltip("기본 이펙트 대신 사용할 Effect UID 오버라이드입니다.")]
         [SerializeField] private int visualVfxUidOverride = 0;
 
+        [Header("Flight Sound")]
+        [Tooltip("프로젝타일이 비행하는 동안 재생할 sound 테이블의 대표 UID입니다. 0이면 재생하지 않습니다.")]
+        [SerializeField] private int flightSoundUid = 0;
+
+        [Tooltip("프로젝타일 비행 사운드를 루프로 재생할지 여부입니다.")]
+        [SerializeField] private bool flightSoundLoop = true;
+
         [Header("Targeting Overrides")]
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private TargetingOverride targetingOverride;
@@ -208,6 +215,14 @@ namespace GGemCo2DSkillEditor
         /// 프로젝타일 비주얼 이펙트를 대체할 UID입니다.
         /// </summary>
         public int VisualVfxUidOverride => visualVfxUidOverride;
+
+        /// <summary>
+        /// 프로젝타일 비행 중 사용할 사운드 재생 요청입니다.
+        /// </summary>
+        public SoundPlayRequest FlightSound => SoundPlayRequest.Create(
+            flightSoundUid,
+            flightSoundLoop,
+            useLoopOverride: flightSoundUid > 0);
 
         /// <summary>
         /// 프로젝타일의 타게팅 규칙을 보정하는 오버라이드 설정입니다.

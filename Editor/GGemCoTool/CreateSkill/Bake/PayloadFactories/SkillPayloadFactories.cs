@@ -1,4 +1,5 @@
 using GGemCo2DSkill;
+using GGemCo2DCore;
 using UnityEngine;
 
 namespace GGemCo2DSkillEditor
@@ -140,6 +141,11 @@ namespace GGemCo2DSkillEditor
             var def = ScriptableObject.CreateInstance<PlayAudioEventDefinition>();
             def.soundUid = audio.SoundUid;
             def.loop = audio.Loop;
+            def.soundRequest = SoundPlayRequest.Create(
+                audio.SoundUid,
+                audio.Loop,
+                useLoopOverride: true,
+                useDurationOverride: audio.Loop);
             return def;
         }
     }
@@ -383,6 +389,7 @@ namespace GGemCo2DSkillEditor
             def.visualSprite = proj.VisualSprite;
             def.visualAnimatorController = proj.VisualAnimatorController;
             def.visualVfxUidOverride = proj.VisualVfxUidOverride;
+            def.flightSound = proj.FlightSound;
             def.targetPointPolicy = proj.TargetPointPolicy;
             def.fixedTargetOffset = proj.FixedTargetOffset;
             def.fixedTargetHitAreaNormalized = proj.FixedTargetHitAreaNormalized;

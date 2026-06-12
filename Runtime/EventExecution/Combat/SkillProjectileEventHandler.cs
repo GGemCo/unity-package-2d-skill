@@ -100,6 +100,7 @@ namespace GGemCo2DSkill
                 visualSprite: def.visualSprite,
                 visualAnimatorController: def.visualAnimatorController,
                 visualVfxUidOverride: def.visualVfxUidOverride,
+                flightSound: def.flightSound,
                 useTargetPositionOverride: usePosOverride,
                 targetPositionOverride: posOverride,
                 skillUid: skill.Uid,

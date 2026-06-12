@@ -18,15 +18,17 @@ namespace GGemCo2DSkill
         {
             if (payloadObj is not PlayAudioEventDefinition def)
                 return;
-            if (def.soundUid <= 0)
-                return;
 
             SceneGame sceneGame = SceneGame.Instance;
             if (sceneGame == null || sceneGame.soundManager == null)
                 return;
 
+            SoundPlayRequest request = def.ResolveRequest(eventDurationSeconds);
+            if (request == null || !request.IsValid)
+                return;
+
             // 사운드 해석, Addressables 로드, 풀 관리, 볼륨/피치 정책은 Core SoundManager가 일괄 처리합니다.
-            sceneGame.soundManager.PlayByUid(def.soundUid, def.loop, eventDurationSeconds);
+            sceneGame.soundManager.Play(request);
         }
     }
 }

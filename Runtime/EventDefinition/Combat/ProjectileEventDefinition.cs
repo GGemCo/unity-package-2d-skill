@@ -56,6 +56,10 @@ namespace GGemCo2DSkill
         public RuntimeAnimatorController visualAnimatorController;
         public int visualVfxUidOverride = 0;
 
+        [Header("Flight Sound")]
+        [Tooltip("프로젝타일이 비행하는 동안 재생할 사운드 요청입니다.")]
+        public SoundPlayRequest flightSound = new SoundPlayRequest();
+
         [Header("타겟 지점 정책")]
         [Tooltip("프로젝타일 조준에 사용할 고정 타겟 지점을 계산하는 방식입니다. UseDefaultTargeting은 기존 동작을 유지합니다.")]
         public ProjectileTargetPointPolicy targetPointPolicy = ProjectileTargetPointPolicy.UseDefaultTargeting;
