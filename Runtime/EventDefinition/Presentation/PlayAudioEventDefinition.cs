@@ -6,7 +6,7 @@ namespace GGemCo2DSkill
     /// <summary>
     /// 스킬 Timeline에서 Bake된 사운드 재생 이벤트 정의입니다.
     /// </summary>
-    public sealed class PlayAudioEventDefinition : ScriptableObject
+    public sealed class PlayAudioEventDefinition : ScriptableObject, ISkillSoundUsageProvider
     {
         /// <summary>
         /// 재생할 sound 테이블의 대표 UID입니다.
@@ -22,6 +22,24 @@ namespace GGemCo2DSkill
         /// 공용 사운드 재생 요청입니다. 신규 Bake 데이터는 이 값을 우선 사용합니다.
         /// </summary>
         public SoundPlayRequest soundRequest = new SoundPlayRequest();
+
+
+        /// <summary>
+        /// 현재 오디오 이벤트가 실제 재생에 사용할 sound UID를 매니페스트 분석 결과에 추가합니다.
+        /// 신규 SoundPlayRequest가 유효하면 레거시 soundUid보다 우선합니다.
+        /// </summary>
+        /// <param name="target">발견한 sound UID를 추가할 결과 컬렉션입니다.</param>
+        public void CollectSoundUids(System.Collections.Generic.ICollection<int> target)
+        {
+            if (target == null)
+                return;
+
+            int resolvedSoundUid = soundRequest != null && soundRequest.IsValid
+                ? soundRequest.soundUid
+                : soundUid;
+            if (resolvedSoundUid > 0)
+                target.Add(resolvedSoundUid);
+        }
 
         /// <summary>
         /// 현재 정의에서 사용할 사운드 재생 요청을 계산합니다.

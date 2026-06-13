@@ -9,7 +9,7 @@ namespace GGemCo2DSkill
     /// - Core 패키지의 Projectile 시스템을 Skill Timeline 이벤트로 트리거하기 위한 Payload 입니다.
     /// - 발사 타이밍은 Timeline Clip 구간(Start~End)과 동기화됩니다.
     /// </summary>
-    public sealed class ProjectileEventDefinition : ScriptableObject
+    public sealed class ProjectileEventDefinition : ScriptableObject, ISkillSoundUsageProvider
     {
         [Header("Projectile (Core Table)")]
         [Tooltip("Core projectile_linear/projectile_arc/projectile_path 테이블의 Uid")]
@@ -127,5 +127,17 @@ namespace GGemCo2DSkill
         [Header("Targeting Overrides")]
         [Tooltip("스킬 기본 TargetingMode 대신, 이벤트 별 TargetingMode를 강제할 수 있습니다.")]
         public TargetingOverride targetingOverride;
+        /// <summary>
+        /// 프로젝타일 이벤트가 비행 중 사용할 sound UID를 매니페스트 분석 결과에 추가합니다.
+        /// </summary>
+        /// <param name="target">발견한 sound UID를 추가할 결과 컬렉션입니다.</param>
+        public void CollectSoundUids(System.Collections.Generic.ICollection<int> target)
+        {
+            if (target == null || flightSound == null || !flightSound.IsValid)
+                return;
+
+            target.Add(flightSound.soundUid);
+        }
+
     }
 }
