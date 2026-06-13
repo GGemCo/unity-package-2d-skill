@@ -10,7 +10,7 @@ namespace GGemCo2DSkill
     /// 몬스터 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler, IIncomingHitCombatFeedbackSink, IMonsterPoolLifecycle
+    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler, IIncomingHitCombatFeedbackSink, IMonsterPoolLifecycle, IMonsterLeashLifecycle
     {
         /// <summary>
         /// 실제 스킬 실행과 취소를 담당하는 런타임 실행기입니다.
@@ -382,6 +382,38 @@ namespace GGemCo2DSkill
         {
             ResetForPoolReturn();
         }
+
+        /// <inheritdoc />
+        public void OnLeashEvadeStarted(Monster owner, MonsterLeashTrigger trigger)
+        {
+            _controllerMonster ??= GetComponent<ControllerMonster>();
+            _controllerMonster?.StopAttackCoroutine();
+
+            if (_executor == null)
+            {
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+            }
+
+            if (_executor != null && _executor.IsBusy)
+            {
+                _executor.TryCancel(SkillCancelReason.ForcedBySystem);
+            }
+
+            _lastSkillResult = default;
+            _hasLastSkillResult = false;
+            _lastCombatReport = default;
+            _hasLastCombatReport = false;
+            _pendingCombatReport = default;
+            _hasPendingCombatReport = false;
+            _currentRunningSkillUid = 0;
+        }
+
+        /// <inheritdoc />
+        public void OnLeashReturnCompleted(Monster owner)
+        {
+            // 쿨다운은 전투 밸런스 데이터이므로 유지하고, 실행 중 상태만 Evade 시작 시점에 정리합니다.
+        }
+
         /// <summary>
         /// 현재 실행 중인 스킬에 취소를 요청합니다.
         /// </summary>

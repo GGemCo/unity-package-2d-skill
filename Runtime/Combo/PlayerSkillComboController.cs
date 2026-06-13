@@ -38,7 +38,6 @@ namespace GGemCo2DSkill
         private float _inputWindowExpireTime = InputWindowDisabledTime;
         private readonly List<object> _inputWindowHoldOwners = new();
         private float _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
-        private bool _chainGateOpenedByConfirmedDamage;
 
         /// <summary>
         /// 현재 플레이어 콤보 진행 상태입니다.
@@ -388,7 +387,6 @@ namespace GGemCo2DSkill
         private void ResetComboInternal()
         {
             _state.Reset();
-            ResetCurrentSkillChainGate();
             ClearInputWindow();
             ClearBufferedMainInput();
         }
@@ -681,7 +679,6 @@ namespace GGemCo2DSkill
             }
 
             _state.Activate(node);
-            ResetCurrentSkillChainGate();
             if (!CanContinueComboFromNode(node))
             {
                 return FinishComboBecauseNoNextSkill(node);
@@ -868,14 +865,6 @@ namespace GGemCo2DSkill
             _inputWindowExpireTime = InputWindowDisabledTime;
             _inputWindowHoldOwners.Clear();
             _heldInputWindowRemainingSeconds = InputWindowDisabledTime;
-        }
-
-        /// <summary>
-        /// 현재 실행 중인 메인 콤보 스킬에서 확정 타격으로 체인 게이트가 열렸는지 기록한 상태를 초기화합니다.
-        /// </summary>
-        private void ResetCurrentSkillChainGate()
-        {
-            _chainGateOpenedByConfirmedDamage = false;
         }
 
         /// <summary>
@@ -1100,7 +1089,6 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            _chainGateOpenedByConfirmedDamage = true;
             ArmInputWindow(0f);
             TryConsumeBufferedMainInputIfReady();
         }
@@ -1183,7 +1171,6 @@ namespace GGemCo2DSkill
                 return;
             }
 
-            ResetCurrentSkillChainGate();
             ArmInputWindow(chainInputWindowSeconds);
             TryConsumeBufferedMainInputIfReady();
         }
