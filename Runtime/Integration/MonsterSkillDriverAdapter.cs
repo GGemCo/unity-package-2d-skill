@@ -23,6 +23,11 @@ namespace GGemCo2DSkill
         private ControllerMonster _controllerMonster;
 
         /// <summary>
+        /// 다수 몬스터의 동시 공격 수를 제한하는 Core 공격 슬롯 컨트롤러입니다.
+        /// </summary>
+        private MonsterAttackSlotController _attackSlotController;
+
+        /// <summary>
         /// 외부에서 사용할 <see cref="SkillExecutor"/> 인스턴스를 설정합니다.
         /// </summary>
         /// <param name="value">이 어댑터가 사용할 스킬 실행기입니다.</param>
@@ -69,6 +74,7 @@ namespace GGemCo2DSkill
                 SetSkillExecutor(_executor);
 
             if (_controllerMonster == null) _controllerMonster = GetComponent<ControllerMonster>();
+            if (_attackSlotController == null) _attackSlotController = GetComponent<MonsterAttackSlotController>();
         }
 
         private void OnDestroy()
@@ -148,8 +154,24 @@ namespace GGemCo2DSkill
 
             ApplyPreSkillFacing(skill, in target);
 
+            _attackSlotController ??= GetComponent<MonsterAttackSlotController>();
+            bool hadAttackSlotReservation = _attackSlotController != null && _attackSlotController.HasReservation;
+            if (_attackSlotController != null && !_attackSlotController.TryReserveCurrentTarget())
+            {
+                return SkillUseResult.Fail(SkillUseFailReason.Busy);
+            }
+
             bool started = _executor.TryUse(skillUid, ctx, ConfigCommon.SkillTableSource.Monster);
-            if (!started) return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
+            if (!started)
+            {
+                if (!hadAttackSlotReservation)
+                {
+                    _attackSlotController?.ReleaseReservation();
+                }
+                return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
+            }
+
+            _attackSlotController?.NotifyCombatActionStarted(waitForExplicitCompletion: true);
 
             float cd = Mathf.Max(0f, skill.CoolTime);
             if (cd > 0f) _cooldownReadyAt[skillUid] = Time.time + cd;
@@ -301,6 +323,7 @@ namespace GGemCo2DSkill
             _pendingCombatReport = default;
             _hasPendingCombatReport = false;
             _currentRunningSkillUid = 0;
+            _attackSlotController?.NotifyCombatActionCompleted();
         }
 
         public bool TryGetLastSkillCombatReport(int skillUid, out MonsterSkillCombatReport report)
@@ -354,6 +377,8 @@ namespace GGemCo2DSkill
         {
             _controllerMonster ??= GetComponent<ControllerMonster>();
             _controllerMonster?.StopAttackCoroutine();
+            _attackSlotController ??= GetComponent<MonsterAttackSlotController>();
+            _attackSlotController?.ReleaseReservation();
 
             if (_executor == null)
                 SetSkillExecutor(GetComponent<SkillExecutor>());
@@ -388,6 +413,8 @@ namespace GGemCo2DSkill
         {
             _controllerMonster ??= GetComponent<ControllerMonster>();
             _controllerMonster?.StopAttackCoroutine();
+            _attackSlotController ??= GetComponent<MonsterAttackSlotController>();
+            _attackSlotController?.ReleaseReservation();
 
             if (_executor == null)
             {
@@ -434,6 +461,8 @@ namespace GGemCo2DSkill
         {
             _controllerMonster ??= GetComponent<ControllerMonster>();
             _controllerMonster?.StopAttackCoroutine();
+            _attackSlotController ??= GetComponent<MonsterAttackSlotController>();
+            _attackSlotController?.ReleaseReservation();
 
             if (_executor == null)
                 SetSkillExecutor(GetComponent<SkillExecutor>());
