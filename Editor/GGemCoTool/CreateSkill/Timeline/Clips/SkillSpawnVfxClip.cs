@@ -80,6 +80,10 @@ namespace GGemCo2DSkillEditor
         [Tooltip("Caster가 좌우 반전된 상태일 때 Offset의 X 값을 반전할지 여부입니다.")]
         [SerializeField] private bool useCasterFlipOffsetX = false;
 
+        [Header("Axis Override")]
+        [Tooltip("켜면 Anchor 계산 결과를 축별 기준점 값으로 다시 합성합니다.")]
+        [SerializeField] private VfxPositionAxisOverrideOptions axisOverride;
+
         [Header("Position Anchor")]
         [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 내에 저장합니다.")]
         [SerializeField] private SkillPositionAnchorWriteOptions positionAnchorWrite;
@@ -125,6 +129,9 @@ namespace GGemCo2DSkillEditor
 
         /// <summary>Caster 좌우 반전 상태에 따라 Offset X를 반전할지 여부입니다.</summary>
         public bool UseCasterFlipOffsetX => useCasterFlipOffsetX;
+
+        /// <summary>VFX 생성 위치를 축별 기준점으로 합성하기 위한 설정입니다.</summary>
+        public VfxPositionAxisOverrideOptions AxisOverride => axisOverride;
 
         /// <summary>최종 생성 위치 저장 옵션입니다.</summary>
         public SkillPositionAnchorWriteOptions PositionAnchorWrite => positionAnchorWrite;

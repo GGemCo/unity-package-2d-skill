@@ -66,6 +66,7 @@ namespace GGemCo2DSkillEditor
             def.localOffset = new Vector3(fx.Offset.x, fx.Offset.y, 0f);
             def.offsetSpace = offsetSpace;
             def.useCasterFlipOffsetX = fx.UseCasterFlipOffsetX;
+            def.axisOverride = fx.AxisOverride;
             def.positionAnchorWrite = fx.PositionAnchorWrite;
             def.lifetimeMode = fx.LifetimeMode;
             def.lifetimeSeconds = fx.LifetimeSeconds;

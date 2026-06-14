@@ -1,4 +1,4 @@
-﻿using Config;
+using Config;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -45,6 +45,7 @@ namespace GGemCo2DSkill
             }
 
             Vector3 anchorSpawnPos = ResolveVfxSpawnPosition(skill, ctx, def, casterPos, targetPos, groundPoint);
+            anchorSpawnPos = ResolveAxisOverrideSpawnPosition(def, anchorSpawnPos, casterPos, targetPos, groundPoint);
             Transform bindingParent = ResolveVfxBindingParentTransform(def, ctx);
             Vector3 spawnPos = ResolveFinalVfxSpawnPosition(def, anchorSpawnPos, bindingParent, ctx.caster);
 
@@ -325,6 +326,66 @@ namespace GGemCo2DSkill
                 case VfxSpawnAnchor.Caster:
                 default:
                     return casterPos;
+            }
+        }
+
+        /// <summary>
+        /// VFX 생성 기준점에 축별 위치 합성 정책을 적용합니다.
+        /// </summary>
+        /// <param name="def">VFX 이벤트 정의입니다.</param>
+        /// <param name="anchorSpawnPos">기존 Anchor/TargetingOverride 규칙으로 계산된 기준 위치입니다.</param>
+        /// <param name="casterPos">이벤트 시점의 Caster 위치입니다.</param>
+        /// <param name="targetPos">이벤트 시점의 Target 위치입니다.</param>
+        /// <param name="groundPoint">이벤트 시점의 GroundPoint 위치입니다.</param>
+        /// <returns>축별 합성 정책이 반영된 VFX 생성 기준 위치입니다.</returns>
+        private static Vector3 ResolveAxisOverrideSpawnPosition(
+            VfxEventDefinition def,
+            Vector3 anchorSpawnPos,
+            Vector3 casterPos,
+            Vector3 targetPos,
+            Vector3 groundPoint)
+        {
+            if (def == null || !def.axisOverride.enabled)
+                return anchorSpawnPos;
+
+            VfxPositionAxisOverrideOptions options = def.axisOverride;
+            return new Vector3(
+                ResolveAxisValue(options.xSource, anchorSpawnPos.x, casterPos.x, targetPos.x, groundPoint.x, options.fixedWorldPosition.x),
+                ResolveAxisValue(options.ySource, anchorSpawnPos.y, casterPos.y, targetPos.y, groundPoint.y, options.fixedWorldPosition.y),
+                ResolveAxisValue(options.zSource, anchorSpawnPos.z, casterPos.z, targetPos.z, groundPoint.z, options.fixedWorldPosition.z));
+        }
+
+        /// <summary>
+        /// 축별 위치 소스 정책에 따라 단일 축 값을 해석합니다.
+        /// </summary>
+        /// <param name="source">축 값을 가져올 기준점입니다.</param>
+        /// <param name="anchorValue">기존 Anchor 계산 결과의 축 값입니다.</param>
+        /// <param name="casterValue">Caster 위치의 축 값입니다.</param>
+        /// <param name="targetValue">Target 위치의 축 값입니다.</param>
+        /// <param name="groundValue">GroundPoint 위치의 축 값입니다.</param>
+        /// <param name="fixedWorldValue">월드 고정 좌표의 축 값입니다.</param>
+        /// <returns>선택된 기준점에서 가져온 축 값입니다.</returns>
+        private static float ResolveAxisValue(
+            VfxPositionAxisSource source,
+            float anchorValue,
+            float casterValue,
+            float targetValue,
+            float groundValue,
+            float fixedWorldValue)
+        {
+            switch (source)
+            {
+                case VfxPositionAxisSource.Caster:
+                    return casterValue;
+                case VfxPositionAxisSource.Target:
+                    return targetValue;
+                case VfxPositionAxisSource.Ground:
+                    return groundValue;
+                case VfxPositionAxisSource.FixedWorld:
+                    return fixedWorldValue;
+                case VfxPositionAxisSource.Anchor:
+                default:
+                    return anchorValue;
             }
         }
 

@@ -76,6 +76,59 @@ namespace GGemCo2DSkill
     }
 
     /// <summary>
+    /// VFX 생성 위치의 각 축 값을 어느 기준점에서 가져올지 정의합니다.
+    /// </summary>
+    public enum VfxPositionAxisSource
+    {
+        /// <summary>기존 Anchor 계산 결과의 축 값을 사용합니다.</summary>
+        Anchor = 0,
+
+        /// <summary>이벤트 시점의 Caster 위치 축 값을 사용합니다.</summary>
+        Caster = 1,
+
+        /// <summary>이벤트 시점의 Target 위치 축 값을 사용합니다.</summary>
+        Target = 2,
+
+        /// <summary>이벤트 시점의 GroundPoint 위치 축 값을 사용합니다.</summary>
+        Ground = 3,
+
+        /// <summary>설정된 월드 고정 좌표의 축 값을 사용합니다.</summary>
+        FixedWorld = 4
+    }
+
+    /// <summary>
+    /// VFX 생성 위치를 축별로 다른 기준점에서 합성하기 위한 설정입니다.
+    /// </summary>
+    [System.Serializable]
+    public struct VfxPositionAxisOverrideOptions
+    {
+        /// <summary>
+        /// 축별 위치 합성 정책을 사용할지 여부입니다.
+        /// </summary>
+        public bool enabled;
+
+        /// <summary>
+        /// 최종 생성 위치의 X 값을 가져올 기준입니다.
+        /// </summary>
+        public VfxPositionAxisSource xSource;
+
+        /// <summary>
+        /// 최종 생성 위치의 Y 값을 가져올 기준입니다.
+        /// </summary>
+        public VfxPositionAxisSource ySource;
+
+        /// <summary>
+        /// 최종 생성 위치의 Z 값을 가져올 기준입니다.
+        /// </summary>
+        public VfxPositionAxisSource zSource;
+
+        /// <summary>
+        /// FixedWorld 축 기준을 사용할 때 참조할 월드 고정 좌표입니다.
+        /// </summary>
+        public Vector3 fixedWorldPosition;
+    }
+
+    /// <summary>
     /// 스킬 런타임에서 VFX 이벤트 하나를 실행하기 위한 설정입니다.
     /// </summary>
     public sealed class VfxEventDefinition : ScriptableObject
@@ -102,6 +155,10 @@ namespace GGemCo2DSkill
 
         [Tooltip("Caster가 좌우 반전된 상태일 때 Offset의 X 값을 반전할지 여부입니다.")]
         public bool useCasterFlipOffsetX = false;
+
+        [Header("Axis Override")]
+        [Tooltip("켜면 Anchor 계산 결과를 축별 기준점 값으로 다시 합성합니다.")]
+        public VfxPositionAxisOverrideOptions axisOverride;
 
         [Header("Position Anchor")]
         [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 안에 저장합니다.")]
