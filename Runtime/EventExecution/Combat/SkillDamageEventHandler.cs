@@ -136,7 +136,7 @@ namespace GGemCo2DSkill
                     crowdControlUid = crowdControlUid,
                     AttackId = attackId,
                     SkillUid = skill.Uid,
-                    SkillHitMpGain = Mathf.Max(0, def.skillHitMpGain),
+                    SkillHitMpGain = ResolveSkillHitMpGain(def.skillHitMpGain, ctx.executionOptions),
                     AllowMultipleSkillHitMpGainPerAttack = def.allowMultipleSkillHitMpGainPerAttack,
                     HasPendingAfterDamageCrowdControl = hasPendingAfterDamageCrowdControl,
                     DamageCameraShakePreset = def.useCameraShakeOnHit ? def.cameraShakePreset : null,
@@ -352,6 +352,17 @@ namespace GGemCo2DSkill
             return resolved >= long.MaxValue
                 ? long.MaxValue
                 : (long)System.Math.Round(resolved);
+        }
+
+        /// <summary>
+        /// 이벤트 기본 스킬 타격 MP 획득량과 실행 옵션 보너스를 합산합니다.
+        /// </summary>
+        /// <param name="baseMpGain">이벤트에 설정된 기본 MP 획득량입니다.</param>
+        /// <param name="executionOptions">이번 스킬 실행에 적용되는 실행 옵션입니다.</param>
+        /// <returns>최종 스킬 타격 MP 획득량입니다.</returns>
+        private static int ResolveSkillHitMpGain(int baseMpGain, in SkillExecutionOptions executionOptions)
+        {
+            return Mathf.Max(0, baseMpGain) + Mathf.Max(0, executionOptions.SkillHitMpGainBonus);
         }
 
         /// <summary>

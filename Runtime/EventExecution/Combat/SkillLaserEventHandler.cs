@@ -155,7 +155,7 @@ namespace GGemCo2DSkill
                 skillUid: skill.Uid,
                 attackId: attackId,
                 allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
-                skillHitMpGain: Mathf.Max(0, def.skillHitMpGain),
+                skillHitMpGain: ResolveSkillHitMpGain(def.skillHitMpGain, ctx.executionOptions),
                 allowMultipleSkillHitMpGainPerAttack: def.allowMultipleSkillHitMpGainPerAttack,
                 elementGaugeApplications: SkillOnHitEffectUtility.BuildElementGaugeApplications(
                     def.onHitElementGauges,
@@ -210,6 +210,17 @@ namespace GGemCo2DSkill
 
             Vector2 currentFacing = SkillDirectionResolver.ResolveCurrentFacing2D(sourceObject);
             return currentFacing.sqrMagnitude > 1e-6f ? (Vector3)currentFacing : Vector3.right;
+        }
+
+        /// <summary>
+        /// 이벤트 기본 스킬 타격 MP 획득량과 실행 옵션 보너스를 합산합니다.
+        /// </summary>
+        /// <param name="baseMpGain">이벤트에 설정된 기본 MP 획득량입니다.</param>
+        /// <param name="options">이번 스킬 실행에 적용되는 실행 옵션입니다.</param>
+        /// <returns>최종 스킬 타격 MP 획득량입니다.</returns>
+        private static int ResolveSkillHitMpGain(int baseMpGain, in SkillExecutionOptions options)
+        {
+            return Mathf.Max(0, baseMpGain) + Mathf.Max(0, options.SkillHitMpGainBonus);
         }
 
         /// <summary>
