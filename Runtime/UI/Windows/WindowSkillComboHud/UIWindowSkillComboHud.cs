@@ -49,6 +49,7 @@ namespace GGemCo2DSkill
         private readonly Dictionary<int, int> _slotIndexByNodeIndex = new();
         private int _activeMainSlotCount;
         private int _nextMainSlotIndex;
+        private int _lastPreviewSlotIndex = -1;
 
         /// <summary>
         /// 윈도우 기본 초기화와 맵 로드 완료 이벤트 구독을 처리합니다.
@@ -121,6 +122,7 @@ namespace GGemCo2DSkill
             _comboController.ComboSkillStartedForUi += OnComboSkillStartedForUi;
             _comboController.ComboCanceledForUi += OnComboCanceledForUi;
             _comboController.ComboFinishedByLastSkillForUi += OnComboFinishedByLastSkillForUi;
+            _comboController.ComboLastPreviewChangedForUi += OnComboLastPreviewChangedForUi;
         }
 
         /// <summary>
@@ -137,6 +139,7 @@ namespace GGemCo2DSkill
             _comboController.ComboSkillStartedForUi -= OnComboSkillStartedForUi;
             _comboController.ComboCanceledForUi -= OnComboCanceledForUi;
             _comboController.ComboFinishedByLastSkillForUi -= OnComboFinishedByLastSkillForUi;
+            _comboController.ComboLastPreviewChangedForUi -= OnComboLastPreviewChangedForUi;
         }
 
         /// <summary>
@@ -190,6 +193,7 @@ namespace GGemCo2DSkill
         {
             // cancelEvent.Reason 값으로 만료/실패/수동 취소를 구분할 수 있습니다.
             RefreshComboCanceledView(cancelEvent.Reason);
+            ClearLastPreview();
             ClearMainSlots();
             HideComboHud();
         }
@@ -207,8 +211,24 @@ namespace GGemCo2DSkill
             }
 
             RefreshComboFinishedView(result.SkillUid, result.NodeIndex);
+            ClearLastPreview();
             ClearMainSlots();
             HideComboHud();
+        }
+
+        /// <summary>
+        /// 마무리 스킬 프리뷰 상태가 바뀌었을 때 다음 입력 슬롯의 MP 아이콘을 갱신합니다.
+        /// </summary>
+        /// <param name="previewEvent">마무리 스킬 프리뷰 상태 데이터입니다.</param>
+        private void OnComboLastPreviewChangedForUi(SkillComboLastPreviewEvent previewEvent)
+        {
+            if (!previewEvent.IsPreviewActive || previewEvent.LastSkillUid <= 0)
+            {
+                ClearLastPreview();
+                return;
+            }
+
+            ApplyLastPreview(previewEvent.LastSkillUid);
         }
 
         /// <summary>
@@ -329,6 +349,100 @@ namespace GGemCo2DSkill
                 CreateMpIcons(slotObject, needMp);
                 ApplyMainSlotState(slotObject, ComboHudMainSlotState.Normal);
             }
+
+            _lastPreviewSlotIndex = -1;
+        }
+
+        /// <summary>
+        /// 현재 다음 입력 슬롯에 마무리 스킬 필요 MP를 임시로 표시합니다.
+        /// </summary>
+        /// <param name="lastSkillUid">프리뷰로 표시할 마무리 스킬 UID입니다.</param>
+        private void ApplyLastPreview(int lastSkillUid)
+        {
+            int previewSlotIndex = ResolvePreviewSlotIndex();
+            if (!TryGetActiveMainSlot(previewSlotIndex, out GameObject slotObject))
+            {
+                ClearLastPreview();
+                return;
+            }
+
+            int needMp = ResolveNeedMp(lastSkillUid);
+            CreateMpIcons(slotObject, needMp);
+            ApplyMainSlotState(slotObject, ComboHudMainSlotState.Next);
+            _lastPreviewSlotIndex = previewSlotIndex;
+        }
+
+        /// <summary>
+        /// 마무리 스킬 프리뷰를 해제하고 해당 슬롯의 메인 콤보 필요 MP 표시를 복원합니다.
+        /// </summary>
+        private void ClearLastPreview()
+        {
+            if (_lastPreviewSlotIndex < 0)
+            {
+                return;
+            }
+
+            RestoreMainSlotMpIcons(_lastPreviewSlotIndex);
+            _lastPreviewSlotIndex = -1;
+        }
+
+        /// <summary>
+        /// 지정한 슬롯의 MP 아이콘을 원래 메인 콤보 스킬 기준으로 복원합니다.
+        /// </summary>
+        /// <param name="slotIndex">복원할 HUD 메인 슬롯 인덱스입니다.</param>
+        private void RestoreMainSlotMpIcons(int slotIndex)
+        {
+            if (!TryGetActiveMainSlot(slotIndex, out GameObject slotObject))
+            {
+                return;
+            }
+
+            RuntimeSkillComboNode node = _cachedMainNodes[slotIndex];
+            int needMp = node != null ? ResolveNeedMp(node.SkillUid) : 0;
+            CreateMpIcons(slotObject, needMp);
+
+            ComboHudMainSlotState state = ComboHudMainSlotState.Normal;
+            if (slotIndex < _nextMainSlotIndex)
+            {
+                state = ComboHudMainSlotState.Completed;
+            }
+            else if (slotIndex == _nextMainSlotIndex)
+            {
+                state = ComboHudMainSlotState.Next;
+            }
+
+            ApplyMainSlotState(slotObject, state);
+        }
+
+        /// <summary>
+        /// 마무리 스킬 프리뷰를 표시할 HUD 슬롯 인덱스를 계산합니다.
+        /// </summary>
+        /// <returns>프리뷰 대상 슬롯 인덱스입니다.</returns>
+        private int ResolvePreviewSlotIndex()
+        {
+            return Mathf.Clamp(_nextMainSlotIndex, 0, Mathf.Max(0, _activeMainSlotCount - 1));
+        }
+
+        /// <summary>
+        /// 지정한 HUD 메인 슬롯이 사용 가능한지 확인하고 슬롯 오브젝트를 반환합니다.
+        /// </summary>
+        /// <param name="slotIndex">조회할 HUD 메인 슬롯 인덱스입니다.</param>
+        /// <param name="slotObject">조회된 슬롯 오브젝트입니다.</param>
+        /// <returns>활성 메인 슬롯을 찾으면 <see langword="true"/>입니다.</returns>
+        private bool TryGetActiveMainSlot(int slotIndex, out GameObject slotObject)
+        {
+            slotObject = null;
+            if (mainSlot == null ||
+                slotIndex < 0 ||
+                slotIndex >= _activeMainSlotCount ||
+                slotIndex >= mainSlot.Length ||
+                slotIndex >= _cachedMainNodes.Count)
+            {
+                return false;
+            }
+
+            slotObject = mainSlot[slotIndex];
+            return slotObject != null && slotObject.activeSelf;
         }
 
         /// <summary>
@@ -454,6 +568,7 @@ namespace GGemCo2DSkill
             _slotIndexByNodeIndex.Clear();
             _activeMainSlotCount = 0;
             _nextMainSlotIndex = 0;
+            _lastPreviewSlotIndex = -1;
 
             if (mainSlot != null)
             {
@@ -531,6 +646,8 @@ namespace GGemCo2DSkill
         /// <param name="nextSlotIndex">다음 입력으로 사용할 Main 슬롯 인덱스입니다.</param>
         private void ApplyMainSlotProgress(int nextSlotIndex)
         {
+            ClearLastPreview();
+
             if (mainSlot == null || _activeMainSlotCount <= 0)
             {
                 RefreshMainLines();

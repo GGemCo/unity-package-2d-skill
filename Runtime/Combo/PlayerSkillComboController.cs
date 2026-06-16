@@ -65,6 +65,11 @@ namespace GGemCo2DSkill
         public event Action<SkillComboUseResult> ComboFinishedByLastSkillForUi;
 
         /// <summary>
+        /// 가드 입력 등 외부 입력 규칙에 의해 HUD가 마무리 스킬 필요 MP를 미리 표시해야 할 때 호출됩니다.
+        /// </summary>
+        public event Action<SkillComboLastPreviewEvent> ComboLastPreviewChangedForUi;
+
+        /// <summary>
         /// 현재 이어갈 수 있는 콤보가 열려 있는지 반환합니다.
         /// </summary>
         public bool IsComboActive
@@ -358,6 +363,50 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 현재 콤보 상태에서 마무리 스킬 프리뷰로 표시할 수 있는 다음 Last 노드를 조회합니다.
+        /// </summary>
+        /// <param name="node">현재 입력 위치에서 실행 가능한 마무리 콤보 노드입니다.</param>
+        /// <returns>유효한 마무리 노드를 찾으면 <see langword="true"/>입니다.</returns>
+        public bool TryResolveLastPreviewNode(out RuntimeSkillComboNode node)
+        {
+            node = null;
+            if (ResetExpiredComboIfNeeded())
+            {
+                return false;
+            }
+
+            return _state.IsActive &&
+                   _isInputWindowArmed &&
+                   TryResolveNextNode(SkillComboCommand.Last, out node, out _) &&
+                   node != null &&
+                   node.IsLast &&
+                   node.SkillUid > 0;
+        }
+
+        /// <summary>
+        /// 현재 입력 위치의 마무리 스킬 후보를 HUD 프리뷰로 표시하도록 알립니다.
+        /// </summary>
+        /// <returns>프리뷰 대상 마무리 스킬이 있으면 <see langword="true"/>입니다.</returns>
+        public bool ShowLastPreviewForUi()
+        {
+            if (!TryResolveLastPreviewNode(out RuntimeSkillComboNode node))
+            {
+                return false;
+            }
+
+            NotifyComboLastPreviewChangedForUi(SkillComboLastPreviewEvent.Show(node));
+            return true;
+        }
+
+        /// <summary>
+        /// HUD의 마무리 스킬 프리뷰 표시를 해제하도록 알립니다.
+        /// </summary>
+        public void HideLastPreviewForUi()
+        {
+            NotifyComboLastPreviewChangedForUi(SkillComboLastPreviewEvent.Hide());
+        }
+
+        /// <summary>
         /// 현재 콤보 진행 상태를 초기화합니다.
         /// </summary>
         public void ResetCombo()
@@ -386,6 +435,7 @@ namespace GGemCo2DSkill
         /// </summary>
         private void ResetComboInternal()
         {
+            NotifyComboLastPreviewChangedForUi(SkillComboLastPreviewEvent.Hide());
             _state.Reset();
             ClearInputWindow();
             ClearBufferedMainInput();
@@ -810,6 +860,15 @@ namespace GGemCo2DSkill
         private void NotifyComboSkillStartedForUi(SkillComboUseResult result)
         {
             ComboSkillStartedForUi?.Invoke(result);
+        }
+
+        /// <summary>
+        /// 마무리 스킬 HUD 프리뷰 상태 변경 이벤트를 발행합니다.
+        /// </summary>
+        /// <param name="previewEvent">마무리 스킬 프리뷰 상태 데이터입니다.</param>
+        private void NotifyComboLastPreviewChangedForUi(SkillComboLastPreviewEvent previewEvent)
+        {
+            ComboLastPreviewChangedForUi?.Invoke(previewEvent);
         }
 
         /// <summary>
