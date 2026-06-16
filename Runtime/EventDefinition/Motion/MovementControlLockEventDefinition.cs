@@ -42,6 +42,9 @@ namespace GGemCo2DSkill
 
         /// <summary>공격, 가드, 상호작용을 포함한 전체 조작을 차단합니다.</summary>
         AllControl = 2,
+
+        /// <summary>이동과 공격 등 대부분의 조작을 차단하되 방어 입력만 허용합니다.</summary>
+        GuardOnly = 3,
     }
 
     /// <summary>

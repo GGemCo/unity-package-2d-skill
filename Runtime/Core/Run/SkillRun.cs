@@ -43,6 +43,7 @@ namespace GGemCo2DSkill
         private IAutoMoveSuspendService _movementControlLockAutoMoveSuspendService;
         private object _movementControlLockToken;
         private object _movementOnlyLockToken;
+        private object _inputAllowLockToken;
         private AutoMoveSuspendToken _movementControlLockAutoMoveToken;
 
         public bool IsDone { get; private set; }
@@ -480,6 +481,7 @@ namespace GGemCo2DSkill
             _isMovementControlLockActive =
                 _movementControlLockToken != null ||
                 _movementOnlyLockToken != null ||
+                _inputAllowLockToken != null ||
                 _movementControlLockAutoMoveToken.IsValid ||
                 keepUntilSkillEnd ||
                 _movementControlLockRemainingSeconds > 0f;
@@ -523,6 +525,11 @@ namespace GGemCo2DSkill
                 _movementControlLockCharacter.ReleaseMovementLock(_movementOnlyLockToken);
             }
 
+            if (_movementControlLockCharacter != null && _inputAllowLockToken != null)
+            {
+                _movementControlLockCharacter.ReleaseInputAllowLock(_inputAllowLockToken);
+            }
+
             if (_movementControlLockAutoMoveSuspendService != null && _movementControlLockAutoMoveToken.IsValid)
             {
                 _movementControlLockAutoMoveSuspendService.ReleaseSuspend(_movementControlLockAutoMoveToken);
@@ -532,6 +539,7 @@ namespace GGemCo2DSkill
             _movementControlLockAutoMoveSuspendService = null;
             _movementControlLockToken = null;
             _movementOnlyLockToken = null;
+            _inputAllowLockToken = null;
             _movementControlLockAutoMoveToken = AutoMoveSuspendToken.None;
             _movementControlLockRemainingSeconds = 0f;
             _isMovementControlLockActive = false;
@@ -556,6 +564,13 @@ namespace GGemCo2DSkill
 
                 case SkillPlayerControlLockMode.AllControl:
                     _movementControlLockToken = character.AcquireControlLock(this);
+                    break;
+
+                case SkillPlayerControlLockMode.GuardOnly:
+                    // 방어 입력은 허용해야 하므로 전체 ControlLock은 사용하지 않습니다.
+                    // 이동 실행은 MovementLock으로 막고, 공격/점프/대시 등 비가드 입력은 입력 허용 잠금에서 차단합니다.
+                    _movementOnlyLockToken = character.AcquireMovementLock(this);
+                    _inputAllowLockToken = character.AcquireInputAllowLock(CharacterInputAllowMask.Guard, this);
                     break;
             }
         }
