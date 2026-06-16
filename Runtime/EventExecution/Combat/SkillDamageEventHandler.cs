@@ -88,6 +88,7 @@ namespace GGemCo2DSkill
             CharacterBase castCharacterBase = ctx.caster != null ? ctx.caster.GetComponent<CharacterBase>() : null;
             int attackId = attackSequence.Allocate(def.allowSkillChainOnConfirmedDamage);
             var resolvedOnHitCrowdControls = new List<int>(8);
+            bool[] onHitSoundPlayedByEntry = null;
 
             for (int i = 0; i < hits.Count; i++)
             {
@@ -166,9 +167,19 @@ namespace GGemCo2DSkill
 
                 if (didApplyDamage)
                 {
+                    PlayOnHitSounds(
+                        def.onHitSounds,
+                        OnHitSoundTiming.BeforeDamage,
+                        ref onHitSoundPlayedByEntry);
+
                     metadataDamage.ResolvedOnHitCrowdControls = resolvedOnHitCrowdControls;
                     target.TakeDamage(metadataDamage);
                     ApplyConfiguredHitStop(def, skill, castCharacterBase, target);
+
+                    PlayOnHitSounds(
+                        def.onHitSounds,
+                        OnHitSoundTiming.AfterDamage,
+                        ref onHitSoundPlayedByEntry);
                 }
 
                 if (target.IsStatusDead())
@@ -181,6 +192,53 @@ namespace GGemCo2DSkill
                     didApplyDamage,
                     OnHitAffectTiming.AfterDamage,
                     ctx.executionOptions);
+            }
+        }
+
+        /// <summary>
+        /// Damage 이벤트의 실제 피해 확정 시점에 맞춰 OnHit 사운드를 재생합니다.
+        /// </summary>
+        /// <param name="entries">재생 후보 OnHit 사운드 목록입니다.</param>
+        /// <param name="timing">현재 처리 중인 사운드 재생 시점입니다.</param>
+        /// <param name="playedByEntry">OncePerDamageEvent 정책을 항목별로 추적하는 배열입니다.</param>
+        private static void PlayOnHitSounds(
+            OnHitSoundEntry[] entries,
+            OnHitSoundTiming timing,
+            ref bool[] playedByEntry)
+        {
+            if (entries == null || entries.Length == 0)
+                return;
+
+            SceneGame sceneGame = SceneGame.Instance;
+            if (sceneGame == null || sceneGame.soundManager == null)
+                return;
+
+            if (playedByEntry == null || playedByEntry.Length != entries.Length)
+                playedByEntry = new bool[entries.Length];
+
+            for (int i = 0; i < entries.Length; i++)
+            {
+                OnHitSoundEntry entry = entries[i];
+                if (entry.timing != timing)
+                    continue;
+                if (!entry.IsValid())
+                    continue;
+                if (entry.playMode == OnHitSoundPlayMode.OncePerDamageEvent && playedByEntry[i])
+                    continue;
+
+                // 새 항목을 추가하고 soundUid만 입력해도 동작하도록 0 이하는 항상 재생으로 취급합니다.
+                float chance = entry.chance <= 0f ? 1f : Mathf.Clamp01(entry.chance);
+                if (chance < 0.9999f && Random.value > chance)
+                    continue;
+
+                SoundPlayRequest request = entry.ResolveRequest();
+                if (request == null || !request.IsValid)
+                    continue;
+
+                sceneGame.soundManager.Play(request);
+
+                if (entry.playMode == OnHitSoundPlayMode.OncePerDamageEvent)
+                    playedByEntry[i] = true;
             }
         }
 

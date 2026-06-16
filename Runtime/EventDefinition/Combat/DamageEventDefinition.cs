@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using GGemCo2DCore;
 using UnityEngine;
 
@@ -19,7 +20,7 @@ namespace GGemCo2DSkill
         IgnoreFacing = 1,
     }
 
-    public sealed class DamageEventDefinition : ScriptableObject
+    public sealed class DamageEventDefinition : ScriptableObject, ISkillSoundUsageProvider
     {
         [Header("Damage")]
         public string damageModelId = "Default";
@@ -86,6 +87,9 @@ namespace GGemCo2DSkill
         [Header("OnHit Element Gauge")]
         public OnHitElementGaugeEntry[] onHitElementGauges;
 
+        [Header("OnHit Sound")]
+        public OnHitSoundEntry[] onHitSounds;
+
         [Header("Hit Stop (Self)")]
         public bool useHitStopSelf = false;
         public bool useDefaultSelfHitStop = true;
@@ -110,5 +114,22 @@ namespace GGemCo2DSkill
         [Header("Overrides")]
         public TargetingOverride targetingOverride;
         public AreaOverride areaOverride;
+
+        /// <summary>
+        /// Damage 이벤트의 OnHit 사운드 UID를 매니페스트 수집 결과에 추가합니다.
+        /// </summary>
+        /// <param name="target">발견한 sound UID를 추가할 결과 컬렉션입니다.</param>
+        public void CollectSoundUids(ICollection<int> target)
+        {
+            if (target == null || onHitSounds == null || onHitSounds.Length == 0)
+                return;
+
+            for (int i = 0; i < onHitSounds.Length; i++)
+            {
+                int soundUid = onHitSounds[i].ResolveSoundUid();
+                if (soundUid > 0)
+                    target.Add(soundUid);
+            }
+        }
     }
 }

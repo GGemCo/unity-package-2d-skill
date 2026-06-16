@@ -32,6 +32,7 @@ namespace GGemCo2DSkillEditor
             def.onHitAffects = dmg.OnHitAffects;
             def.onHitCrowdControls = dmg.OnHitCrowdControls;
             def.onHitElementGauges = dmg.OnHitElementGauges;
+            def.onHitSounds = dmg.OnHitSounds;
             def.useHitStopSelf = dmg.UseHitStopSelf;
             def.useDefaultSelfHitStop = dmg.UseDefaultSelfHitStop;
             def.selfHitStopSeconds = dmg.SelfHitStopSeconds;

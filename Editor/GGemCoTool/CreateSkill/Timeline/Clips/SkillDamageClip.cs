@@ -114,6 +114,12 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private OnHitElementGaugeEntry[] onHitElementGauges;
 
         /// <summary>
+        /// 적중 후 재생할 사운드 목록입니다.
+        /// </summary>
+        [Header("OnHit Sound")]
+        [SerializeField] private OnHitSoundEntry[] onHitSounds;
+
+        /// <summary>
         /// 이 Damage 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다.
         /// 최종 런타임 동작은 <see cref="GGemCo2DSkill.GGemCoSkillSettings.enableSkillChainOnConfirmedDamage"/> 마스터 옵션이 함께 켜져 있어야 활성화됩니다.
         /// </summary>
@@ -236,6 +242,11 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
         public OnHitElementGaugeEntry[] OnHitElementGauges => onHitElementGauges;
+
+        /// <summary>
+        /// 적중 후 재생할 사운드 목록을 반환합니다.
+        /// </summary>
+        public OnHitSoundEntry[] OnHitSounds => onHitSounds;
 
 
         /// <summary>
