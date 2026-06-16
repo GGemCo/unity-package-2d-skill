@@ -13,7 +13,7 @@ namespace GGemCo2DSkill
     /// - Plus/Minus는 고정값, Increase/Decrease는 기본 획득량 기준 퍼센트 보정으로 처리합니다.
     /// </remarks>
     [DisallowMultipleComponent]
-    public sealed class PassiveMpGainBonusProvider : MonoBehaviour
+    public sealed class PassiveMpGainBonusProvider : MonoBehaviour, IMpGainBonusProvider
     {
         private readonly List<PassiveMpGainBonusEntry> _entries = new(4);
 
