@@ -113,6 +113,13 @@ namespace GGemCo2DSkillEditor
         
         [SerializeField] private OnHitElementGaugeEntry[] onHitElementGauges;
 
+        [Header("OnHit MP Gain")]
+        [Tooltip("이 Damage 클립이 실제 타격에 성공했을 때 공격자에게 지급할 MP입니다. 0이면 지급하지 않습니다.")]
+        [SerializeField] private int skillHitMpGain = 0;
+
+        [Tooltip("같은 AttackId 안에서 이 Damage 클립의 MP 보상을 반복 지급할지 여부입니다.")]
+        [SerializeField] private bool allowMultipleSkillHitMpGainPerAttack = false;
+
         /// <summary>
         /// 적중 후 재생할 사운드 목록입니다.
         /// </summary>
@@ -242,6 +249,16 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
         public OnHitElementGaugeEntry[] OnHitElementGauges => onHitElementGauges;
+
+        /// <summary>
+        /// 실제 타격 성공 시 공격자에게 지급할 MP를 반환합니다.
+        /// </summary>
+        public int SkillHitMpGain => Mathf.Max(0, skillHitMpGain);
+
+        /// <summary>
+        /// 같은 AttackId에서 스킬 타격 MP 보상을 반복 지급할지 여부를 반환합니다.
+        /// </summary>
+        public bool AllowMultipleSkillHitMpGainPerAttack => allowMultipleSkillHitMpGainPerAttack;
 
         /// <summary>
         /// 적중 후 재생할 사운드 목록을 반환합니다.

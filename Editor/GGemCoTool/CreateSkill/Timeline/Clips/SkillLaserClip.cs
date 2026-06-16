@@ -46,6 +46,13 @@ namespace GGemCo2DSkillEditor
         [Tooltip("레이저 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
         [SerializeField] private GGemCo2DSkill.OnHitCrowdControlEntry[] onHitCrowdControls;
 
+        [Header("OnHit MP Gain")]
+        [Tooltip("이 Laser 클립이 실제 타격에 성공했을 때 공격자에게 지급할 MP입니다. 0이면 지급하지 않습니다.")]
+        [SerializeField] private int skillHitMpGain = 0;
+
+        [Tooltip("같은 AttackId 안에서 이 Laser 클립의 MP 보상을 반복 지급할지 여부입니다.")]
+        [SerializeField] private bool allowMultipleSkillHitMpGainPerAttack = false;
+
         [Header("Guard")]
         [Tooltip("[공격 방어 타입] GGemCoPlayerGuardSettings에서 가드 성공/브레이크/추가 CC를 결정할 때 사용하는 타입입니다.")]
         [SerializeField] private GuardAttackType guardAttackType = GuardAttackType.Normal;
@@ -354,6 +361,16 @@ namespace GGemCo2DSkillEditor
         /// 레이저 적중 시 적용될 Crowd Control 후보 목록입니다.
         /// </summary>
         public GGemCo2DSkill.OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
+
+        /// <summary>
+        /// 실제 타격 성공 시 공격자에게 지급할 MP를 반환합니다.
+        /// </summary>
+        public int SkillHitMpGain => Mathf.Max(0, skillHitMpGain);
+
+        /// <summary>
+        /// 같은 AttackId에서 스킬 타격 MP 보상을 반복 지급할지 여부를 반환합니다.
+        /// </summary>
+        public bool AllowMultipleSkillHitMpGainPerAttack => allowMultipleSkillHitMpGainPerAttack;
 
         /// <summary>
         /// 이 레이저 공격이 가드 설정에서 어떤 공격 방어 타입으로 처리될지 반환합니다.

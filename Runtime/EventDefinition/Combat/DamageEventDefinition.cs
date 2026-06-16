@@ -87,6 +87,13 @@ namespace GGemCo2DSkill
         [Header("OnHit Element Gauge")]
         public OnHitElementGaugeEntry[] onHitElementGauges;
 
+        [Header("OnHit MP Gain")]
+        [Min(0), Tooltip("이 Damage 이벤트가 실제 타격에 성공했을 때 공격자에게 지급할 MP입니다. 0이면 지급하지 않습니다.")]
+        public int skillHitMpGain = 0;
+
+        [Tooltip("같은 AttackId 안에서 이 Damage 이벤트의 MP 보상을 반복 지급할지 여부입니다.")]
+        public bool allowMultipleSkillHitMpGainPerAttack = false;
+
         [Header("OnHit Sound")]
         public OnHitSoundEntry[] onHitSounds;
 

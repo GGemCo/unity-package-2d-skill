@@ -155,6 +155,8 @@ namespace GGemCo2DSkill
                 skillUid: skill.Uid,
                 attackId: attackId,
                 allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
+                skillHitMpGain: Mathf.Max(0, def.skillHitMpGain),
+                allowMultipleSkillHitMpGainPerAttack: def.allowMultipleSkillHitMpGainPerAttack,
                 elementGaugeApplications: SkillOnHitEffectUtility.BuildElementGaugeApplications(
                     def.onHitElementGauges,
                     ownerObject,

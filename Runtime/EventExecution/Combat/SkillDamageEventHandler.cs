@@ -136,6 +136,8 @@ namespace GGemCo2DSkill
                     crowdControlUid = crowdControlUid,
                     AttackId = attackId,
                     SkillUid = skill.Uid,
+                    SkillHitMpGain = Mathf.Max(0, def.skillHitMpGain),
+                    AllowMultipleSkillHitMpGainPerAttack = def.allowMultipleSkillHitMpGainPerAttack,
                     HasPendingAfterDamageCrowdControl = hasPendingAfterDamageCrowdControl,
                     DamageCameraShakePreset = def.useCameraShakeOnHit ? def.cameraShakePreset : null,
                     DamageCameraShakeDirectionSource = def.cameraShakeDirectionSource,

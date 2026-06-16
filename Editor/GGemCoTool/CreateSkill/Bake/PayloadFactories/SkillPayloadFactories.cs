@@ -32,6 +32,8 @@ namespace GGemCo2DSkillEditor
             def.onHitAffects = dmg.OnHitAffects;
             def.onHitCrowdControls = dmg.OnHitCrowdControls;
             def.onHitElementGauges = dmg.OnHitElementGauges;
+            def.skillHitMpGain = dmg.SkillHitMpGain;
+            def.allowMultipleSkillHitMpGainPerAttack = dmg.AllowMultipleSkillHitMpGainPerAttack;
             def.onHitSounds = dmg.OnHitSounds;
             def.useHitStopSelf = dmg.UseHitStopSelf;
             def.useDefaultSelfHitStop = dmg.UseDefaultSelfHitStop;
@@ -384,6 +386,8 @@ namespace GGemCo2DSkillEditor
             def.damageValueType = proj.DamageValueType;
             def.multiplier = proj.Multiplier;
             def.onHitCrowdControls = proj.OnHitCrowdControls;
+            def.skillHitMpGain = proj.SkillHitMpGain;
+            def.allowMultipleSkillHitMpGainPerAttack = proj.AllowMultipleSkillHitMpGainPerAttack;
             def.guardAttackType = proj.GuardAttackType;
             def.speedMultiplier = proj.SpeedMultiplier;
             def.scaleMultiplier = proj.ScaleMultiplier;
@@ -462,6 +466,8 @@ namespace GGemCo2DSkillEditor
             def.visualVfxUidOverride = laser.VisualVfxUidOverride;
             def.allowSkillChainOnConfirmedDamage = laser.AllowSkillChainOnConfirmedDamage;
             def.onHitCrowdControls = laser.OnHitCrowdControls;
+            def.skillHitMpGain = laser.SkillHitMpGain;
+            def.allowMultipleSkillHitMpGainPerAttack = laser.AllowMultipleSkillHitMpGainPerAttack;
             def.guardAttackType = laser.GuardAttackType;
             def.onHitElementGauges = laser.OnHitElementGauges;
             def.targetingOverride = laser.TargetingOverride;
