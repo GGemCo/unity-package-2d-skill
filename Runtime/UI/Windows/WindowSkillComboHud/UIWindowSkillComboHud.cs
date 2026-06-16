@@ -50,6 +50,7 @@ namespace GGemCo2DSkill
         private int _activeMainSlotCount;
         private int _nextMainSlotIndex;
         private int _lastPreviewSlotIndex = -1;
+        private bool _isLastPreviewFallbackSlotActive;
 
         /// <summary>
         /// 윈도우 기본 초기화와 맵 로드 완료 이벤트 구독을 처리합니다.
@@ -351,6 +352,7 @@ namespace GGemCo2DSkill
             }
 
             _lastPreviewSlotIndex = -1;
+            _isLastPreviewFallbackSlotActive = false;
         }
 
         /// <summary>
@@ -360,7 +362,7 @@ namespace GGemCo2DSkill
         private void ApplyLastPreview(int lastSkillUid)
         {
             int previewSlotIndex = ResolvePreviewSlotIndex();
-            if (!TryGetActiveMainSlot(previewSlotIndex, out GameObject slotObject))
+            if (!TryGetLastPreviewSlot(previewSlotIndex, out GameObject slotObject))
             {
                 ClearLastPreview();
                 return;
@@ -379,6 +381,14 @@ namespace GGemCo2DSkill
         {
             if (_lastPreviewSlotIndex < 0)
             {
+                return;
+            }
+
+            if (_isLastPreviewFallbackSlotActive)
+            {
+                HideLastPreviewFallbackSlot(_lastPreviewSlotIndex);
+                _lastPreviewSlotIndex = -1;
+                _isLastPreviewFallbackSlotActive = false;
                 return;
             }
 
@@ -421,6 +431,65 @@ namespace GGemCo2DSkill
         private int ResolvePreviewSlotIndex()
         {
             return Mathf.Clamp(_nextMainSlotIndex, 0, Mathf.Max(0, _activeMainSlotCount - 1));
+        }
+
+        /// <summary>
+        /// 마무리 스킬 프리뷰를 표시할 HUD 슬롯을 찾습니다.
+        /// </summary>
+        /// <remarks>
+        /// 기본적으로는 진행 중인 Main 슬롯 위에 마무리 스킬 필요 MP를 임시로 덮어씁니다.
+        /// Main 노드가 하나도 없는 EntryLast 전용 콤보에서는 활성 Main 슬롯이 없으므로 첫 번째 슬롯을
+        /// 임시 프리뷰 슬롯으로 열어 마무리 스킬 정보를 표시합니다.
+        /// </remarks>
+        /// <param name="slotIndex">우선 사용할 HUD 메인 슬롯 인덱스입니다.</param>
+        /// <param name="slotObject">프리뷰 표시 대상 슬롯 오브젝트입니다.</param>
+        /// <returns>프리뷰를 표시할 슬롯을 찾았으면 <see langword="true"/>입니다.</returns>
+        private bool TryGetLastPreviewSlot(int slotIndex, out GameObject slotObject)
+        {
+            _isLastPreviewFallbackSlotActive = false;
+
+            if (TryGetActiveMainSlot(slotIndex, out slotObject))
+            {
+                return true;
+            }
+
+            if (_activeMainSlotCount > 0 ||
+                mainSlot == null ||
+                mainSlot.Length == 0 ||
+                mainSlot[0] == null)
+            {
+                slotObject = null;
+                return false;
+            }
+
+            slotObject = mainSlot[0];
+            slotObject.SetActive(true);
+            _isLastPreviewFallbackSlotActive = true;
+            return true;
+        }
+
+        /// <summary>
+        /// Main 노드가 없는 콤보에서 임시로 연 마무리 스킬 프리뷰 슬롯을 숨깁니다.
+        /// </summary>
+        /// <param name="slotIndex">숨길 HUD 슬롯 인덱스입니다.</param>
+        private void HideLastPreviewFallbackSlot(int slotIndex)
+        {
+            if (mainSlot == null ||
+                slotIndex < 0 ||
+                slotIndex >= mainSlot.Length)
+            {
+                return;
+            }
+
+            GameObject slotObject = mainSlot[slotIndex];
+            if (slotObject == null)
+            {
+                return;
+            }
+
+            ApplyMainSlotState(slotObject, ComboHudMainSlotState.Normal);
+            DeactivateMpIcons(slotObject);
+            slotObject.SetActive(false);
         }
 
         /// <summary>
@@ -569,6 +638,7 @@ namespace GGemCo2DSkill
             _activeMainSlotCount = 0;
             _nextMainSlotIndex = 0;
             _lastPreviewSlotIndex = -1;
+            _isLastPreviewFallbackSlotActive = false;
 
             if (mainSlot != null)
             {
