@@ -125,13 +125,20 @@ namespace GGemCo2DSkill
                     damageApplied: true,
                     timing: OnHitCrowdControlTiming.AfterDamage);
 
-                long totalDamage = ResolveSkillDamage(skill, def, ctx.executionOptions, castCharacterBase, target);
+                DamageCalculationBreakdown damageBreakdown = ResolveSkillDamageBreakdown(
+                    skill,
+                    def,
+                    ctx.executionOptions,
+                    castCharacterBase,
+                    target);
+                long totalDamage = damageBreakdown != null ? damageBreakdown.TotalFinalDamage : 0L;
 
                 var metadataDamage = new MetadataDamage
                 {
                     damage = totalDamage,
                     attacker = ctx.caster != null ? ctx.caster : ownerObject,
-                    damageType = skill.DamageType,
+                    damageType = damageBreakdown != null ? damageBreakdown.RepresentativeDamageType : skill.DamageType,
+                    DamageBreakdown = damageBreakdown,
                     affectUid = 0,
                     crowdControlUid = crowdControlUid,
                     AttackId = attackId,
@@ -301,12 +308,58 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 스킬 테이블에 설정된 데미지 해석 방식에 따라 최종 배율 적용 전 기본 데미지를 계산합니다.
+        /// Damage 이벤트의 스킬 데미지를 속성별 데미지 분해 결과로 계산합니다.
         /// </summary>
         /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
-        /// <param name="caster">공격력 기반 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
-        /// <param name="useDamageFormula">Poly 데미지 공식을 사용할지 여부입니다.</param>
-        /// <returns>이벤트 배율과 실행 옵션 배율을 적용하기 전의 기본 데미지입니다.</returns>
+        /// <param name="def">현재 데미지 이벤트 정의입니다.</param>
+        /// <param name="options">이번 스킬 실행에 적용되는 옵션 묶음입니다.</param>
+        /// <param name="caster">공격자 기준 데미지 계산에 사용할 캐스터 캐릭터입니다.</param>
+        /// <param name="target">레벨 차이 배율 계산에 사용할 피격 대상 캐릭터입니다.</param>
+        /// <returns>대상 저항 적용 전의 스킬 데미지 분해 결과입니다.</returns>
+        private static DamageCalculationBreakdown ResolveSkillDamageBreakdown(
+            RuntimeSkillDefinition skill,
+            DamageEventDefinition def,
+            in SkillExecutionOptions options,
+            CharacterBase caster,
+            CharacterBase target)
+        {
+            if (skill == null)
+                return null;
+
+            bool useDamageFormula = !string.IsNullOrWhiteSpace(skill.DamageFormulaKey);
+            double baseDamage = ResolveBaseSkillDamage(skill, caster, useDamageFormula);
+            double skillDamageRate = ResolveSkillDamageRate(skill);
+            float eventMultiplier = def != null ? Mathf.Max(0f, def.multiplier) : 1f;
+            float optionMultiplier = options.DamageMultiplier > 0f ? options.DamageMultiplier : 1f;
+
+            CalculateManager calculateManager = CalculateManager.GetActive();
+            if (calculateManager != null)
+            {
+                var request = new DamageFormulaRequest(
+                    caster,
+                    target,
+                    skill.DamageFormulaKey,
+                    baseDamage,
+                    skillDamageRate,
+                    eventMultiplier,
+                    optionMultiplier,
+                    0d,
+                    skill.DamageType,
+                    false);
+
+                return calculateManager.CalculateSkillDamageBreakdown(request);
+            }
+
+            // CalculateManager가 아직 준비되지 않은 테스트/초기화 타이밍에서는 기존 단일 데미지 계산과 동일한 폴백을 사용합니다.
+            long fallbackDamage = ResolveSkillDamage(skill, def, options, caster, target);
+            var fallbackBreakdown = new DamageCalculationBreakdown();
+            fallbackBreakdown.AddPart(new DamagePartResult(
+                fallbackDamage,
+                fallbackDamage,
+                skill.DamageType));
+            return fallbackBreakdown;
+        }
+
         private static double ResolveBaseSkillDamage(RuntimeSkillDefinition skill, CharacterBase caster, bool useDamageFormula)
         {
             if (skill == null)
