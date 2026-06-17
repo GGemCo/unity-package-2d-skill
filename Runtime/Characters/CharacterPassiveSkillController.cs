@@ -18,8 +18,6 @@ namespace GGemCo2DSkill
         private PassiveFormulaVariableProvider _formulaVariableProvider;
         private PassiveMpGainBonusProvider _mpGainBonusProvider;
         private readonly HashSet<int> _appliedAffects = new();
-        private readonly HashSet<ConfigCommon.DamageType> _suppressedOnHitElementGaugeTypes = new();
-        private bool _suppressAllOnHitElementGauge;
 
         /// <summary>
         /// 현재 장착된 패시브 목록(스킬 UID -> 레벨).
@@ -57,22 +55,6 @@ namespace GGemCo2DSkill
         /// </summary>
         public virtual void RefreshFromSaveData()
         {
-        }
-
-        /// <summary>
-        /// 현재 장착된 패시브가 Damage 이벤트의 OnHitElementGauge 적용을 차단하는지 확인합니다.
-        /// </summary>
-        /// <param name="damageType">확인할 원소 게이지 데미지 타입입니다.</param>
-        /// <returns>전체 차단 또는 해당 데미지 타입 차단 패시브가 있으면 true를 반환합니다.</returns>
-        public bool SuppressesOnHitElementGauge(ConfigCommon.DamageType damageType)
-        {
-            if (_suppressAllOnHitElementGauge)
-            {
-                return true;
-            }
-
-            return damageType != ConfigCommon.DamageType.None &&
-                   _suppressedOnHitElementGaugeTypes.Contains(damageType);
         }
 
         /// <summary>
@@ -184,7 +166,6 @@ namespace GGemCo2DSkill
 
             // 1) 기존 적용분 제거
             _character.ClearPassiveSkillModifiers(recalculate: false);
-            SyncAffects(desired: null);
 
             // 2) 새로 계산
             var flat = new Dictionary<string, int>(32);
@@ -228,10 +209,6 @@ namespace GGemCo2DSkill
                                 desiredAffects.Add(affectUid);
                             break;
 
-                        case SkillOptionKind.SuppressOnHitElementGauge:
-                            AccumulateOnHitElementGaugeSuppression(op);
-                            break;
-
                         case SkillOptionKind.FormulaVariable:
                             AccumulateFormulaVariable(formulaVariables, op);
                             break;
@@ -245,7 +222,6 @@ namespace GGemCo2DSkill
 
             // 3) modifier 적용
             _character.SetPassiveSkillModifiers(flat, percent, recalculate: false);
-            SyncAffects(desiredAffects);
             SyncFormulaVariables(formulaVariables);
             SyncMpGainBonuses(mpGainBonuses);
             _character.RecalculateStats();
@@ -307,8 +283,6 @@ namespace GGemCo2DSkill
         /// </summary>
         private void ResetPassiveCombatPolicies()
         {
-            _suppressAllOnHitElementGauge = false;
-            _suppressedOnHitElementGaugeTypes.Clear();
             _formulaVariableProvider?.ClearVariables();
             _mpGainBonusProvider?.ClearBonuses();
         }
@@ -501,113 +475,6 @@ namespace GGemCo2DSkill
             }
 
             return _mpGainBonusProvider;
-        }
-
-        /// <summary>
-        /// 패시브 옵션 한 줄을 OnHitElementGauge 차단 정책으로 누적합니다.
-        /// TargetId가 비어 있거나 All이면 모든 원소 게이지를 차단하고, 특정 DamageType이면 해당 타입만 차단합니다.
-        /// </summary>
-        /// <param name="option">패시브 옵션 테이블 행입니다.</param>
-        private void AccumulateOnHitElementGaugeSuppression(StruckTableSkillPassiveOption option)
-        {
-            if (option == null)
-            {
-                return;
-            }
-
-            if (IsAllElementGaugeSuppressionTarget(option.TargetId))
-            {
-                _suppressAllOnHitElementGauge = true;
-                _suppressedOnHitElementGaugeTypes.Clear();
-                return;
-            }
-
-            if (TryParseDamageType(option.TargetId, out ConfigCommon.DamageType damageType) &&
-                damageType != ConfigCommon.DamageType.None)
-            {
-                _suppressedOnHitElementGaugeTypes.Add(damageType);
-            }
-        }
-
-        /// <summary>
-        /// OnHitElementGauge 차단 대상 문자열이 전체 차단을 의미하는지 확인합니다.
-        /// </summary>
-        /// <param name="targetId">패시브 옵션 TargetId 값입니다.</param>
-        /// <returns>비어 있거나 All, Any, *이면 true를 반환합니다.</returns>
-        private static bool IsAllElementGaugeSuppressionTarget(string targetId)
-        {
-            if (string.IsNullOrWhiteSpace(targetId))
-            {
-                return true;
-            }
-
-            string normalized = targetId.Trim();
-            return string.Equals(normalized, "All", StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(normalized, "Any", StringComparison.OrdinalIgnoreCase) ||
-                   normalized == "*";
-        }
-
-        /// <summary>
-        /// 패시브 옵션 TargetId를 원소 게이지 데미지 타입으로 해석합니다.
-        /// 문자열 enum 이름과 정수 enum 값을 모두 지원합니다.
-        /// </summary>
-        /// <param name="targetId">패시브 옵션 TargetId 값입니다.</param>
-        /// <param name="damageType">해석된 데미지 타입입니다.</param>
-        /// <returns>DamageType으로 해석할 수 있으면 true를 반환합니다.</returns>
-        private static bool TryParseDamageType(string targetId, out ConfigCommon.DamageType damageType)
-        {
-            damageType = ConfigCommon.DamageType.None;
-            if (string.IsNullOrWhiteSpace(targetId))
-            {
-                return false;
-            }
-
-            string normalized = targetId.Trim();
-            if (Enum.TryParse(normalized, ignoreCase: true, out ConfigCommon.DamageType parsed))
-            {
-                damageType = parsed;
-                return true;
-            }
-
-            if (int.TryParse(normalized, out int rawValue) &&
-                Enum.IsDefined(typeof(ConfigCommon.DamageType), rawValue))
-            {
-                damageType = (ConfigCommon.DamageType)rawValue;
-                return true;
-            }
-
-            return false;
-        }
-
-        private void SyncAffects(HashSet<int> desired)
-        {
-            desired ??= new HashSet<int>();
-
-            // remove
-            var toRemove = new List<int>();
-            foreach (var uid in _appliedAffects)
-            {
-                if (!desired.Contains(uid))
-                    toRemove.Add(uid);
-            }
-
-            for (int i = 0; i < toRemove.Count; i++)
-            {
-                _character.RemoveAffect(toRemove[i]);
-                _appliedAffects.Remove(toRemove[i]);
-            }
-
-            // apply
-            foreach (var uid in desired)
-            {
-                if (_appliedAffects.Contains(uid)) continue;
-                // duration 0: Affect 테이블 정책에 따름(상시/착용형은 Affect 쪽 규칙으로 처리)
-                // 패시브 해제 시 RemoveAffect로 동기화한다.
-                // CharacterStat.ApplyAffect는 protected라 RemoveAffect만 public이므로 브리지 사용.
-                // AffectRuntimeBridge.ApplyAffect(gameObject, uid, 0);
-                AffectApi.Apply(gameObject, uid);
-                _appliedAffects.Add(uid);
-            }
         }
 
         private static bool TryParseIntId(string v, out int id)

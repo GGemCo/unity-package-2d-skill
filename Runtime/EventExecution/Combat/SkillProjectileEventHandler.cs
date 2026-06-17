@@ -109,11 +109,6 @@ namespace GGemCo2DSkill
                 allowSkillChainOnConfirmedDamage: def.allowSkillChainOnConfirmedDamage,
                 skillHitMpGain: ResolveSkillHitMpGain(def.skillHitMpGain, ctx.executionOptions),
                 allowMultipleSkillHitMpGainPerAttack: def.allowMultipleSkillHitMpGainPerAttack,
-                elementGaugeApplications: SkillOnHitEffectUtility.BuildElementGaugeApplications(
-                    def.onHitElementGauges,
-                    ownerObject,
-                    damageApplied: false,
-                    deferDamageDealtRequirement: true),
                 onHitCrowdControls: BuildProjectileOnHitCrowdControls(def.onHitCrowdControls),
                 guardAttackType: def.guardAttackType,
                 useHitLifetimeModeOverride: def.useProjectileHitBehaviorOverride,

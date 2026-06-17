@@ -146,9 +146,6 @@ namespace GGemCo2DSkill
         [Tooltip("GGemCoPlayerGuardSettings에서 가드 성공/브레이크/추가 CC를 결정할 때 사용하는 공격 방어 타입입니다.")]
         public GuardAttackType guardAttackType = GuardAttackType.Normal;
 
-        [Header("OnHit Element Gauge")]
-        public OnHitElementGaugeEntry[] onHitElementGauges;
-
         [Header("Targeting Overrides")]
         [Tooltip("스킬 기본 TargetingMode 대신, 이벤트 별 TargetingMode를 강제할 수 있습니다.")]
         public TargetingOverride targetingOverride;

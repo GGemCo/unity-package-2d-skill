@@ -31,7 +31,6 @@ namespace GGemCo2DSkillEditor
             def.guardAttackType = dmg.GuardAttackType;
             def.onHitAffects = dmg.OnHitAffects;
             def.onHitCrowdControls = dmg.OnHitCrowdControls;
-            def.onHitElementGauges = dmg.OnHitElementGauges;
             def.skillHitMpGain = dmg.SkillHitMpGain;
             def.allowMultipleSkillHitMpGainPerAttack = dmg.AllowMultipleSkillHitMpGainPerAttack;
             def.onHitSounds = dmg.OnHitSounds;
@@ -390,7 +389,6 @@ namespace GGemCo2DSkillEditor
             def.damageValueType = proj.DamageValueType;
             def.multiplier = proj.Multiplier;
             def.onHitCrowdControls = proj.OnHitCrowdControls;
-            def.onHitElementGauges = proj.OnHitElementGauges;
             def.skillHitMpGain = proj.SkillHitMpGain;
             def.allowMultipleSkillHitMpGainPerAttack = proj.AllowMultipleSkillHitMpGainPerAttack;
             def.guardAttackType = proj.GuardAttackType;
@@ -474,7 +472,6 @@ namespace GGemCo2DSkillEditor
             def.skillHitMpGain = laser.SkillHitMpGain;
             def.allowMultipleSkillHitMpGainPerAttack = laser.AllowMultipleSkillHitMpGainPerAttack;
             def.guardAttackType = laser.GuardAttackType;
-            def.onHitElementGauges = laser.OnHitElementGauges;
             def.targetingOverride = laser.TargetingOverride;
             return def;
         }

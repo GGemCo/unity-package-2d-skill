@@ -84,9 +84,6 @@ namespace GGemCo2DSkill
         [Header("OnHit Crowd Control")]
         public OnHitCrowdControlEntry[] onHitCrowdControls;
 
-        [Header("OnHit Element Gauge")]
-        public OnHitElementGaugeEntry[] onHitElementGauges;
-
         [Header("OnHit MP Gain")]
         [Min(0), Tooltip("이 Damage 이벤트가 실제 타격에 성공했을 때 공격자에게 지급할 MP입니다. 0이면 지급하지 않습니다.")]
         public int skillHitMpGain = 0;

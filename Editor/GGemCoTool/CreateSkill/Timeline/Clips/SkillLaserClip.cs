@@ -156,9 +156,6 @@ namespace GGemCo2DSkillEditor
         [Tooltip("이 Laser 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
         [SerializeField] private bool allowSkillChainOnConfirmedDamage = false;
 
-        [Header("OnHit Element Gauge")]
-        [SerializeField] private GGemCo2DSkill.OnHitElementGaugeEntry[] onHitElementGauges;
-
         /// <summary>
         /// 이 클립이 표현하는 스킬 이벤트 유형입니다.
         /// </summary>
@@ -380,6 +377,5 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 적중 시 추가할 속성 게이지 목록입니다.
         /// </summary>
-        public GGemCo2DSkill.OnHitElementGaugeEntry[] OnHitElementGauges => onHitElementGauges;
     }
 }

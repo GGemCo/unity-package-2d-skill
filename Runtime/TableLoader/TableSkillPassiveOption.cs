@@ -31,7 +31,6 @@ namespace GGemCo2DSkill
         /// 옵션 대상 ID입니다.
         /// - <see cref="SkillOptionKind.Stat"/>: stat 테이블의 ID를 사용합니다. 예) BASE_ATK, STAT_ATK
         /// - <see cref="SkillOptionKind.Affect"/>: AffectUid 문자열을 사용합니다. 예) 1001
-        /// - <see cref="SkillOptionKind.SuppressOnHitElementGauge"/>: DamageType 또는 All을 사용합니다.
         /// - <see cref="SkillOptionKind.FormulaVariable"/>: Poly 공식 변수 ID를 사용합니다. 예) FORMULA_FINAL_DAMAGE_BUFF
         /// - <see cref="SkillOptionKind.MpGainBonus"/>: 비워두거나 MP를 사용합니다.
         /// </summary>
@@ -78,7 +77,6 @@ namespace GGemCo2DSkill
     /// 패시브 옵션이 영향을 주는 도메인.
     /// - Stat: CharacterStat(CharacterTotals)에 직접 반영되는 수치 스탯
     /// - Affect: Affect 시스템(상시/트리거형 등)은 Affect 패키지 정책에 따라 처리
-    /// - SuppressOnHitElementGauge: 스킬 Damage 이벤트의 OnHitElementGauge 적용을 차단
     /// - FormulaVariable: Poly 데미지 공식에만 사용할 변수를 제공
     /// - MpGainBonus: MP 획득 시 추가 획득량 또는 획득 배율을 제공
     /// </summary>
@@ -87,7 +85,6 @@ namespace GGemCo2DSkill
         None = 0,
         Stat = 1,
         Affect = 2,
-        SuppressOnHitElementGauge = 3,
         FormulaVariable = 4,
         MpGainBonus = 5,
     }

@@ -45,10 +45,6 @@ namespace GGemCo2DSkillEditor
         [Tooltip("프로젝타일 적중 시 대상에게 적용할 Crowd Control 후보 목록입니다.")]
         [SerializeField] private OnHitCrowdControlEntry[] onHitCrowdControls;
 
-        [Header("OnHit Element Gauge")]
-        [Tooltip("프로젝타일 적중 시 대상에게 누적할 속성 게이지 후보 목록입니다.")]
-        [SerializeField] private OnHitElementGaugeEntry[] onHitElementGauges;
-
         [Header("OnHit MP Gain")]
         [Tooltip("이 Projectile 클립이 실제 타격에 성공했을 때 공격자에게 지급할 MP입니다. 0이면 지급하지 않습니다.")]
         [SerializeField] private int skillHitMpGain = 0;
@@ -199,7 +195,6 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 프로젝타일 적중 시 대상에게 누적할 속성 게이지 후보 목록입니다.
         /// </summary>
-        public OnHitElementGaugeEntry[] OnHitElementGauges => onHitElementGauges;
 
         /// <summary>
         /// 실제 타격 성공 시 공격자에게 지급할 MP를 반환합니다.

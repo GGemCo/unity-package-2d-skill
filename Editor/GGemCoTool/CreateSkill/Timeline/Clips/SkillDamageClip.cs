@@ -110,8 +110,6 @@ namespace GGemCo2DSkillEditor
         /// </summary>
         [Header("OnHit Crowd Control (Target)")]
         [SerializeField] private OnHitCrowdControlEntry[] onHitCrowdControls;
-        
-        [SerializeField] private OnHitElementGaugeEntry[] onHitElementGauges;
 
         [Header("OnHit MP Gain")]
         [Tooltip("이 Damage 클립이 실제 타격에 성공했을 때 공격자에게 지급할 MP입니다. 0이면 지급하지 않습니다.")]
@@ -248,7 +246,6 @@ namespace GGemCo2DSkillEditor
         /// 적중 시 적용될 Crowd Control 목록을 반환합니다.
         /// </summary>
         public OnHitCrowdControlEntry[] OnHitCrowdControls => onHitCrowdControls;
-        public OnHitElementGaugeEntry[] OnHitElementGauges => onHitElementGauges;
 
         /// <summary>
         /// 실제 타격 성공 시 공격자에게 지급할 MP를 반환합니다.
