@@ -247,6 +247,10 @@ namespace GGemCo2DSkillEditor
             def.passThroughExtraDistance = Mathf.Max(0f, lunge.PassThroughExtraDistance);
             def.horizontalOnly = lunge.HorizontalOnly;
             def.collisionPolicy = lunge.CollisionPolicy;
+            def.blockedFallbackMode = lunge.BlockedFallbackMode;
+            def.blockedFallbackMinDistance = Mathf.Max(0f, lunge.BlockedFallbackMinDistance);
+            def.blockedFallbackProbeSkin = Mathf.Max(0f, lunge.BlockedFallbackProbeSkin);
+            def.blockedFallbackBodyCollisionPolicy = lunge.BlockedFallbackBodyCollisionPolicy;
             def.screenClampPolicy = lunge.ScreenClampPolicy;
             def.screenEdgePadding = Mathf.Max(0f, lunge.ScreenEdgePadding);
             def.invertForward = lunge.InvertForward;
