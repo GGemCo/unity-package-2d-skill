@@ -390,6 +390,7 @@ namespace GGemCo2DSkillEditor
             def.damageValueType = proj.DamageValueType;
             def.multiplier = proj.Multiplier;
             def.onHitCrowdControls = proj.OnHitCrowdControls;
+            def.onHitElementGauges = proj.OnHitElementGauges;
             def.skillHitMpGain = proj.SkillHitMpGain;
             def.allowMultipleSkillHitMpGainPerAttack = proj.AllowMultipleSkillHitMpGainPerAttack;
             def.guardAttackType = proj.GuardAttackType;

@@ -112,7 +112,8 @@ namespace GGemCo2DSkill
                 elementGaugeApplications: SkillOnHitEffectUtility.BuildElementGaugeApplications(
                     def.onHitElementGauges,
                     ownerObject,
-                    damageApplied: true),
+                    damageApplied: false,
+                    deferDamageDealtRequirement: true),
                 onHitCrowdControls: BuildProjectileOnHitCrowdControls(def.onHitCrowdControls),
                 guardAttackType: def.guardAttackType,
                 useHitLifetimeModeOverride: def.useProjectileHitBehaviorOverride,

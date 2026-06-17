@@ -16,11 +16,15 @@ namespace GGemCo2DSkill
         /// <param name="entries">스킬 이벤트에 설정된 OnHit 원소 게이지 항목입니다.</param>
         /// <param name="caster">조건 확인에 사용할 캐스터 오브젝트입니다.</param>
         /// <param name="damageApplied">이번 타격에서 실제 데미지가 적용되었는지 여부입니다.</param>
+        /// <param name="deferDamageDealtRequirement">
+        /// 실제 데미지 적용 여부를 아직 확정할 수 없어 <see cref="ElementGaugeApplication.requireDamageDealt"/>로 전달할지 여부입니다.
+        /// </param>
         /// <returns>적용 가능한 원소 게이지 목록입니다. 적용할 항목이 없으면 <see langword="null"/>입니다.</returns>
         public static ElementGaugeApplication[] BuildElementGaugeApplications(
             OnHitElementGaugeEntry[] entries,
             GameObject caster,
-            bool damageApplied)
+            bool damageApplied,
+            bool deferDamageDealtRequirement = false)
         {
             if (entries == null || entries.Length == 0)
                 return null;
@@ -34,7 +38,7 @@ namespace GGemCo2DSkill
                     continue;
                 if (entry.gaugeValue <= 0f)
                     continue;
-                if (entry.requireDamageDealt && !damageApplied)
+                if (entry.requireDamageDealt && !damageApplied && !deferDamageDealtRequirement)
                     continue;
                 if (entry.requireAffectUid > 0 && !AffectApi.HasAttached(caster, entry.requireAffectUid))
                     continue;
@@ -46,7 +50,10 @@ namespace GGemCo2DSkill
                     continue;
 
                 results ??= new List<ElementGaugeApplication>(4);
-                results.Add(new ElementGaugeApplication(entry.damageType, entry.gaugeValue));
+                results.Add(new ElementGaugeApplication(
+                    entry.damageType,
+                    entry.gaugeValue,
+                    deferDamageDealtRequirement && entry.requireDamageDealt));
             }
 
             return results != null && results.Count > 0 ? results.ToArray() : null;
