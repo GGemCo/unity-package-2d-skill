@@ -71,6 +71,17 @@ namespace GGemCo2DSkill
         public ProjectileFlightSoundLifetimePolicy flightSoundLifetimePolicy =
             ProjectileFlightSoundLifetimePolicy.Default;
 
+        [Header("Impact Sound")]
+        [Tooltip("프로젝타일이 설정된 충돌 또는 도착 지점에 도달했을 때 재생할 사운드 요청입니다.")]
+        public SoundPlayRequest impactSound = new SoundPlayRequest();
+
+        [Tooltip("충돌 사운드를 재생할 프로젝타일 수명주기 지점입니다.")]
+        public ProjectileImpactSoundTrigger impactSoundTrigger = ProjectileImpactSoundTrigger.TargetHit;
+
+        [Tooltip("한 프로젝타일에서 충돌 사운드를 반복 재생하는 방식입니다.")]
+        public ProjectileImpactSoundRepeatPolicy impactSoundRepeatPolicy =
+            ProjectileImpactSoundRepeatPolicy.OncePerProjectile;
+
         [Header("타겟 지점 정책")]
         [Tooltip("프로젝타일 조준에 사용할 고정 타겟 지점을 계산하는 방식입니다. UseDefaultTargeting은 기존 동작을 유지합니다.")]
         public ProjectileTargetPointPolicy targetPointPolicy = ProjectileTargetPointPolicy.UseDefaultTargeting;
@@ -132,15 +143,21 @@ namespace GGemCo2DSkill
         [Tooltip("스킬 기본 TargetingMode 대신, 이벤트 별 TargetingMode를 강제할 수 있습니다.")]
         public TargetingOverride targetingOverride;
         /// <summary>
-        /// 프로젝타일 이벤트가 비행 중 사용할 sound UID를 매니페스트 분석 결과에 추가합니다.
+        /// 프로젝타일 이벤트가 비행 및 충돌 시 사용할 sound UID를 매니페스트 분석 결과에 추가합니다.
         /// </summary>
         /// <param name="target">발견한 sound UID를 추가할 결과 컬렉션입니다.</param>
         public void CollectSoundUids(System.Collections.Generic.ICollection<int> target)
         {
-            if (target == null || flightSound == null || !flightSound.IsValid)
+            if (target == null)
                 return;
 
-            target.Add(flightSound.soundUid);
+            if (flightSound != null && flightSound.IsValid)
+                target.Add(flightSound.soundUid);
+
+            if (impactSoundTrigger != ProjectileImpactSoundTrigger.None &&
+                impactSound != null &&
+                impactSound.IsValid)
+                target.Add(impactSound.soundUid);
         }
 
     }

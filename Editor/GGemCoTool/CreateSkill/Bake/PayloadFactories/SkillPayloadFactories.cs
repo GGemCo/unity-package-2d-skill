@@ -400,6 +400,9 @@ namespace GGemCo2DSkillEditor
             def.visualVfxUidOverride = proj.VisualVfxUidOverride;
             def.flightSound = proj.FlightSound;
             def.flightSoundLifetimePolicy = proj.FlightSoundLifetimePolicy;
+            def.impactSound = proj.ImpactSound;
+            def.impactSoundTrigger = proj.ImpactSoundTrigger;
+            def.impactSoundRepeatPolicy = proj.ImpactSoundRepeatPolicy;
             def.targetPointPolicy = proj.TargetPointPolicy;
             def.fixedTargetOffset = proj.FixedTargetOffset;
             def.fixedTargetHitAreaNormalized = proj.FixedTargetHitAreaNormalized;

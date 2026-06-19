@@ -87,6 +87,18 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private ProjectileFlightSoundLifetimePolicy flightSoundLifetimePolicy =
             ProjectileFlightSoundLifetimePolicy.Default;
 
+        [Header("Impact Sound")]
+        [Tooltip("프로젝타일이 타겟, 환경 또는 경로 종착점에 도달했을 때 재생할 sound 테이블의 대표 UID입니다. 0이면 재생하지 않습니다.")]
+        [SerializeField] private int impactSoundUid = 0;
+
+        [Tooltip("충돌 사운드를 재생할 프로젝타일 수명주기 지점입니다. 여러 항목을 함께 선택할 수 있습니다.")]
+        [SerializeField] private ProjectileImpactSoundTrigger impactSoundTrigger =
+            ProjectileImpactSoundTrigger.TargetHit;
+
+        [Tooltip("한 프로젝타일에서 충돌 사운드를 한 번만 재생할지, 각 충돌 지점마다 재생할지 결정합니다.")]
+        [SerializeField] private ProjectileImpactSoundRepeatPolicy impactSoundRepeatPolicy =
+            ProjectileImpactSoundRepeatPolicy.OncePerProjectile;
+
         [Header("Targeting Overrides")]
         [Tooltip("프로젝타일의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private TargetingOverride targetingOverride;
@@ -253,6 +265,21 @@ namespace GGemCo2DSkillEditor
         /// 프로젝타일 비행 사운드 수명 정책입니다.
         /// </summary>
         public ProjectileFlightSoundLifetimePolicy FlightSoundLifetimePolicy => flightSoundLifetimePolicy;
+
+        /// <summary>
+        /// 프로젝타일 충돌 또는 도착 시 사용할 사운드 재생 요청입니다.
+        /// </summary>
+        public SoundPlayRequest ImpactSound => SoundPlayRequest.Create(impactSoundUid);
+
+        /// <summary>
+        /// 충돌 사운드를 재생할 프로젝타일 수명주기 지점입니다.
+        /// </summary>
+        public ProjectileImpactSoundTrigger ImpactSoundTrigger => impactSoundTrigger;
+
+        /// <summary>
+        /// 한 프로젝타일에서 충돌 사운드를 반복 재생하는 방식입니다.
+        /// </summary>
+        public ProjectileImpactSoundRepeatPolicy ImpactSoundRepeatPolicy => impactSoundRepeatPolicy;
 
         /// <summary>
         /// 프로젝타일의 타게팅 규칙을 보정하는 오버라이드 설정입니다.
