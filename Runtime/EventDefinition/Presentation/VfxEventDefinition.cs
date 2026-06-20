@@ -160,6 +160,13 @@ namespace GGemCo2DSkill
         [Tooltip("켜면 Anchor 계산 결과를 축별 기준점 값으로 다시 합성합니다.")]
         public VfxPositionAxisOverrideOptions axisOverride;
 
+        /// <summary>
+        /// VFX 생성 기준 위치를 현재 타겟팅, 시작 스냅샷 또는 이름 있는 위치 앵커 중 어디에서 가져올지 지정합니다.
+        /// </summary>
+        [Header("Position Reference")]
+        [Tooltip("VFX 생성 기준 위치를 현재 타겟팅, 스킬 시작 스냅샷 또는 이름 있는 위치 앵커에서 가져옵니다.")]
+        public SkillPositionReference spawnPositionReference;
+
         [Header("Position Anchor")]
         [Tooltip("켜면 이 VFX 이벤트가 계산한 최종 생성 위치를 같은 스킬 실행 안에 저장합니다.")]
         public SkillPositionAnchorWriteOptions positionAnchorWrite;

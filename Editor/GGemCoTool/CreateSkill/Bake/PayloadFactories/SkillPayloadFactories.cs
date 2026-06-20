@@ -69,6 +69,7 @@ namespace GGemCo2DSkillEditor
             def.offsetSpace = offsetSpace;
             def.useCasterFlipOffsetX = fx.UseCasterFlipOffsetX;
             def.axisOverride = fx.AxisOverride;
+            def.spawnPositionReference = fx.SpawnPositionReference;
             def.positionAnchorWrite = fx.PositionAnchorWrite;
             def.lifetimeMode = fx.LifetimeMode;
             def.lifetimeSeconds = fx.LifetimeSeconds;
