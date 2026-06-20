@@ -96,6 +96,7 @@ namespace GGemCo2DSkillEditor
             def.targetPointPolicy = capture.TargetPointPolicy;
             def.offset = capture.Offset;
             def.targetHitAreaNormalized = capture.TargetHitAreaNormalized;
+            def.groundProjection = capture.GroundProjection;
             def.targetingOverride = capture.TargetingOverride;
             return def;
         }

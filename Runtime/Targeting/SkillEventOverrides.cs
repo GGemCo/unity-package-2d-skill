@@ -1,5 +1,6 @@
 using System;
 using Config;
+using GGemCo2DCore;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -31,6 +32,88 @@ namespace GGemCo2DSkill
 
         [Tooltip("AreaDefinition의 크기 계수를 이벤트별로 가산/보정하고 싶을 때 사용(1=기본)")]
         public float scale;
+    }
+
+    /// <summary>
+    /// 스킬 위치 캡처 결과에 적용할 지면 투영 방식입니다.
+    /// </summary>
+    public enum SkillGroundProjectionMode
+    {
+        /// <summary>지면 투영을 적용하지 않고 계산된 원본 위치를 사용합니다.</summary>
+        None = 0,
+
+        /// <summary>계산된 위치에서 아래 방향으로 가장 가까운 지면 표면을 탐색합니다.</summary>
+        ProjectDownToGround = 1,
+    }
+
+    /// <summary>
+    /// 위치 캡처 과정에서 지면을 찾지 못했을 때 적용할 실패 처리 정책입니다.
+    /// </summary>
+    public enum SkillGroundProjectionFailurePolicy
+    {
+        /// <summary>지면을 찾지 못하면 투영 전 원본 위치를 그대로 저장합니다.</summary>
+        KeepOriginalPosition = 0,
+
+        /// <summary>지면을 찾지 못하면 해당 위치 캡처 이벤트를 중단합니다.</summary>
+        SkipCapture = 1,
+
+        /// <summary>경고를 남기고 투영 전 원본 위치를 그대로 저장합니다.</summary>
+        WarnAndKeepOriginalPosition = 2,
+    }
+
+    /// <summary>
+    /// 스킬 위치 캡처 결과를 실제 2D 지면 표면으로 투영하기 위한 설정입니다.
+    /// </summary>
+    [Serializable]
+    public struct SkillGroundProjectionOptions
+    {
+        /// <summary>지면 투영 사용 방식입니다.</summary>
+        [Tooltip("계산된 위치를 아래쪽 지면 표면으로 투영할지 여부입니다.")]
+        public SkillGroundProjectionMode mode;
+
+        /// <summary>지면 탐색에 사용할 Core 공통 레이어 정책입니다.</summary>
+        [Tooltip("일반 지면, 원웨이 플랫폼 또는 사용자 정의 레이어 중 탐색 대상을 선택합니다.")]
+        public GroundSurfaceLayerPolicy layerPolicy;
+
+        /// <summary>사용자 정의 레이어 정책에서 사용할 Physics2D 레이어 마스크입니다.</summary>
+        [Tooltip("Layer Policy가 Custom일 때 지면 탐색에 사용할 레이어 마스크입니다.")]
+        public LayerMask customGroundLayerMask;
+
+        /// <summary>Ray 시작점을 계산된 위치보다 위로 올릴 거리입니다.</summary>
+        [Min(0f)]
+        [Tooltip("Ray 시작점을 계산된 위치보다 위로 올릴 거리입니다.")]
+        public float probeStartUpOffset;
+
+        /// <summary>계산된 위치에서 아래쪽으로 지면을 탐색할 최대 거리입니다.</summary>
+        [Min(0f)]
+        [Tooltip("계산된 위치에서 아래쪽으로 지면을 탐색할 최대 거리입니다.")]
+        public float maxProbeDistance;
+
+        /// <summary>탐색된 표면의 Normal 방향으로 결과 위치를 띄울 거리입니다.</summary>
+        [Tooltip("지면에 VFX가 파묻히지 않도록 표면 Normal 방향으로 더할 오프셋입니다.")]
+        public float surfaceNormalOffset;
+
+        /// <summary>지면 탐색 실패 시 적용할 처리 정책입니다.</summary>
+        [Tooltip("지면을 찾지 못했을 때 원본 위치 유지, 경고 또는 캡처 중단 중 하나를 선택합니다.")]
+        public SkillGroundProjectionFailurePolicy failurePolicy;
+
+        /// <summary>
+        /// 새 위치 캡처 클립에 사용할 기본 지면 투영 설정을 생성합니다.
+        /// </summary>
+        /// <returns>투영은 비활성화되어 있고 권장 탐색 거리 값이 채워진 설정입니다.</returns>
+        public static SkillGroundProjectionOptions CreateDefault()
+        {
+            return new SkillGroundProjectionOptions
+            {
+                mode = SkillGroundProjectionMode.None,
+                layerPolicy = GroundSurfaceLayerPolicy.DefaultGroundAndOneWay,
+                customGroundLayerMask = 0,
+                probeStartUpOffset = CharacterGroundProbeUtility.ProbeUpOffset,
+                maxProbeDistance = 12f,
+                surfaceNormalOffset = 0f,
+                failurePolicy = SkillGroundProjectionFailurePolicy.WarnAndKeepOriginalPosition,
+            };
+        }
     }
 
     /// <summary>
@@ -191,6 +274,12 @@ namespace GGemCo2DSkill
         public readonly float Time;
 
         /// <summary>
+        /// 위치가 지면 투영으로 계산된 경우의 표면 Normal입니다.
+        /// 지면 투영을 사용하지 않은 위치는 기본 위쪽 방향을 사용합니다.
+        /// </summary>
+        public readonly Vector3 SurfaceNormal;
+
+        /// <summary>
         /// 위치 앵커 스냅샷을 생성합니다.
         /// </summary>
         /// <param name="position">이벤트가 계산한 최종 월드 위치입니다.</param>
@@ -199,13 +288,15 @@ namespace GGemCo2DSkill
         /// <param name="targetPosition">이벤트 시점에 해석된 타겟 위치입니다.</param>
         /// <param name="groundPoint">이벤트 시점에 해석된 지면 기준점입니다.</param>
         /// <param name="time">스킬 사용 애니메이션 기준 기록 시간입니다.</param>
+        /// <param name="surfaceNormal">위치가 투영된 지면의 표면 Normal입니다.</param>
         public SkillPositionAnchorSnapshot(
             Vector3 position,
             Vector3 forward,
             Vector3 casterPosition,
             Vector3 targetPosition,
             Vector3 groundPoint,
-            float time)
+            float time,
+            Vector3 surfaceNormal = default)
         {
             Position = position;
             Forward = forward;
@@ -213,6 +304,9 @@ namespace GGemCo2DSkill
             TargetPosition = targetPosition;
             GroundPoint = groundPoint;
             Time = time;
+            SurfaceNormal = surfaceNormal.sqrMagnitude > 0.000001f
+                ? surfaceNormal.normalized
+                : Vector3.up;
         }
     }
 }

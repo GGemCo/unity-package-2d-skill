@@ -82,15 +82,84 @@ namespace GGemCo2DSkill
                 position += (Vector3)def.offset;
             }
 
+            if (!TryApplyGroundProjection(
+                    skill,
+                    def,
+                    ref position,
+                    out Vector3 surfaceNormal))
+            {
+                return;
+            }
+
             var snapshot = new SkillPositionAnchorSnapshot(
                 position,
                 resolvedForward,
                 casterPos,
                 targetPos,
                 groundPoint,
-                run.CurrentTime);
+                run.CurrentTime,
+                surfaceNormal);
 
             run.SavePositionAnchor(def.anchorKey, snapshot);
+        }
+
+        /// <summary>
+        /// 위치 캡처 결과에 선택적 지면 투영 후처리를 적용합니다.
+        /// </summary>
+        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
+        /// <param name="def">위치 캡처 이벤트 정의입니다.</param>
+        /// <param name="position">투영 전후의 위치를 주고받을 월드 좌표입니다.</param>
+        /// <param name="surfaceNormal">탐색된 지면 표면 Normal입니다.</param>
+        /// <returns>위치 앵커 저장을 계속할 수 있으면 <see langword="true"/>입니다.</returns>
+        private static bool TryApplyGroundProjection(
+            RuntimeSkillDefinition skill,
+            CaptureTargetPositionEventDefinition def,
+            ref Vector3 position,
+            out Vector3 surfaceNormal)
+        {
+            surfaceNormal = Vector3.up;
+            if (def == null ||
+                def.groundProjection.mode == SkillGroundProjectionMode.None)
+            {
+                return true;
+            }
+
+            SkillGroundProjectionOptions projection = def.groundProjection;
+            var probeOptions = new GroundSurfaceProbeOptions(
+                projection.layerPolicy,
+                projection.customGroundLayerMask.value,
+                projection.probeStartUpOffset,
+                projection.maxProbeDistance,
+                projection.surfaceNormalOffset);
+
+            Vector3 sourcePosition = position;
+            if (GroundSurfaceProbeUtility.TryProjectToGround(
+                    sourcePosition,
+                    in probeOptions,
+                    out GroundSurfaceProbeHit hit))
+            {
+                position = hit.Position;
+                surfaceNormal = hit.Normal;
+                return true;
+            }
+
+            switch (projection.failurePolicy)
+            {
+                case SkillGroundProjectionFailurePolicy.SkipCapture:
+                    return false;
+
+                case SkillGroundProjectionFailurePolicy.WarnAndKeepOriginalPosition:
+                    Debug.LogWarning(
+                        $"[SkillExecutor] Ground projection failed. " +
+                        $"skillUid={skill?.Uid ?? 0}, anchorKey={def.anchorKey}, " +
+                        $"source={sourcePosition}, maxDistance={projection.maxProbeDistance:0.###}, " +
+                        $"layerPolicy={projection.layerPolicy}");
+                    return true;
+
+                case SkillGroundProjectionFailurePolicy.KeepOriginalPosition:
+                default:
+                    return true;
+            }
         }
 
         /// <summary>

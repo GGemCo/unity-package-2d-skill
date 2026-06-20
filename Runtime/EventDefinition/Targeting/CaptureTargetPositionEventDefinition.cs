@@ -51,6 +51,13 @@ namespace GGemCo2DSkill
         public Vector2 targetHitAreaNormalized = new(0.5f, 0.5f);
 
         /// <summary>
+        /// 계산된 위치를 실제 2D 지면 표면으로 투영하기 위한 설정입니다.
+        /// </summary>
+        [Tooltip("계산된 위치를 실제 2D 지면 표면으로 투영하기 위한 설정입니다.")]
+        public SkillGroundProjectionOptions groundProjection =
+            SkillGroundProjectionOptions.CreateDefault();
+
+        /// <summary>
         /// 스킬 기본 타겟팅 모드를 이벤트 단위로 덮어쓸 때 사용합니다.
         /// </summary>
         [Tooltip("스킬 기본 타겟팅 모드를 이벤트 단위로 덮어쓸 때 사용합니다.")]

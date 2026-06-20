@@ -34,6 +34,11 @@ namespace GGemCo2DSkillEditor
         [Tooltip("타겟 HitArea 안에서 사용할 정규화 좌표입니다. (0,0)=좌하단, (1,1)=우상단입니다.")]
         [SerializeField] private Vector2 targetHitAreaNormalized = new(0.5f, 0.5f);
 
+        [Header("Ground Projection")]
+        [Tooltip("계산된 캡처 위치를 실제 2D 지면 표면으로 투영하기 위한 설정입니다.")]
+        [SerializeField] private SkillGroundProjectionOptions groundProjection =
+            SkillGroundProjectionOptions.CreateDefault();
+
         [Header("Targeting Overrides")]
         [Tooltip("스킬 기본 타겟팅 모드를 이벤트 단위로 덮어쓸 때 사용합니다.")]
         [SerializeField] private TargetingOverride targetingOverride;
@@ -78,6 +83,11 @@ namespace GGemCo2DSkillEditor
         /// 타겟 HitArea 안에서 사용할 정규화 좌표입니다.
         /// </summary>
         public Vector2 TargetHitAreaNormalized => targetHitAreaNormalized;
+
+        /// <summary>
+        /// 계산된 캡처 위치에 적용할 지면 투영 설정입니다.
+        /// </summary>
+        public SkillGroundProjectionOptions GroundProjection => groundProjection;
 
         /// <summary>
         /// 이벤트 단위 타겟팅 오버라이드 설정입니다.
