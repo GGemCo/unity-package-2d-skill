@@ -1,8 +1,11 @@
-﻿using GGemCo2DCore;
+using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 
 namespace GGemCo2DSkillEditor
 {
+    /// <summary>
+    /// Skill 패키지 에디터 툴 메뉴 경로와 정렬 순서를 정의합니다.
+    /// </summary>
     public static class ConfigEditorSkill
     {
         public enum ToolOrdering
@@ -39,14 +42,14 @@ namespace GGemCo2DSkillEditor
             Etc = 900,
         }
 
-       private const string NameToolGGemCoSkill = ConfigDefine.NameSDK+"ToolSkill/";
+       private const string NameToolGGemCoSkill = GGemCoToolMenu.Skill;
 
         // 기본 셋팅하기
 
         /// <summary>
         /// 기본 셋팅 메뉴(설정하기)의 경로 접두사입니다.
         /// </summary>
-        private const string NameToolSettings = NameToolGGemCoSkill + "설정하기/";
+        private const string NameToolSettings = NameToolGGemCoSkill + GGemCoToolMenu.Settings;
 
         /// <summary>
         /// "자동 셋팅하기" 메뉴 경로입니다.
@@ -83,7 +86,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 개발툴 메뉴의 경로 접두사입니다.
         /// </summary>
-        private const string NameToolDevelopment = NameToolGGemCoSkill + "개발툴/";
+        private const string NameToolDevelopment = NameToolGGemCoSkill + GGemCoToolMenu.Development;
 
         // 테스트
 
@@ -93,7 +96,7 @@ namespace GGemCo2DSkillEditor
         /// <remarks>
         /// NOTE: 현재 문자열이 "테스트툴"로 되어 있는데, 의도한 표기가 "테스트툴"이라면 수정이 필요합니다.
         /// </remarks>
-        private const string NameToolTest = NameToolGGemCoSkill + "테스트툴/";
+        private const string NameToolTest = NameToolGGemCoSkill + GGemCoToolMenu.Test;
 
         public const string NameToolSettingTestSkill = NameToolTest + "스킬 테스트 툴";
 
@@ -104,7 +107,7 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// 기타 메뉴의 경로 접두사입니다.
         /// </summary>
-        private const string NameToolEtc = NameToolGGemCoSkill + "기타/";
+        private const string NameToolEtc = NameToolGGemCoSkill + GGemCoToolMenu.Etc;
 
         public const string PathPackageCore = "Packages/com.ggemco.2d.skill";
     }
