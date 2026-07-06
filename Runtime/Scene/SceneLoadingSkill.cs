@@ -1,4 +1,4 @@
-﻿using GGemCo2DCore;
+using GGemCo2DCore;
 using UnityEngine;
 
 namespace GGemCo2DSkill
@@ -97,7 +97,7 @@ namespace GGemCo2DSkill
                 order: 247,
                 localizedKey: LocalizationConstants.Keys.Loading.TextTypeTables(),
                 tableLoader: tableLoader,
-                tablePack: ConfigAddressableTablePack.Skill,
+                tablePack: ConfigAddressableTableSkill.TablePackSkill,
                 fallbackTables: targetTables
             );
             sender.Register(stepTable);

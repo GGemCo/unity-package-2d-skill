@@ -18,12 +18,12 @@ namespace GGemCo2DSkillEditor
         /// <summary>
         /// Skill 런타임 pack 내부에 기록할 패키지 식별자입니다.
         /// </summary>
-        protected override string PackageId => ConfigAddressableTablePack.PackageSkill;
+        protected override string PackageId => ConfigAddressableTableSkill.PackageId;
 
         /// <summary>
         /// Skill 런타임 테이블 pack의 Addressables 정보입니다.
         /// </summary>
-        protected override AddressableAssetInfo PackInfo => ConfigAddressableTablePack.Skill;
+        protected override AddressableAssetInfo PackInfo => ConfigAddressableTableSkill.TablePackSkill;
 
         /// <summary>
         /// Skill 런타임 pack에 포함할 개별 테이블 목록입니다.

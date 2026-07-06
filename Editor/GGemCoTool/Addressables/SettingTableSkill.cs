@@ -1,4 +1,4 @@
-﻿using GGemCo2DCore;
+using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using GGemCo2DSkill;
 using UnityEditor;
@@ -102,9 +102,9 @@ namespace GGemCo2DSkillEditor
         /// <param name="ctx">자동 설정 실행 컨텍스트입니다.</param>
         private void RegisterRuntimeTablePack(AddressableAssetSettings settings, AddressableAssetGroup group, EditorSetupContext ctx)
         {
-            AddressableAssetInfo pack = ConfigAddressableTablePack.Skill;
+            AddressableAssetInfo pack = ConfigAddressableTableSkill.TablePackSkill;
             bool built = RuntimeTablePackBuilder.Build(
-                ConfigAddressableTablePack.PackageSkill,
+                ConfigAddressableTableSkill.PackageId,
                 pack,
                 ConfigAddressableTableSkill.All,
                 ctx);
