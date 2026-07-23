@@ -111,8 +111,7 @@ namespace GGemCo2DSkill
                 "core.localization.skill",
                 order: 222,
                 localizedKey: LocalizationConstants.Keys.Loading.TextTypeLocalization(),
-                localizationManager: loc,
-                localeCode: PlayerPrefsManager.LoadLocalizationLocaleCode()
+                localizationManager: loc
             );
             sender.Register(stepLocalization);
 
