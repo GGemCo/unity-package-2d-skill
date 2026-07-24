@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using GGemCo2DCore;
@@ -121,6 +121,11 @@ namespace GGemCo2DSkill
             await LoadSkillRuntimeSequenceMonster(ch);
         }
 
+        /// <summary>
+        /// 몬스터의 일반 스킬과 사망 스킬 RuntimeSequence를 중복 없이 미리 로드합니다.
+        /// </summary>
+        /// <param name="ch">스킬 시퀀스를 준비할 몬스터 캐릭터입니다.</param>
+        /// <returns>모든 유효한 몬스터 스킬 시퀀스의 프리로드가 끝나면 완료되는 작업입니다.</returns>
         private async Task LoadSkillRuntimeSequenceMonster(CharacterBase ch)
         {
             // 몬스터가 아니면 프리로드하지 않습니다.
@@ -134,16 +139,22 @@ namespace GGemCo2DSkill
             if (GcLogger.IsNull(info, $"몬스터 테이블에 정보가 없습니다. uid: {ch.uid}"))
                 return;
 
-            if (info.SkillMonsterUid == null || info.SkillMonsterUid.Length == 0)
-                return;
-
-            // 중복되거나 유효하지 않은 스킬 UID를 제거합니다.
+            // 일반 스킬과 사망 스킬 사이의 중복 UID를 제거합니다.
             var uniqueSkillUids = new HashSet<int>();
-            foreach (var uid in info.SkillMonsterUid)
+            if (info.SkillMonsterUid != null)
             {
-                if (uid <= 0) continue;
-                uniqueSkillUids.Add(uid);
+                foreach (var uid in info.SkillMonsterUid)
+                {
+                    if (uid <= 0)
+                        continue;
+
+                    uniqueSkillUids.Add(uid);
+                }
             }
+
+            // 자폭처럼 최초 사망 순간에만 실행되는 시퀀스도 스폰 완료 전에 준비합니다.
+            if (info.DeathSkillMonsterUid > 0)
+                uniqueSkillUids.Add(info.DeathSkillMonsterUid);
 
             if (uniqueSkillUids.Count == 0)
                 return;
@@ -171,6 +182,12 @@ namespace GGemCo2DSkill
             }
         }
 
+        /// <summary>
+        /// 몬스터 스킬 RuntimeSequence를 공용 캐시에 로드하고 개별 실패를 안전하게 기록합니다.
+        /// </summary>
+        /// <param name="skillUid">진단 로그에 사용할 몬스터 스킬 UID입니다.</param>
+        /// <param name="key">RuntimeSequence Addressables 키입니다.</param>
+        /// <returns>로드 성공 또는 실패 처리가 끝나면 완료되는 작업입니다.</returns>
         private static async Task PreloadSequenceSafeAsyncMonster(int skillUid, string key)
         {
             try
