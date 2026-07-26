@@ -450,7 +450,7 @@ namespace GGemCo2DSkillEditor
             def.damageTickIntervalSeconds = Mathf.Max(0f, laser.DamageTickIntervalSeconds);
             def.damageTickOnStart = laser.DamageTickOnStart;
             def.maxDistance = Mathf.Max(0f, laser.MaxDistance);
-            def.targetDirectionAngleOffsetDeg = laser.TargetDirectionAngleOffsetDeg;
+            def.targetHorizontalAngleDeg = laser.TargetHorizontalAngleDeg;
             def.startAnchor = laser.StartAnchor;
             def.namedAnchorKey = laser.NamedAnchorKey;
             def.startPositionOverrideMode = laser.StartPositionOverrideMode;

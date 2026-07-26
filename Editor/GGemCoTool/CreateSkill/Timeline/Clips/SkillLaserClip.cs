@@ -78,8 +78,8 @@ namespace GGemCo2DSkillEditor
         [SerializeField] private float maxDistance = 0f;
 
         [Header("Aim")]
-        [Tooltip("레이저 시작점에서 스킬 타겟을 바라보는 방향에 더할 각도입니다. 0은 타겟 정면이며, 양수는 반시계 방향입니다.")]
-        [SerializeField] private float targetDirectionAngleOffsetDeg = 0f;
+        [Tooltip("타겟이 위치한 좌우 수평 방향을 기준으로 적용할 각도입니다. 0은 수평 직선이며, 양수는 위쪽, 음수는 아래쪽입니다.")]
+        [SerializeField] private float targetHorizontalAngleDeg = 0f;
 
         [Header("Start Position Override")]
         [Tooltip("레이저 시작점 오버라이드 값을 어떤 기준점에서 해석할지 정의합니다.")]
@@ -203,9 +203,9 @@ namespace GGemCo2DSkillEditor
         public float MaxDistance => maxDistance;
 
         /// <summary>
-        /// 스킬 타겟 방향에 더할 레이저 각도 오프셋을 반환합니다.
+        /// 스킬 타겟의 좌우 수평 방향을 기준으로 적용할 레이저 각도를 반환합니다.
         /// </summary>
-        public float TargetDirectionAngleOffsetDeg => targetDirectionAngleOffsetDeg;
+        public float TargetHorizontalAngleDeg => targetHorizontalAngleDeg;
 
         /// <summary>
         /// 레이저 시작점 오버라이드 기준점입니다.

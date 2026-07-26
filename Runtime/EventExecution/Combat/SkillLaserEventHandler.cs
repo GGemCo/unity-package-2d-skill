@@ -149,10 +149,11 @@ namespace GGemCo2DSkill
                 damageTickOnStartOverride: def.damageTickOnStart,
                 useMaxDistanceOverride: def.maxDistance > 0f,
                 maxDistanceOverride: Mathf.Max(0f, def.maxDistance),
-                // Skill Laser는 복잡한 방향 모드를 노출하지 않고, 해석된 스킬 타겟 방향에 각도만 더합니다.
+                // Skill Laser는 타겟의 높이를 무시하고 좌우 수평 방향을 기준으로 각도만 적용합니다.
                 useRaycastDirectionModeOverride: true,
-                raycastDirectionModeOverride: LaserConstants.RaycastDirectionMode.TowardTarget,
-                targetDirectionAngleOffsetDeg: def.targetDirectionAngleOffsetDeg,
+                raycastDirectionModeOverride: LaserConstants.RaycastDirectionMode.TowardTargetHorizontal,
+                useRaycastAngleOverride: true,
+                raycastAngleOverrideDeg: def.targetHorizontalAngleDeg,
                 startPositionOverrideMode: resolvedStartPositionOverrideMode,
                 startPositionOverride: resolvedStartPositionOverride,
                 startPointUpdateMode: resolvedStartPointUpdateMode,
