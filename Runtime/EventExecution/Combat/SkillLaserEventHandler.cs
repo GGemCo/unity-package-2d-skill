@@ -131,6 +131,7 @@ namespace GGemCo2DSkill
                 visualSprite: def.visualSprite,
                 visualAnimatorController: def.visualAnimatorController,
                 visualVfxUidOverride: def.visualVfxUidOverride,
+                attachedVfxPlaybackPolicy: def.attachedVfxPlaybackPolicy,
                 useTargetPositionOverride: usePosOverride,
                 targetPositionOverride: posOverride,
                 skillUid: skill.Uid,

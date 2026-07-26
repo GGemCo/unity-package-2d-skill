@@ -98,6 +98,12 @@ namespace GGemCo2DSkill
         public RuntimeAnimatorController visualAnimatorController;
         public int visualVfxUidOverride = 0;
 
+        /// <summary>
+        /// 레이저에 부착된 VFX의 재생 및 종료 수명 정책입니다.
+        /// </summary>
+        public ProjectileConstants.AttachedVfxPlaybackPolicy attachedVfxPlaybackPolicy =
+            ProjectileConstants.AttachedVfxPlaybackPolicy.OwnerLifetime;
+
         [Header("Chain Cancel")]
         [Tooltip("이 Laser 이벤트가 실제 데미지를 확정했을 때 다음 스킬 연계를 즉시 허용할지 여부입니다. GGemCoSkillSettings.enableSkillChainOnConfirmedDamage 가 함께 켜져 있어야 동작합니다.")]
         public bool allowSkillChainOnConfirmedDamage = false;

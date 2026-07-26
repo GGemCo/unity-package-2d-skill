@@ -116,6 +116,10 @@ namespace GGemCo2DSkillEditor
         [Tooltip("기본 이펙트 대신 사용할 Effect UID 오버라이드입니다.")]
         [SerializeField] private int visualVfxUidOverride = 0;
 
+        [Tooltip("레이저에 부착된 VFX의 재생 및 종료 수명 정책입니다.")]
+        [SerializeField] private ProjectileConstants.AttachedVfxPlaybackPolicy attachedVfxPlaybackPolicy =
+            ProjectileConstants.AttachedVfxPlaybackPolicy.OwnerLifetime;
+
         [Header("Targeting Overrides")]
         [Tooltip("레이저의 타게팅 규칙을 보정하기 위한 오버라이드 설정입니다.")]
         [SerializeField] private GGemCo2DSkill.TargetingOverride targetingOverride;
@@ -261,6 +265,11 @@ namespace GGemCo2DSkillEditor
         /// VFX UID 오버라이드입니다.
         /// </summary>
         public int VisualVfxUidOverride => visualVfxUidOverride;
+
+        /// <summary>
+        /// 레이저에 부착된 VFX의 재생 및 종료 수명 정책을 반환합니다.
+        /// </summary>
+        public ProjectileConstants.AttachedVfxPlaybackPolicy AttachedVfxPlaybackPolicy => attachedVfxPlaybackPolicy;
 
         /// <summary>
         /// 타게팅 오버라이드 설정입니다.

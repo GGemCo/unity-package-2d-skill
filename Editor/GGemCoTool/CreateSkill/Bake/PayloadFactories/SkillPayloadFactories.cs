@@ -462,6 +462,7 @@ namespace GGemCo2DSkillEditor
             def.visualSprite = laser.VisualSprite;
             def.visualAnimatorController = laser.VisualAnimatorController;
             def.visualVfxUidOverride = laser.VisualVfxUidOverride;
+            def.attachedVfxPlaybackPolicy = laser.AttachedVfxPlaybackPolicy;
             def.allowSkillChainOnConfirmedDamage = laser.AllowSkillChainOnConfirmedDamage;
             def.onHitCrowdControls = laser.OnHitCrowdControls;
             def.skillHitMpGain = laser.SkillHitMpGain;
