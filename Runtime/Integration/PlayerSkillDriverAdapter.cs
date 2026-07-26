@@ -19,6 +19,7 @@ namespace GGemCo2DSkill
         private SkillExecutor _executor;
         private CharacterBase _character;
         private ISkillStartActionCanceler _skillStartActionCanceler;
+        private IForcedSkillStartActionCanceler _forcedSkillStartActionCanceler;
         private ISkillChainReadyFeedback _skillChainReadyFeedback;
 
         /// <summary>
@@ -52,6 +53,7 @@ namespace GGemCo2DSkill
         {
             _character = GetComponent<CharacterBase>();
             _skillStartActionCanceler = GetComponent<ISkillStartActionCanceler>();
+            _forcedSkillStartActionCanceler = GetComponent<IForcedSkillStartActionCanceler>();
             _skillChainReadyFeedback = GetComponentInChildren<ISkillChainReadyFeedback>(true);
 
             if (_executor == null)
@@ -103,11 +105,18 @@ namespace GGemCo2DSkill
             if (_character != null && _character.IsStatusDead())
                 return SkillUseResult.Fail(SkillUseFailReason.ControlLocked);
 
-            bool canBypassControlLock =
-                activationOptions.AllowWhileControlLocked &&
+            bool canStopCrowdControl =
                 activationOptions.StopCrowdControlOnStart &&
                 _character != null &&
                 _character.HasActiveOrQueuedCrowdControl();
+            bool canStopHitStop =
+                activationOptions.CancelAllActionsOnStart &&
+                _forcedSkillStartActionCanceler != null &&
+                _character != null &&
+                _character.HitStopController.IsActive;
+            bool canBypassControlLock =
+                activationOptions.AllowWhileControlLocked &&
+                (canStopCrowdControl || canStopHitStop);
             if (_character != null &&
                 _character.IsDontControl() &&
                 !canBypassControlLock)
@@ -169,7 +178,7 @@ namespace GGemCo2DSkill
                     isEndCharacterStop: true);
             }
 
-            _skillStartActionCanceler?.CancelActionsOnSkillStart();
+            CancelActionsBeforeSkillStart(in activationOptions);
 
             bool started = _executor.TryUse(skillUid, ctx, ConfigCommon.SkillTableSource.Player);
             if (!started)
@@ -186,6 +195,23 @@ namespace GGemCo2DSkill
             _chainConsumed = false;
 
             return SkillUseResult.Started;
+        }
+
+        /// <summary>
+        /// 스킬 발동 정책에 따라 일반 액션 취소 또는 모든 행동 강제 취소를 실행합니다.
+        /// </summary>
+        /// <param name="activationOptions">현재 스킬 요청에 적용된 발동 정책입니다.</param>
+        private void CancelActionsBeforeSkillStart(in SkillActivationOptions activationOptions)
+        {
+            if (activationOptions.CancelAllActionsOnStart &&
+                _forcedSkillStartActionCanceler != null)
+            {
+                _forcedSkillStartActionCanceler.CancelAllActionsOnForcedSkillStart();
+                return;
+            }
+
+            // 강제 취소 구현이 없는 구성에서도 기존 스킬 시작 정리 정책은 유지합니다.
+            _skillStartActionCanceler?.CancelActionsOnSkillStart();
         }
 
 

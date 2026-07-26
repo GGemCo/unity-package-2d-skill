@@ -42,6 +42,11 @@ namespace GGemCo2DSkill
         public bool StopCrowdControlOnStart;
 
         /// <summary>
+        /// 스킬 시작 직전에 기본 공격과 이동을 포함한 모든 플레이어 행동을 강제로 취소할지 여부입니다.
+        /// </summary>
+        public bool CancelAllActionsOnStart;
+
+        /// <summary>
         /// 발동에 필요한 필수 식별자가 유효한지 여부입니다.
         /// </summary>
         public bool IsValid => Uid > 0 && PassiveSkillUid > 0 && ExecutionSkillUid > 0;
@@ -55,7 +60,8 @@ namespace GGemCo2DSkill
             return new SkillActivationOptions(
                 AllowWhileControlLocked,
                 InterruptRunningSkill,
-                StopCrowdControlOnStart);
+                StopCrowdControlOnStart,
+                CancelAllActionsOnStart);
         }
     }
 
@@ -97,6 +103,7 @@ namespace GGemCo2DSkill
                 AllowWhileControlLocked = reader.BoolYN("AllowWhileControlLocked"),
                 InterruptRunningSkill = reader.BoolYN("InterruptRunningSkill"),
                 StopCrowdControlOnStart = reader.BoolYN("StopCrowdControlOnStart"),
+                CancelAllActionsOnStart = reader.BoolYN("CancelAllActionsOnStart"),
             };
         }
 
