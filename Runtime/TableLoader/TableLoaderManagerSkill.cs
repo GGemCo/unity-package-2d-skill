@@ -1,4 +1,4 @@
-﻿using GGemCo2DCore;
+using GGemCo2DCore;
 
 namespace GGemCo2DSkill
 {
@@ -32,6 +32,13 @@ namespace GGemCo2DSkill
         /// 스킬 옵션(패시브/확장 효과) 테이블.
         /// </summary>
         public TableSkillPassiveOption TableSkillPassiveOption { get; private set; } = new TableSkillPassiveOption();
+
+        /// <summary>
+        /// 수동 발동형 패시브와 실제 실행 스킬의 연결 정의 테이블입니다.
+        /// </summary>
+        public TableSkillPassiveActivation TableSkillPassiveActivation { get; private set; } =
+            new TableSkillPassiveActivation();
+
         public TableSkillMonster TableSkillMonster { get; private set; } = new TableSkillMonster();
 
         /// <summary>
@@ -61,6 +68,7 @@ namespace GGemCo2DSkill
                 registry.Register(TableSkill);
                 registry.Register(TableSkillPassive);
                 registry.Register(TableSkillPassiveOption);
+                registry.Register(TableSkillPassiveActivation);
                 registry.Register(TableSkillMonster);
                 registry.Register(TableSkillChargeStage);
 }

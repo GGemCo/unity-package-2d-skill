@@ -122,6 +122,30 @@ namespace GGemCo2DSkill
             _equippedPassiveEntries.Clear();
             Rebuild();
         }
+
+        /// <summary>
+        /// 지정한 패시브 스킬이 현재 하나 이상의 슬롯에 장착되어 있는지 확인합니다.
+        /// </summary>
+        /// <param name="passiveSkillUid">확인할 패시브 스킬 UID입니다.</param>
+        /// <returns>유효한 레벨로 장착되어 있으면 <see langword="true"/>입니다.</returns>
+        public bool IsEquippedPassive(int passiveSkillUid)
+        {
+            return TryGetEquippedPassiveLevel(passiveSkillUid, out _);
+        }
+
+        /// <summary>
+        /// 지정한 패시브 스킬의 현재 장착 레벨을 조회합니다.
+        /// </summary>
+        /// <param name="passiveSkillUid">조회할 패시브 스킬 UID입니다.</param>
+        /// <param name="level">장착된 항목 중 가장 높은 레벨입니다.</param>
+        /// <returns>패시브 스킬이 장착되어 있으면 <see langword="true"/>입니다.</returns>
+        public bool TryGetEquippedPassiveLevel(int passiveSkillUid, out int level)
+        {
+            level = 0;
+            return passiveSkillUid > 0 &&
+                   _equippedPassives.TryGetValue(passiveSkillUid, out level) &&
+                   level > 0;
+        }
         
         private PassiveTempHpApplyMode ResolveApplyMode(PassiveTempHpApplyMode requested)
         {

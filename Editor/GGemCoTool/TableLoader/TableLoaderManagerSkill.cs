@@ -24,6 +24,19 @@ namespace GGemCo2DSkillEditor
         {
             return TableLoaderManagerBase.LoadTable<TableSkillPassiveOption>(ConfigAddressableTableSkill.TableSkillPassiveOption.Path, forceReload);
         }
+
+        /// <summary>
+        /// 수동 발동형 패시브 정의 테이블을 에디터 환경에서 로드합니다.
+        /// </summary>
+        /// <param name="forceReload">기존 캐시를 무시하고 다시 읽을지 여부입니다.</param>
+        /// <returns>로드된 패시브 발동 정의 테이블입니다.</returns>
+        public static TableSkillPassiveActivation LoadTableSkillPassiveActivation(bool forceReload = true)
+        {
+            return TableLoaderManagerBase.LoadTable<TableSkillPassiveActivation>(
+                ConfigAddressableTableSkill.TableSkillPassiveActivation.Path,
+                forceReload);
+        }
+
         public static TableSkillMonster LoadTableSkillMonster(bool forceReload = true)
         {
             return TableLoaderManagerBase.LoadTable<TableSkillMonster>(ConfigAddressableTableSkill.TableSkillMonster.Path, forceReload);

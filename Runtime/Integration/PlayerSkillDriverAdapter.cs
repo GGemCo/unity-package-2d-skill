@@ -99,8 +99,21 @@ namespace GGemCo2DSkill
             if (_executor == null || skillUid <= 0)
                 return SkillUseResult.Fail(SkillUseFailReason.InvalidInput);
 
-            if (_character != null && (_character.IsStatusDead() || _character.IsDontControl()))
+            SkillActivationOptions activationOptions = request.ActivationOptions;
+            if (_character != null && _character.IsStatusDead())
                 return SkillUseResult.Fail(SkillUseFailReason.ControlLocked);
+
+            bool canBypassControlLock =
+                activationOptions.AllowWhileControlLocked &&
+                activationOptions.StopCrowdControlOnStart &&
+                _character != null &&
+                _character.HasActiveOrQueuedCrowdControl();
+            if (_character != null &&
+                _character.IsDontControl() &&
+                !canBypassControlLock)
+            {
+                return SkillUseResult.Fail(SkillUseFailReason.ControlLocked);
+            }
 
             // 스킬 UID 기준 내부 쿨다운이 남아 있으면 사용을 거부합니다.
             if (_cooldownReadyAt.TryGetValue(skillUid, out float readyAt) && Time.time < readyAt)
@@ -122,17 +135,38 @@ namespace GGemCo2DSkill
             if (!HasEnoughMp(skill))
                 return SkillUseResult.Fail(SkillUseFailReason.InsufficientMp);
 
-            bool shouldAttemptChainCancel = _executor.IsBusy && CanStartNextSkillByConfirmedDamage();
-            if (_executor.IsBusy && !shouldAttemptChainCancel)
+            bool shouldInterruptRunningSkill =
+                _executor.IsBusy && activationOptions.InterruptRunningSkill;
+            bool shouldAttemptChainCancel =
+                _executor.IsBusy &&
+                !shouldInterruptRunningSkill &&
+                CanStartNextSkillByConfirmedDamage();
+            if (_executor.IsBusy && !shouldInterruptRunningSkill && !shouldAttemptChainCancel)
                 return SkillUseResult.Fail(SkillUseFailReason.Busy);
 
-            if (shouldAttemptChainCancel)
+            if (shouldInterruptRunningSkill)
+            {
+                if (!_executor.TryCancel(SkillCancelReason.ForcedBySystem))
+                    return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
+
+                _skillChainReadyFeedback?.StopSkillChainReady();
+            }
+            else if (shouldAttemptChainCancel)
             {
                 if (!_executor.TryCancel(SkillCancelReason.ComboChain))
                     return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
 
                 _chainConsumed = true;
                 _skillChainReadyFeedback?.StopSkillChainReady();
+            }
+
+            // MP·쿨다운·타겟 조건 검증과 실행 중 스킬 정리가 모두 끝난 뒤에만 CC를 해제합니다.
+            // 검증 실패만으로 긴급 탈출 효과가 적용되는 것을 방지하기 위한 순서입니다.
+            if (activationOptions.StopCrowdControlOnStart)
+            {
+                _character?.TryStopCrowdControl(
+                    CrowdControlStopReason.Manual,
+                    isEndCharacterStop: true);
             }
 
             _skillStartActionCanceler?.CancelActionsOnSkillStart();

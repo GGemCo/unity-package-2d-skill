@@ -69,6 +69,13 @@ namespace GGemCo2DSkill
             {
                 var passive = ch.gameObject.GetComponent<PlayerPassiveSkillController>();
                 if (passive == null) ch.gameObject.AddComponent<PlayerPassiveSkillController>();
+
+                var passiveActivation =
+                    ch.gameObject.GetComponent<PlayerPassiveSkillActivationController>();
+                if (passiveActivation == null)
+                {
+                    ch.gameObject.AddComponent<PlayerPassiveSkillActivationController>();
+                }
             }
 
             // 캐릭터 유형에 맞는 스킬 드라이버를 연결합니다.

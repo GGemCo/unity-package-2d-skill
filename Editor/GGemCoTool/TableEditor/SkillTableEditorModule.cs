@@ -66,6 +66,18 @@ namespace GGemCo2DSkillEditor
                 typeof(StruckTableSkillPassiveOption),
                 TableEditorDefinitionFactory.CreateDefaultReloadAction(ConfigAddressableTableSkill.TableSkillPassiveOption.Path),
                 ResolveReference);
+
+            yield return TableEditorDefinitionFactory.Create(
+                ModuleName,
+                PackageName,
+                ConfigAddressableTableSkill.SkillPassiveActivation,
+                ConfigAddressableTableSkill.TableSkillPassiveActivation.Path,
+                ConfigAddressableTableSkill.SkillPassiveActivation,
+                typeof(TableSkillPassiveActivation),
+                typeof(StruckTableSkillPassiveActivation),
+                TableEditorDefinitionFactory.CreateDefaultReloadAction(
+                    ConfigAddressableTableSkill.TableSkillPassiveActivation.Path),
+                ResolveReference);
         }
 
         private static TableEditorTableDefinition ResolveReference(string headerName)
@@ -73,7 +85,9 @@ namespace GGemCo2DSkillEditor
             switch (headerName)
             {
                 case "SkillUid":
+                case "ExecutionSkillUid":
                     return TableEditorRegistry.FindByKey(ConfigAddressableTableSkill.Skill);
+                case "PassiveSkillUid":
                 case "SkillPassiveUid":
                     return TableEditorRegistry.FindByKey(ConfigAddressableTableSkill.SkillPassive);
                 case "ApplyAffectUid":

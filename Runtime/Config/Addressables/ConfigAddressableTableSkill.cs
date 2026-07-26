@@ -16,6 +16,7 @@ namespace GGemCo2DSkill
         public const string Skill = "skill";
         public const string SkillPassive = "skill_passive";
         public const string SkillPassiveOption = "skill_passive_option";
+        public const string SkillPassiveActivation = "skill_passive_activation";
         public const string SkillMonster = "skill_monster";
         public const string SkillChargeStage = "skill_charge_stage";
 
@@ -27,6 +28,9 @@ namespace GGemCo2DSkill
 
         public static readonly AddressableAssetInfo TableSkillPassiveOption =
             ConfigAddressableTable.Make(SkillPassiveOption);
+
+        public static readonly AddressableAssetInfo TableSkillPassiveActivation =
+            ConfigAddressableTable.Make(SkillPassiveActivation);
 
         public static readonly AddressableAssetInfo TableSkillMonster =
             ConfigAddressableTable.Make(SkillMonster);
@@ -48,6 +52,7 @@ namespace GGemCo2DSkill
             TableSkill,
             TableSkillPassive,
             TableSkillPassiveOption,
+            TableSkillPassiveActivation,
             TableSkillMonster,
             TableSkillChargeStage,
         };
