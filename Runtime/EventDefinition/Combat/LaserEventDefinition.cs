@@ -61,45 +61,16 @@ namespace GGemCo2DSkill
         [Tooltip("반복 데미지 간격이 있을 때 판정 시작 즉시 1회 데미지를 적용할지 여부입니다.")]
         public bool damageTickOnStart = true;
 
-        [Header("Range / Aim")]
+        [Header("Range")]
         [Tooltip("최대 사거리 오버라이드입니다. 0 이하이면 타겟/좌표 기반 거리 또는 기본값을 사용합니다.")]
         public float maxDistance = 0f;
 
-        [Tooltip("레이저 유지 시간 동안 타겟/조준 방향을 계속 갱신할지 여부입니다.")]
-        public bool updateAimContinuously = false;
-
-        [Header("타겟 지점 정책")]
-        [Tooltip("레이저 조준에 사용할 고정 타겟 지점을 계산하는 방식입니다. UseDefaultTargeting은 기존 동작을 유지합니다.")]
-        public LaserTargetPointPolicy targetPointPolicy = LaserTargetPointPolicy.UseDefaultTargeting;
-
-        [Tooltip("targetPointPolicy가 FixedOffsetFromTargetCenter일 때, 타겟 중심을 기준으로 적용할 오프셋입니다.")]
-        public Vector2 fixedTargetOffset = Vector2.zero;
-
-        [Tooltip("targetPointPolicy가 FixedNormalizedPointInTargetHitArea일 때, 타겟 HitArea 내부에서 사용할 정규화된 지점입니다. (0,0)=좌측 하단, (1,1)=우측 상단")]
-        public Vector2 fixedTargetHitAreaNormalized = new(0.5f, 0.5f);
-
-        [Header("Target Position Reference")]
-        [Tooltip("레이저가 조준할 타겟 좌표를 기존 타겟팅, 스킬 시작 스냅샷, 또는 이름 있는 위치 앵커 중 어디에서 가져올지 지정합니다.")]
-        public SkillPositionReference targetPositionReference;
-
-        [Header("Angle Overrides")]
-        [Tooltip("레이캐스트 방향 모드 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 RaycastDirectionMode 대신 이 값을 사용합니다.")]
-        public bool useRaycastDirectionModeOverride = false;
-
-        [Tooltip("레이캐스트 방향 모드 오버라이드 값입니다.")]
-        public LaserConstants.RaycastDirectionMode raycastDirectionModeOverride = LaserConstants.RaycastDirectionMode.TowardTarget;
-
-        [Tooltip("레이캐스트 각도 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 RaycastAngleDeg 대신 이 값을 사용합니다.")]
-        public bool useRaycastAngleOverride = false;
-
-        [Tooltip("레이캐스트 각도 오버라이드 값(도)입니다. RaycastDirectionMode가 ByAngle일 때 사용됩니다.")]
-        public float raycastAngleOverrideDeg = 0f;
-
-        [Tooltip("VFX 각도 동기화 모드 오버라이드 사용 여부입니다. 켜지면 laser 테이블의 VfxAngleSyncMode 대신 이 값을 사용합니다.")]
-        public bool useVfxAngleSyncModeOverride = false;
-
-        [Tooltip("VFX 각도 동기화 모드 오버라이드 값입니다.")]
-        public LaserConstants.VfxAngleSyncMode vfxAngleSyncModeOverride = LaserConstants.VfxAngleSyncMode.FollowRaycast;
+        /// <summary>
+        /// 스킬 타겟 방향에 더할 레이저 각도 오프셋입니다.
+        /// </summary>
+        [Header("Aim")]
+        [Tooltip("레이저 시작점에서 스킬 타겟을 바라보는 방향에 더할 각도입니다. 0은 타겟 정면이며, 양수는 반시계 방향입니다.")]
+        public float targetDirectionAngleOffsetDeg = 0f;
 
         [Header("Start Position Override")]
         [Tooltip("레이저 시작점 오버라이드 값을 어떤 기준점에서 해석할지 정의합니다.")]

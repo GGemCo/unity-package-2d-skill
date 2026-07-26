@@ -91,25 +91,6 @@ namespace GGemCo2DSkill
                 out bool usePosOverride,
                 out Vector2 posOverride);
 
-            if (TryResolveLaserTargetPointOverride(def, targetChar, targetPos, out Vector2 fixedTargetPoint))
-            {
-                usePosOverride = true;
-                posOverride = fixedTargetPoint;
-                targetChar = null;
-            }
-
-            if (!TryApplyLaserTargetPositionReference(
-                    run,
-                    skill,
-                    def,
-                    snapshotTargetPos,
-                    ref targetChar,
-                    ref usePosOverride,
-                    ref posOverride))
-            {
-                return;
-            }
-
             LaserConstants.StartPositionOverrideMode resolvedStartPositionOverrideMode = def.startPositionOverrideMode;
             Vector2 resolvedStartPositionOverride = def.startPositionOverride;
             LaserConstants.StartPointUpdateMode resolvedStartPointUpdateMode = def.startPointUpdateMode;
@@ -168,13 +149,10 @@ namespace GGemCo2DSkill
                 damageTickOnStartOverride: def.damageTickOnStart,
                 useMaxDistanceOverride: def.maxDistance > 0f,
                 maxDistanceOverride: Mathf.Max(0f, def.maxDistance),
-                updateAimContinuously: def.updateAimContinuously,
-                useRaycastDirectionModeOverride: def.useRaycastDirectionModeOverride,
-                raycastDirectionModeOverride: def.raycastDirectionModeOverride,
-                useRaycastAngleOverride: def.useRaycastAngleOverride,
-                raycastAngleOverrideDeg: def.raycastAngleOverrideDeg,
-                useVfxAngleSyncModeOverride: def.useVfxAngleSyncModeOverride,
-                vfxAngleSyncModeOverride: def.vfxAngleSyncModeOverride,
+                // Skill Laser는 복잡한 방향 모드를 노출하지 않고, 해석된 스킬 타겟 방향에 각도만 더합니다.
+                useRaycastDirectionModeOverride: true,
+                raycastDirectionModeOverride: LaserConstants.RaycastDirectionMode.TowardTarget,
+                targetDirectionAngleOffsetDeg: def.targetDirectionAngleOffsetDeg,
                 startPositionOverrideMode: resolvedStartPositionOverrideMode,
                 startPositionOverride: resolvedStartPositionOverride,
                 startPointUpdateMode: resolvedStartPointUpdateMode,
@@ -586,137 +564,6 @@ namespace GGemCo2DSkill
                 : ProjectileOnHitCrowdControlTiming.AfterDamage;
         }
 
-        /// <summary>
-        /// 레이저 목표점 고정 정책을 해석하여 좌표 오버라이드 값을 계산합니다.
-        /// </summary>
-        /// <param name="def">레이저 이벤트 정의입니다.</param>
-        /// <param name="targetChar">현재 고정 타겟 캐릭터입니다.</param>
-        /// <param name="targetPos">현재 해석된 타겟 중심 좌표입니다.</param>
-        /// <param name="targetPointOverride">계산된 목표점 오버라이드입니다.</param>
-        /// <returns>고정 정책이 활성화되어 좌표를 계산했으면 <see langword="true"/>입니다.</returns>
-        private static bool TryResolveLaserTargetPointOverride(
-            LaserEventDefinition def,
-            CharacterBase targetChar,
-            Vector3 targetPos,
-            out Vector2 targetPointOverride)
-        {
-            targetPointOverride = default;
-            if (def == null || targetChar == null)
-                return false;
-
-            switch (def.targetPointPolicy)
-            {
-                case LaserTargetPointPolicy.FixedOffsetFromTargetCenter:
-                    targetPointOverride = (Vector2)targetPos + def.fixedTargetOffset;
-                    return true;
-
-                case LaserTargetPointPolicy.FixedNormalizedPointInTargetHitArea:
-                    if (TryResolveTargetHitAreaNormalizedPoint(targetChar, def.fixedTargetHitAreaNormalized, out targetPointOverride))
-                        return true;
-
-                    targetPointOverride = (Vector2)targetPos + def.fixedTargetOffset;
-                    return true;
-
-                case LaserTargetPointPolicy.UseDefaultTargeting:
-                default:
-                    return false;
-            }
-        }
-
-        /// <summary>
-        /// 레이저 이벤트의 타겟 좌표 참조 설정을 해석하여 좌표 오버라이드에 반영합니다.
-        /// </summary>
-        /// <param name="run">현재 실행 중인 스킬 런입니다.</param>
-        /// <param name="skill">현재 실행 중인 스킬 정의입니다.</param>
-        /// <param name="def">레이저 이벤트 정의입니다.</param>
-        /// <param name="snapshotTargetPos">스킬 시작 시점의 타겟 위치입니다.</param>
-        /// <param name="targetChar">레이저가 추적할 타겟 캐릭터 참조입니다.</param>
-        /// <param name="usePosOverride">레이저 좌표 오버라이드 사용 여부입니다.</param>
-        /// <param name="posOverride">레이저가 조준할 좌표 오버라이드입니다.</param>
-        /// <returns>레이저 처리를 계속할 수 있으면 <see langword="true"/>입니다.</returns>
-        private static bool TryApplyLaserTargetPositionReference(
-            SkillRun run,
-            RuntimeSkillDefinition skill,
-            LaserEventDefinition def,
-            Vector3 snapshotTargetPos,
-            ref CharacterBase targetChar,
-            ref bool usePosOverride,
-            ref Vector2 posOverride)
-        {
-            if (def == null)
-                return false;
-
-            SkillPositionReference reference = def.targetPositionReference;
-            switch (reference.mode)
-            {
-                case SkillPositionReferenceMode.CurrentTargeting:
-                    return true;
-
-                case SkillPositionReferenceMode.SkillStartSnapshot:
-                    usePosOverride = true;
-                    posOverride = snapshotTargetPos;
-                    targetChar = null;
-                    return true;
-
-                case SkillPositionReferenceMode.NamedPositionAnchor:
-                case SkillPositionReferenceMode.NamedPositionAnchorOrCurrent:
-                    if (run != null && run.TryGetPositionAnchor(reference.key, out SkillPositionAnchorSnapshot snapshot))
-                    {
-                        usePosOverride = true;
-                        posOverride = snapshot.Position;
-                        targetChar = null;
-                        return true;
-                    }
-
-                    if (reference.mode == SkillPositionReferenceMode.NamedPositionAnchorOrCurrent)
-                        return true;
-
-                    Debug.LogWarning(
-                        $"[SkillExecutor] Laser target position anchor not found. skillUid={skill?.Uid ?? 0}, key={reference.key}");
-                    return false;
-
-                default:
-                    return true;
-            }
-        }
-
-        /// <summary>
-        /// 타겟 HitArea 정규화 좌표(0~1)를 월드 좌표로 변환합니다.
-        /// </summary>
-        /// <param name="targetChar">좌표를 계산할 타겟 캐릭터입니다.</param>
-        /// <param name="normalizedPoint">HitArea 정규화 좌표입니다. (0,0)=좌하단, (1,1)=우상단입니다.</param>
-        /// <param name="worldPoint">변환된 월드 좌표입니다.</param>
-        /// <returns>HitArea 좌표 계산에 성공했으면 <see langword="true"/>입니다.</returns>
-        private static bool TryResolveTargetHitAreaNormalizedPoint(
-            CharacterBase targetChar,
-            Vector2 normalizedPoint,
-            out Vector2 worldPoint)
-        {
-            worldPoint = default;
-            if (targetChar == null || targetChar.colliderHitArea == null)
-                return false;
-
-            CapsuleCollider2D hitArea = targetChar.colliderHitArea;
-            Vector2 clamped = new Vector2(
-                Mathf.Clamp01(normalizedPoint.x),
-                Mathf.Clamp01(normalizedPoint.y));
-
-            float halfWidth = hitArea.size.x * 0.5f;
-            float halfHeight = hitArea.size.y * 0.5f;
-            float minLocalX = hitArea.offset.x - halfWidth;
-            float maxLocalX = hitArea.offset.x + halfWidth;
-            float minLocalY = hitArea.offset.y - halfHeight;
-            float maxLocalY = hitArea.offset.y + halfHeight;
-
-            Vector3 localPoint = new Vector3(
-                Mathf.Lerp(minLocalX, maxLocalX, clamped.x),
-                Mathf.Lerp(minLocalY, maxLocalY, clamped.y),
-                0f);
-
-            worldPoint = hitArea.transform.TransformPoint(localPoint);
-            return true;
-        }
-        
 #if UNITY_EDITOR
         /// <summary>
         /// Skill 테스트 허브에 레이저 예상 범위 기즈모를 등록합니다.
