@@ -76,6 +76,9 @@ namespace GGemCo2DSkill
         /// <summary>피격 1회당 감소시킬 차징 게이지 값입니다.</summary>
         public float ChargeGaugeDamagePerHit;
 
+        /// <summary>차징 중 피격 피해를 처리할 정책입니다.</summary>
+        public SkillChargeIncomingHitPolicy ChargeIncomingHitPolicy;
+
         /// <summary>차징 완료 후 실제 사용 단계로 넘어가기 전에 재생할 애니메이션 클립입니다.</summary>
         public string ChargeCompleteClip;
 
@@ -132,6 +135,9 @@ namespace GGemCo2DSkill
                 UseCharge = reader.BoolYN("UseCharge"),
                 ChargeGaugeMax = System.Math.Max(0f, reader.Float("ChargeGaugeMax", 0f)),
                 ChargeGaugeDamagePerHit = System.Math.Max(0f, reader.Float("ChargeGaugeDamagePerHit", 1f)),
+                ChargeIncomingHitPolicy = reader.Enum(
+                    "ChargeIncomingHitPolicy",
+                    SkillChargeIncomingHitPolicy.DamageAndGauge),
                 ChargeCompleteClip = reader.String("ChargeCompleteClip", string.Empty),
                 ChargeCompleteDurationSeconds = System.Math.Max(0f, reader.Float("ChargeCompleteDurationSeconds", 0f)),
                 ChargeFailClip = reader.String("ChargeFailClip", string.Empty),

@@ -68,6 +68,12 @@ namespace GGemCo2DSkill
         public bool IsCharging => HasCharge && _didCharge && !_chargeCompleted && !_isChargeFailed;
 
         /// <summary>
+        /// 현재 스킬의 차징 중 피격 피해 처리 정책입니다.
+        /// </summary>
+        public SkillChargeIncomingHitPolicy IncomingHitPolicy =>
+            _skill?.Charge?.IncomingHitPolicy ?? SkillChargeIncomingHitPolicy.DamageAndGauge;
+
+        /// <summary>
         /// 차징 전체 단계가 완료되었는지 여부입니다.
         /// </summary>
         public bool IsCompleted => _chargeCompleted;
@@ -179,12 +185,26 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 게이지만 감소시키는 정책이 활성화된 경우 피격 피해를 차징 게이지로 소비합니다.
+        /// </summary>
+        /// <param name="damageAmount">감소시킬 게이지 값입니다. 0 이하이면 스킬 설정값을 사용합니다.</param>
+        /// <returns>활성 차징 게이지가 피격을 처리했으면 <see langword="true"/>입니다.</returns>
+        public bool TryConsumeIncomingDamage(float damageAmount = 0f)
+        {
+            if (IncomingHitPolicy != SkillChargeIncomingHitPolicy.GaugeOnly)
+                return false;
+
+            return TryApplyGaugeDamage(SkillCancelReason.Damage, damageAmount);
+        }
+
+        /// <summary>
         /// 치명적인 즉시 피격을 활성 차징 게이지로 대신 소비하고 차징 실패 상태로 전환합니다.
         /// </summary>
         /// <returns>활성 차징 게이지를 완전히 소진했으면 <see langword="true"/>입니다.</returns>
         public bool TryBreakChargeByLethalIncomingHit()
         {
-            if (!IsCharging)
+            if (!IsCharging ||
+                IncomingHitPolicy != SkillChargeIncomingHitPolicy.DamageAndGauge)
                 return false;
 
             // 일반 피격의 고정 게이지 감소량과 구분하여, 치명타 보호에서는

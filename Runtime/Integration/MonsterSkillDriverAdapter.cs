@@ -14,6 +14,7 @@ namespace GGemCo2DSkill
         IMonsterSkillDriverFeedback,
         ISkillCancelableDriver,
         IIncomingHitActionCanceler,
+        IIncomingHitDamageConsumptionResolver,
         IIncomingHitLethalProtectionResolver,
         IIncomingHitCombatFeedbackSink,
         IMonsterPoolLifecycle,
@@ -457,6 +458,43 @@ namespace GGemCo2DSkill
         {
             if (_executor == null) return false;
             return _executor.TryCancel(reason);
+        }
+
+        /// <summary>
+        /// 게이지만 감소시키는 차징 정책이 활성화된 경우 즉시 피격 피해를 차징 게이지로 소비합니다.
+        /// </summary>
+        /// <param name="incomingDamage">방어 판정 이후 HP 계층에 적용될 피해량입니다.</param>
+        /// <param name="metadataDamage">현재 피격 메타데이터입니다.</param>
+        /// <param name="result">처리 성공 시 HP 피해와 일반 피격 반응을 억제할 정책입니다.</param>
+        /// <returns>활성 차징 게이지가 피격 피해를 소비했으면 <see langword="true"/>입니다.</returns>
+        public bool TryConsumeIncomingDamage(
+            long incomingDamage,
+            MetadataDamage metadataDamage,
+            out IncomingHitDamageConsumptionResult result)
+        {
+            result = default;
+            if (incomingDamage <= 0L ||
+                metadataDamage == null ||
+                metadataDamage.IsDamageOverTime)
+            {
+                return false;
+            }
+
+            if (_executor == null)
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+
+            if (_executor == null ||
+                !_executor.TryConsumeIncomingDamageWithChargeGauge())
+            {
+                return false;
+            }
+
+            result = new IncomingHitDamageConsumptionResult(
+                remainingDamage: 0L,
+                preserveHitFeedback: true,
+                suppressActionCancel: true,
+                suppressDamageReaction: true);
+            return true;
         }
 
         /// <summary>

@@ -94,11 +94,14 @@ namespace GGemCo2DSkillEditor
             bool useCharge = GetCurrentUseChargeValue();
             float gaugeMax = GetCurrentChargeGaugeMaxValue();
             float gaugeDamage = GetCurrentChargeGaugeDamagePerHitValue();
+            SkillChargeIncomingHitPolicy incomingHitPolicy =
+                GetCurrentChargeIncomingHitPolicyValue();
             int stageCount = GetChargeStagesForCurrentSkill(skillUid).Count;
 
             EditorGUILayout.LabelField("선택 스킬", $"{skillUid} / {GetSelectedDisplayName()}");
             EditorGUILayout.LabelField("UseCharge", useCharge ? "Y" : "N");
             EditorGUILayout.LabelField("Gauge", $"Max={gaugeMax:0.###}, Damage Per Hit={gaugeDamage:0.###}");
+            EditorGUILayout.LabelField("Incoming Hit Policy", incomingHitPolicy.ToString());
             EditorGUILayout.LabelField("Stage Count", stageCount.ToString());
 
             if (!useCharge)
@@ -266,6 +269,23 @@ namespace GGemCo2DSkillEditor
             if (_selectedData is StruckTableSkillMonster selectedMonster)
                 return selectedMonster.ChargeGaugeDamagePerHit;
             return 0f;
+        }
+
+        /// <summary>
+        /// 현재 선택하거나 편집 중인 스킬의 차징 피격 피해 처리 정책을 반환합니다.
+        /// </summary>
+        /// <returns>현재 차징 피격 피해 처리 정책입니다.</returns>
+        private SkillChargeIncomingHitPolicy GetCurrentChargeIncomingHitPolicyValue()
+        {
+            if (_editingRow is StruckTableSkill editingPlayer)
+                return editingPlayer.ChargeIncomingHitPolicy;
+            if (_editingRow is StruckTableSkillMonster editingMonster)
+                return editingMonster.ChargeIncomingHitPolicy;
+            if (_selectedData is StruckTableSkill selectedPlayer)
+                return selectedPlayer.ChargeIncomingHitPolicy;
+            if (_selectedData is StruckTableSkillMonster selectedMonster)
+                return selectedMonster.ChargeIncomingHitPolicy;
+            return SkillChargeIncomingHitPolicy.DamageAndGauge;
         }
 
         private void SelectChargeStage(StruckTableSkillChargeStage row)

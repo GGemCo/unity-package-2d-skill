@@ -11,7 +11,7 @@ namespace GGemCo2DSkill
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, ICharacterSkillBundleDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, ISkillChainReadyNotifier, IPlayerSkillInputStateProvider
+    public sealed class PlayerSkillDriverAdapter : MonoBehaviour, ISkillCancelableDriver, ICharacterSkillBundleDriver, IIncomingHitCombatFeedbackSink, IIncomingHitActionCanceler, IIncomingHitDamageConsumptionResolver, ISkillChainReadyNotifier, IPlayerSkillInputStateProvider
     {
         /// <summary>
         /// 실제 스킬 실행을 담당하는 런타임 실행기입니다.
@@ -577,6 +577,47 @@ namespace GGemCo2DSkill
             _chainConsumed = false;
         }
 
+        /// <summary>
+        /// 게이지만 감소시키는 차징 정책이 활성화된 경우 즉시 피격 피해를 차징 게이지로 소비합니다.
+        /// </summary>
+        /// <param name="incomingDamage">방어 판정 이후 HP 계층에 적용될 피해량입니다.</param>
+        /// <param name="metadataDamage">현재 피격 메타데이터입니다.</param>
+        /// <param name="result">처리 성공 시 HP 피해와 일반 피격 반응을 억제할 정책입니다.</param>
+        /// <returns>활성 차징 게이지가 피격 피해를 소비했으면 <see langword="true"/>입니다.</returns>
+        public bool TryConsumeIncomingDamage(
+            long incomingDamage,
+            MetadataDamage metadataDamage,
+            out IncomingHitDamageConsumptionResult result)
+        {
+            result = default;
+            if (incomingDamage <= 0L ||
+                metadataDamage == null ||
+                metadataDamage.IsDamageOverTime)
+            {
+                return false;
+            }
+
+            if (_executor == null)
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+
+            if (_executor == null ||
+                !_executor.TryConsumeIncomingDamageWithChargeGauge())
+            {
+                return false;
+            }
+
+            result = new IncomingHitDamageConsumptionResult(
+                remainingDamage: 0L,
+                preserveHitFeedback: true,
+                suppressActionCancel: true,
+                suppressDamageReaction: true);
+            return true;
+        }
+
+        /// <summary>
+        /// 피격 또는 사망 인터럽트가 발생했을 때 진행 중인 플레이어 스킬을 정리합니다.
+        /// </summary>
+        /// <param name="reason">외부 인터럽트 사유입니다.</param>
         public void CancelActionsOnIncomingHit(IncomingHitCancelReason reason)
         {
             if (_executor == null)

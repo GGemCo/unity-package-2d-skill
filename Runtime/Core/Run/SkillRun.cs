@@ -350,6 +350,18 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 게이지만 감소시키는 정책이 활성화된 경우 피격 피해를 차징 게이지로 소비합니다.
+        /// </summary>
+        /// <param name="damageAmount">감소시킬 게이지 값입니다. 0 이하이면 스킬 설정값을 사용합니다.</param>
+        /// <returns>현재 차징 게이지가 피격을 소비했으면 <see langword="true"/>입니다.</returns>
+        public bool TryConsumeIncomingDamageWithChargeGauge(float damageAmount = 0f)
+        {
+            bool handled = _chargeController.TryConsumeIncomingDamage(damageAmount);
+            FinishIfChargeRequestedRunEnd();
+            return handled;
+        }
+
+        /// <summary>
         /// 치명적인 즉시 피격을 차징 게이지로 소비하고 차징 실패 절차를 시작합니다.
         /// </summary>
         /// <returns>현재 차징 게이지가 치명타를 소비했으면 <see langword="true"/>입니다.</returns>

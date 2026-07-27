@@ -6,6 +6,22 @@ using GGemCo2DCore;
 namespace GGemCo2DSkill
 {
     /// <summary>
+    /// 차징 게이지가 활성화된 동안 피격 피해를 처리하는 정책입니다.
+    /// </summary>
+    public enum SkillChargeIncomingHitPolicy
+    {
+        /// <summary>
+        /// 캐릭터 피해와 차징 게이지 감소를 모두 적용합니다.
+        /// </summary>
+        DamageAndGauge = 0,
+
+        /// <summary>
+        /// 캐릭터 피해를 적용하지 않고 차징 게이지만 감소시킵니다.
+        /// </summary>
+        GaugeOnly = 1
+    }
+
+    /// <summary>
     /// 런타임 스킬 정의에 연결되는 차징 전체 설정입니다.
     /// </summary>
     public sealed class RuntimeSkillChargeDefinition
@@ -18,6 +34,9 @@ namespace GGemCo2DSkill
 
         /// <summary>피격 1회당 감소시킬 차징 게이지 값입니다.</summary>
         public float GaugeDamagePerHit;
+
+        /// <summary>차징 중 피격 피해를 처리할 정책입니다.</summary>
+        public SkillChargeIncomingHitPolicy IncomingHitPolicy;
 
         /// <summary>차징 완료 후 실제 사용 단계로 넘어가기 전에 재생할 애니메이션 클립입니다.</summary>
         public string CompleteClip;
@@ -70,6 +89,7 @@ namespace GGemCo2DSkill
                 row.UseCharge,
                 row.ChargeGaugeMax,
                 row.ChargeGaugeDamagePerHit,
+                row.ChargeIncomingHitPolicy,
                 row.ChargeCompleteClip,
                 row.ChargeCompleteDurationSeconds,
                 row.ChargeFailClip,
@@ -96,6 +116,7 @@ namespace GGemCo2DSkill
                 row.UseCharge,
                 row.ChargeGaugeMax,
                 row.ChargeGaugeDamagePerHit,
+                row.ChargeIncomingHitPolicy,
                 row.ChargeCompleteClip,
                 row.ChargeCompleteDurationSeconds,
                 row.ChargeFailClip,
@@ -118,6 +139,7 @@ namespace GGemCo2DSkill
                 UseCharge = false,
                 GaugeMax = 0f,
                 GaugeDamagePerHit = 0f,
+                IncomingHitPolicy = SkillChargeIncomingHitPolicy.DamageAndGauge,
                 CompleteClip = string.Empty,
                 CompleteDurationSeconds = 0f,
                 FailClip = string.Empty,
@@ -133,6 +155,7 @@ namespace GGemCo2DSkill
         /// <param name="useCharge">차징 사용 여부입니다.</param>
         /// <param name="gaugeMax">차징 게이지 최대값입니다.</param>
         /// <param name="gaugeDamagePerHit">피격 1회당 차징 게이지 감소량입니다.</param>
+        /// <param name="incomingHitPolicy">차징 중 피격 피해 처리 정책입니다.</param>
         /// <param name="completeClip">차징 완료 애니메이션 클립입니다.</param>
         /// <param name="completeDurationSeconds">차징 완료 애니메이션 유지 시간입니다.</param>
         /// <param name="failClip">차징 실패 애니메이션 클립입니다.</param>
@@ -147,6 +170,7 @@ namespace GGemCo2DSkill
             bool useCharge,
             float gaugeMax,
             float gaugeDamagePerHit,
+            SkillChargeIncomingHitPolicy incomingHitPolicy,
             string completeClip,
             float completeDurationSeconds,
             string failClip,
@@ -172,6 +196,7 @@ namespace GGemCo2DSkill
                 UseCharge = useCharge,
                 GaugeMax = System.Math.Max(0f, gaugeMax),
                 GaugeDamagePerHit = System.Math.Max(0f, gaugeDamagePerHit),
+                IncomingHitPolicy = incomingHitPolicy,
                 CompleteClip = completeClip ?? string.Empty,
                 CompleteDurationSeconds = System.Math.Max(0f, completeDurationSeconds),
                 FailClip = failClip ?? string.Empty,

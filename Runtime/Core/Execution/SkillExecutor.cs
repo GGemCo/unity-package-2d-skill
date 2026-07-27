@@ -931,6 +931,19 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 현재 실행 중인 스킬이 게이지만 감소시키는 정책으로 차징 중이면 피격 피해를 차징 게이지로 소비합니다.
+        /// </summary>
+        /// <param name="gaugeDamage">감소시킬 차징 게이지 값입니다. 0 이하이면 스킬 설정값을 사용합니다.</param>
+        /// <returns>차징 게이지가 해당 피격 피해를 소비했으면 <see langword="true"/>입니다.</returns>
+        public bool TryConsumeIncomingDamageWithChargeGauge(float gaugeDamage = 0f)
+        {
+            if (_current == null)
+                return false;
+
+            return _current.TryConsumeIncomingDamageWithChargeGauge(gaugeDamage);
+        }
+
+        /// <summary>
         /// 현재 실행 중인 스킬이 차징 중이면 치명적인 즉시 피격을 차징 게이지로 소비합니다.
         /// </summary>
         /// <returns>활성 차징 게이지가 완전히 소진되어 치명타를 처리했으면 <see langword="true"/>입니다.</returns>
