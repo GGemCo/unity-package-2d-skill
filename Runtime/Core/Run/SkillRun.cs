@@ -350,6 +350,17 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 치명적인 즉시 피격을 차징 게이지로 소비하고 차징 실패 절차를 시작합니다.
+        /// </summary>
+        /// <returns>현재 차징 게이지가 치명타를 소비했으면 <see langword="true"/>입니다.</returns>
+        public bool TryBreakChargeByLethalIncomingHit()
+        {
+            bool handled = _chargeController.TryBreakChargeByLethalIncomingHit();
+            FinishIfChargeRequestedRunEnd();
+            return handled;
+        }
+
+        /// <summary>
         /// 차징 컨트롤러가 스킬 종료를 요청한 경우 SkillRun 종료 절차로 연결합니다.
         /// </summary>
         private void FinishIfChargeRequestedRunEnd()

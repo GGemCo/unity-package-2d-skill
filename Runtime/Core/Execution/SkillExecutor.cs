@@ -931,6 +931,18 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 현재 실행 중인 스킬이 차징 중이면 치명적인 즉시 피격을 차징 게이지로 소비합니다.
+        /// </summary>
+        /// <returns>활성 차징 게이지가 완전히 소진되어 치명타를 처리했으면 <see langword="true"/>입니다.</returns>
+        public bool TryProtectLethalIncomingHitWithChargeGauge()
+        {
+            if (_current == null)
+                return false;
+
+            return _current.TryBreakChargeByLethalIncomingHit();
+        }
+
+        /// <summary>
         /// 스킬이 아닌 외부 액션이 즉시 이어질 수 있도록 현재 스킬과 잔여 스킬 표현 상태를 정리합니다.
         /// </summary>
         /// <remarks>

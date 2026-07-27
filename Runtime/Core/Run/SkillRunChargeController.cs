@@ -179,6 +179,23 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
+        /// 치명적인 즉시 피격을 활성 차징 게이지로 대신 소비하고 차징 실패 상태로 전환합니다.
+        /// </summary>
+        /// <returns>활성 차징 게이지를 완전히 소진했으면 <see langword="true"/>입니다.</returns>
+        public bool TryBreakChargeByLethalIncomingHit()
+        {
+            if (!IsCharging)
+                return false;
+
+            // 일반 피격의 고정 게이지 감소량과 구분하여, 치명타 보호에서는
+            // 남은 게이지 양과 관계없이 완전 소진 후 기존 실패 연출 흐름을 재사용합니다.
+            _chargeGaugeCurrent = 0f;
+            NotifyChargeSnapshot();
+            BreakCharge();
+            return true;
+        }
+
+        /// <summary>
         /// 차징 VFX를 정리하고 외부 UI에 비활성 스냅샷을 한 번만 전달합니다.
         /// </summary>
         public void CleanupForRunEnd()

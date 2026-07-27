@@ -10,7 +10,14 @@ namespace GGemCo2DSkill
     /// 몬스터 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
     [DisallowMultipleComponent]
-    public sealed class MonsterSkillDriverAdapter : MonoBehaviour, IMonsterSkillDriverFeedback, ISkillCancelableDriver, IIncomingHitActionCanceler, IIncomingHitCombatFeedbackSink, IMonsterPoolLifecycle, IMonsterLeashLifecycle
+    public sealed class MonsterSkillDriverAdapter : MonoBehaviour,
+        IMonsterSkillDriverFeedback,
+        ISkillCancelableDriver,
+        IIncomingHitActionCanceler,
+        IIncomingHitLethalProtectionResolver,
+        IIncomingHitCombatFeedbackSink,
+        IMonsterPoolLifecycle,
+        IMonsterLeashLifecycle
     {
         /// <summary>
         /// 실제 스킬 실행과 취소를 담당하는 런타임 실행기입니다.
@@ -450,6 +457,54 @@ namespace GGemCo2DSkill
         {
             if (_executor == null) return false;
             return _executor.TryCancel(reason);
+        }
+
+        /// <summary>
+        /// 플레이어의 치명적인 즉시 공격을 활성 차징 게이지로 소비하고 몬스터 사망을 방지합니다.
+        /// </summary>
+        /// <param name="proposedHp">Core 계산 기준 최종 HP입니다.</param>
+        /// <param name="metadataDamage">현재 피격 메타데이터입니다.</param>
+        /// <param name="result">보호 성공 시 적용할 최소 HP와 후속 피격 억제 정책입니다.</param>
+        /// <returns>활성 차징 게이지가 치명타를 소비했으면 <see langword="true"/>입니다.</returns>
+        public bool TryResolveLethalIncomingHit(
+            long proposedHp,
+            MetadataDamage metadataDamage,
+            out IncomingHitLethalProtectionResult result)
+        {
+            result = default;
+            if (proposedHp > 0L ||
+                metadataDamage == null ||
+                metadataDamage.IsDamageOverTime ||
+                metadataDamage.attacker == null)
+            {
+                return false;
+            }
+
+            // 환경 피해나 몬스터 간 피해가 차징 보호를 소모하지 않도록
+            // 플레이어 또는 플레이어 하위 공격 오브젝트에서 시작된 즉시 공격만 허용합니다.
+            Player attackerPlayer =
+                metadataDamage.attacker.GetComponentInParent<Player>();
+            if (attackerPlayer == null)
+            {
+                return false;
+            }
+
+            if (_executor == null)
+            {
+                SetSkillExecutor(GetComponent<SkillExecutor>());
+            }
+
+            if (_executor == null ||
+                !_executor.TryProtectLethalIncomingHitWithChargeGauge())
+            {
+                return false;
+            }
+
+            result = new IncomingHitLethalProtectionResult(
+                resolvedHp: 1L,
+                suppressActionCancel: true,
+                suppressDamageReaction: true);
+            return true;
         }
 
         /// <summary>
