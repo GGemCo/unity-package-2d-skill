@@ -39,6 +39,11 @@ namespace GGemCo2DSkill
         /// 스킬이 정상 종료되었지만 확정 타격으로 체인 입력 게이트가 열리지 않아 콤보가 취소되었습니다.
         /// </summary>
         ChainInputNotUnlockedByConfirmedDamage = 6,
+
+        /// <summary>
+        /// 프로젝트 입력 규칙에서 보류했던 일반 가드가 실제로 시작되어 콤보가 취소되었습니다.
+        /// </summary>
+        GuardStarted = 7,
     }
 
     /// <summary>
