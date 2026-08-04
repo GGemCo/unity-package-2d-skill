@@ -1200,6 +1200,14 @@ namespace GGemCo2DSkill
                 return;
             }
 
+            if (report.State == MonsterSkillExecutionState.Canceled &&
+                report.CancelReason == SkillCancelReason.GuardInput)
+            {
+                // 가드가 실행 중인 스킬을 중단한 경우에는 일반 실행 실패와 구분해 HUD와 외부 시스템에 전달합니다.
+                CancelCombo(SkillComboCancelReason.GuardStarted);
+                return;
+            }
+
             if (report.State != MonsterSkillExecutionState.Succeeded)
             {
                 CancelCombo(SkillComboCancelReason.SkillExecutionFailed);
