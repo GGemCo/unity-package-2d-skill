@@ -12,11 +12,12 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 새 스킬 실행을 시작하기 전에 이전 실행에서 남은 추적 리소스와 상태 컨트롤러를 초기화합니다.
         /// </summary>
-        /// <param name="runner">코루틴 중단과 카메라 줌·화면 페이드 소유자 식별에 사용할 실행기입니다.</param>
+        /// <param name="runner">코루틴 중단과 카메라 이동·줌·화면 페이드 소유자 식별에 사용할 실행기입니다.</param>
         /// <param name="vfxTracker">실행기가 소유한 VFX 추적기입니다.</param>
         /// <param name="dummyActors">더미 액터 레지스트리입니다.</param>
         /// <param name="casterActorHandle">Caster 참조에 재사용하는 임시 더미 핸들입니다.</param>
         /// <param name="attackSequence">공격 식별자와 연계 해제 상태 관리자입니다.</param>
+        /// <param name="cameraMoveController">카메라 이동 복귀 정책 관리자입니다.</param>
         /// <param name="cameraZoomController">카메라 줌 복귀 정책 관리자입니다.</param>
         /// <param name="screenFadeController">화면 페이드 정리 정책 관리자입니다.</param>
         /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
@@ -29,6 +30,7 @@ namespace GGemCo2DSkill
             Dictionary<string, SkillDummyActorHandle> dummyActors,
             SkillDummyActorHandle casterActorHandle,
             SkillAttackSequence attackSequence,
+            SkillCameraMoveController cameraMoveController,
             SkillCameraZoomController cameraZoomController,
             SkillScreenFadeController screenFadeController,
             SkillCasterFadeController casterFadeController,
@@ -40,6 +42,7 @@ namespace GGemCo2DSkill
             CleanupDummyActors(runner, dummyActors, forceAll: true, forCancel: false);
             SkillDummyActorReferenceUtility.ResetCasterTransientState(runner, casterActorHandle, clearCharacter: true);
             attackSequence?.Clear();
+            cameraMoveController?.ResetCleanupFlags();
             cameraZoomController?.ResetCleanupFlags();
             screenFadeController?.ResetCleanupFlags();
             casterFadeController?.Cleanup(runner, forCancel: false, forceRestore: true);
@@ -54,6 +57,7 @@ namespace GGemCo2DSkill
         /// <param name="runner">코루틴 중단에 사용할 실행기입니다.</param>
         /// <param name="dummyActors">더미 액터 레지스트리입니다.</param>
         /// <param name="casterActorHandle">Caster 참조에 재사용하는 임시 더미 핸들입니다.</param>
+        /// <param name="cameraMoveController">카메라 이동 복귀 정책 관리자입니다.</param>
         /// <param name="cameraZoomController">카메라 줌 복귀 정책 관리자입니다.</param>
         /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
         /// <param name="afterimageController">캐릭터 잔상 정리 정책 관리자입니다.</param>
@@ -61,12 +65,14 @@ namespace GGemCo2DSkill
             MonoBehaviour runner,
             Dictionary<string, SkillDummyActorHandle> dummyActors,
             SkillDummyActorHandle casterActorHandle,
+            SkillCameraMoveController cameraMoveController,
             SkillCameraZoomController cameraZoomController,
             SkillCasterFadeController casterFadeController,
             SkillAfterimageController afterimageController)
         {
             CleanupDummyActors(runner, dummyActors, forceAll: true, forCancel: false);
             SkillDummyActorReferenceUtility.ResetCasterTransientState(runner, casterActorHandle, clearCharacter: true);
+            cameraMoveController?.Cleanup(runner, forCancel: false, forceRestore: true);
             cameraZoomController?.Cleanup(runner, forCancel: false, forceRestore: true);
             casterFadeController?.Cleanup(runner, forCancel: false, forceRestore: true);
             afterimageController?.Cleanup(forCancel: false);
@@ -75,9 +81,10 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 스킬이 정상 종료되었을 때 종료 정책에 따라 더미, 페이드, 잔상, 공격 시퀀스 상태를 정리합니다.
         /// </summary>
-        /// <param name="runner">코루틴 중단과 카메라 줌·화면 페이드 소유자 식별에 사용할 실행기입니다.</param>
+        /// <param name="runner">코루틴 중단과 카메라 이동·줌·화면 페이드 소유자 식별에 사용할 실행기입니다.</param>
         /// <param name="dummyActors">더미 액터 레지스트리입니다.</param>
         /// <param name="attackSequence">공격 식별자와 연계 해제 상태 관리자입니다.</param>
+        /// <param name="cameraMoveController">카메라 이동 복귀 정책 관리자입니다.</param>
         /// <param name="cameraZoomController">카메라 줌 복귀 정책 관리자입니다.</param>
         /// <param name="screenFadeController">화면 페이드 정리 정책 관리자입니다.</param>
         /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
@@ -86,6 +93,7 @@ namespace GGemCo2DSkill
             MonoBehaviour runner,
             Dictionary<string, SkillDummyActorHandle> dummyActors,
             SkillAttackSequence attackSequence,
+            SkillCameraMoveController cameraMoveController,
             SkillCameraZoomController cameraZoomController,
             SkillScreenFadeController screenFadeController,
             SkillCasterFadeController casterFadeController,
@@ -93,6 +101,7 @@ namespace GGemCo2DSkill
         {
             attackSequence?.Clear();
             CleanupDummyActors(runner, dummyActors, forceAll: false, forCancel: false);
+            cameraMoveController?.Cleanup(runner, forCancel: false);
             cameraZoomController?.Cleanup(runner, forCancel: false);
             screenFadeController?.Cleanup(runner, forCancel: false);
             casterFadeController?.Cleanup(runner, forCancel: false);
@@ -122,10 +131,11 @@ namespace GGemCo2DSkill
         /// <summary>
         /// 스킬이 취소될 때 즉시 중단되어야 하는 VFX, 더미, 페이드, 잔상, 특수 애니메이션 상태를 정리합니다.
         /// </summary>
-        /// <param name="runner">코루틴 중단과 카메라 줌·화면 페이드 소유자 식별에 사용할 실행기입니다.</param>
+        /// <param name="runner">코루틴 중단과 카메라 이동·줌·화면 페이드 소유자 식별에 사용할 실행기입니다.</param>
         /// <param name="caster">현재 스킬을 실행하던 캐스터 오브젝트입니다.</param>
         /// <param name="vfxTracker">실행기가 소유한 VFX 추적기입니다.</param>
         /// <param name="dummyActors">더미 액터 레지스트리입니다.</param>
+        /// <param name="cameraMoveController">카메라 이동 복귀 정책 관리자입니다.</param>
         /// <param name="cameraZoomController">카메라 줌 복귀 정책 관리자입니다.</param>
         /// <param name="screenFadeController">화면 페이드 정리 정책 관리자입니다.</param>
         /// <param name="casterFadeController">캐스터 페이드 정리 정책 관리자입니다.</param>
@@ -137,6 +147,7 @@ namespace GGemCo2DSkill
             GameObject caster,
             SkillOwnedVfxTracker vfxTracker,
             Dictionary<string, SkillDummyActorHandle> dummyActors,
+            SkillCameraMoveController cameraMoveController,
             SkillCameraZoomController cameraZoomController,
             SkillScreenFadeController screenFadeController,
             SkillCasterFadeController casterFadeController,
@@ -147,6 +158,7 @@ namespace GGemCo2DSkill
             ClearDamageAreaGizmo(caster);
             vfxTracker?.Cleanup();
             CleanupDummyActors(runner, dummyActors, forceAll: false, forCancel: true);
+            cameraMoveController?.Cleanup(runner, forCancel: true);
             cameraZoomController?.Cleanup(runner, forCancel: true);
             screenFadeController?.Cleanup(runner, forCancel: true);
             casterFadeController?.Cleanup(runner, forCancel: true);

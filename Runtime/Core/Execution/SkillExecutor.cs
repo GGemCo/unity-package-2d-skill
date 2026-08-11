@@ -50,6 +50,11 @@ namespace GGemCo2DSkill
         private readonly SkillCameraZoomController _cameraZoomController = new();
 
         /// <summary>
+        /// 스킬 카메라 이동 재생과 종료 시 복귀 정책을 관리합니다.
+        /// </summary>
+        private readonly SkillCameraMoveController _cameraMoveController = new();
+
+        /// <summary>
         /// 스킬 캐스터 페이드 재생과 종료 시 복구 정책을 관리합니다.
         /// </summary>
         private readonly SkillCasterFadeController _casterFadeController = new();
@@ -182,6 +187,7 @@ namespace GGemCo2DSkill
                 this,
                 _dummyActors,
                 _casterActorHandle,
+                _cameraMoveController,
                 _cameraZoomController,
                 _casterFadeController,
                 _afterimageController);
@@ -250,6 +256,7 @@ namespace GGemCo2DSkill
                 _dummyActors,
                 _casterActorHandle,
                 _attackSequence,
+                _cameraMoveController,
                 _cameraZoomController,
                 _screenFadeController,
                 _casterFadeController,
@@ -318,6 +325,7 @@ namespace GGemCo2DSkill
                 _dummyActors,
                 _casterActorHandle,
                 _attackSequence,
+                _cameraMoveController,
                 _cameraZoomController,
                 _screenFadeController,
                 _casterFadeController,
@@ -433,13 +441,36 @@ namespace GGemCo2DSkill
         }
 
         /// <summary>
-        /// 카메라 줌 이벤트 정의를 Core 카메라 매니저로 전달하고 종료 시 복귀 정책을 기록합니다.
+        /// Camera 이벤트 Payload 타입에 따라 카메라 줌 또는 이동 컨트롤러로 실행을 전달합니다.
         /// </summary>
-        /// <param name="payloadObj">Bake된 카메라 줌 이벤트 정의입니다.</param>
+        /// <param name="ctx">Caster와 Target 참조가 포함된 스킬 대상 컨텍스트입니다.</param>
+        /// <param name="payloadObj">Bake된 카메라 연출 이벤트 정의입니다.</param>
+        /// <param name="snapshotCasterPosition">이벤트 스냅샷 시점의 Caster 위치입니다.</param>
+        /// <param name="snapshotTargetPosition">이벤트 스냅샷 시점의 Target 위치입니다.</param>
         /// <param name="eventDurationSeconds">Timeline Clip 길이에서 계산된 이벤트 지속 시간입니다.</param>
-        internal void HandleCameraZoom(UnityEngine.Object payloadObj, float eventDurationSeconds)
+        internal void HandleCameraPresentation(
+            SkillTargetContext ctx,
+            UnityEngine.Object payloadObj,
+            Vector3 snapshotCasterPosition,
+            Vector3 snapshotTargetPosition,
+            float eventDurationSeconds)
         {
-            _cameraZoomController.Play(this, payloadObj, eventDurationSeconds);
+            if (payloadObj is SkillCameraZoomEventDefinition)
+            {
+                _cameraZoomController.Play(this, payloadObj, eventDurationSeconds);
+                return;
+            }
+
+            if (payloadObj is SkillCameraMoveEventDefinition)
+            {
+                _cameraMoveController.Play(
+                    this,
+                    ctx,
+                    snapshotCasterPosition,
+                    snapshotTargetPosition,
+                    payloadObj,
+                    eventDurationSeconds);
+            }
         }
 
         /// <summary>
@@ -927,6 +958,7 @@ namespace GGemCo2DSkill
                 this,
                 _dummyActors,
                 _attackSequence,
+                _cameraMoveController,
                 _cameraZoomController,
                 _screenFadeController,
                 _casterFadeController,
@@ -1010,6 +1042,7 @@ namespace GGemCo2DSkill
                 run.Caster,
                 _ownedVfxTracker,
                 _dummyActors,
+                _cameraMoveController,
                 _cameraZoomController,
                 _screenFadeController,
                 _casterFadeController,

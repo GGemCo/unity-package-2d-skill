@@ -61,7 +61,12 @@ namespace GGemCo2DSkill
                     break;
 
                 case ConfigCommonSkill.SkillEventType.Camera:
-                    executor.HandleCameraZoom(payload, context.EventDurationSeconds);
+                    executor.HandleCameraPresentation(
+                        targetContext,
+                        payload,
+                        context.SnapshotCasterPosition,
+                        context.SnapshotTargetPosition,
+                        context.EventDurationSeconds);
                     break;
 
                 case ConfigCommonSkill.SkillEventType.Lunge:

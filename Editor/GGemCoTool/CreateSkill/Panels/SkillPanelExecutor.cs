@@ -36,6 +36,11 @@ namespace GGemCo2DSkillEditor
                 {
                     ResetCameraZoomInPlayMode();
                 }
+
+                if (GUILayout.Button("카메라 이동 초기화", EditorConstants.GUILayoutButtonHeight22))
+                {
+                    ResetCameraMoveInPlayMode();
+                }
             }
         }
 
@@ -70,6 +75,21 @@ namespace GGemCo2DSkillEditor
             CameraManager cameraManager = SceneGame.Instance.cameraManager;
             cameraManager.SetOrthographicSizeImmediate(cameraManager.OriginalOrthographicSize);
             ShowNotification(new GUIContent("카메라 줌 초기화"));
+        }
+
+        /// <summary>
+        /// 플레이 모드 테스트 중 남아 있는 임시 카메라 포커스를 제거하고 기본 게임플레이 Follow로 복구합니다.
+        /// </summary>
+        private void ResetCameraMoveInPlayMode()
+        {
+            if (!Application.isPlaying || SceneGame.Instance == null || SceneGame.Instance.cameraManager == null)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            SceneGame.Instance.cameraManager.ResetCameraFocus();
+            ShowNotification(new GUIContent("카메라 이동 초기화"));
         }
 
         /// <summary>

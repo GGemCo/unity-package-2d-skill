@@ -178,6 +178,32 @@ namespace GGemCo2DSkillEditor
     }
 
     /// <summary>
+    /// CameraMove Timeline 클립을 <see cref="SkillCameraMoveEventDefinition"/> Payload로 변환합니다.
+    /// </summary>
+    internal sealed class SkillCameraMovePayloadFactory : SkillPayloadFactoryBase<SkillCameraMoveClip>
+    {
+        /// <inheritdoc />
+        protected override UnityEngine.Object CreatePayload(SkillCameraMoveClip cameraMove)
+        {
+            var def = ScriptableObject.CreateInstance<SkillCameraMoveEventDefinition>();
+            def.mode = cameraMove.Mode;
+            def.targetSource = cameraMove.TargetSource;
+            def.trackingMode = cameraMove.TrackingMode;
+            def.offset = cameraMove.Offset;
+            def.missingTargetPolicy = cameraMove.MissingTargetPolicy;
+            def.useClipDuration = cameraMove.UseClipDuration;
+            def.durationOverrideSeconds = Mathf.Max(0f, cameraMove.DurationOverrideSeconds);
+            def.easing = cameraMove.Easing;
+            def.useUnscaledTime = cameraMove.UseUnscaledTime;
+            def.respectMapBounds = cameraMove.RespectMapBounds;
+            def.restoreOnSkillEnd = cameraMove.RestoreOnSkillEnd;
+            def.restoreOnCancel = cameraMove.RestoreOnCancel;
+            def.replaceMode = cameraMove.ReplaceMode;
+            return def;
+        }
+    }
+
+    /// <summary>
     /// ScreenFade Timeline 클립을 SkillScreenFadeEventDefinition Payload로 변환합니다.
     /// </summary>
     internal sealed class SkillScreenFadePayloadFactory : SkillPayloadFactoryBase<SkillScreenFadeClip>
