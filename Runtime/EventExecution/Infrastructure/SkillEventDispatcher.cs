@@ -60,6 +60,10 @@ namespace GGemCo2DSkill
                     executor.HandlePlayAudio(targetContext, payload, context.EventDurationSeconds);
                     break;
 
+                case ConfigCommonSkill.SkillEventType.Camera:
+                    executor.HandleCameraZoom(payload, context.EventDurationSeconds);
+                    break;
+
                 case ConfigCommonSkill.SkillEventType.Lunge:
                     executor.HandleLunge(context.Skill, targetContext, payload, context.EventDurationSeconds);
                     break;

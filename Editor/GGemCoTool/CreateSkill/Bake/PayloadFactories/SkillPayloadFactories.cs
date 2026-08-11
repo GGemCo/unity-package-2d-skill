@@ -156,6 +156,28 @@ namespace GGemCo2DSkillEditor
     }
 
     /// <summary>
+    /// CameraZoom Timeline 클립을 <see cref="SkillCameraZoomEventDefinition"/> Payload로 변환합니다.
+    /// </summary>
+    internal sealed class SkillCameraZoomPayloadFactory : SkillPayloadFactoryBase<SkillCameraZoomClip>
+    {
+        /// <inheritdoc />
+        protected override UnityEngine.Object CreatePayload(SkillCameraZoomClip cameraZoom)
+        {
+            var def = ScriptableObject.CreateInstance<SkillCameraZoomEventDefinition>();
+            def.mode = cameraZoom.Mode;
+            def.targetOrthographicSize = Mathf.Max(0.0001f, cameraZoom.TargetOrthographicSize);
+            def.useClipDuration = cameraZoom.UseClipDuration;
+            def.durationOverrideSeconds = Mathf.Max(0f, cameraZoom.DurationOverrideSeconds);
+            def.easing = cameraZoom.Easing;
+            def.useUnscaledTime = cameraZoom.UseUnscaledTime;
+            def.restoreOnSkillEnd = cameraZoom.RestoreOnSkillEnd;
+            def.restoreOnCancel = cameraZoom.RestoreOnCancel;
+            def.replaceMode = cameraZoom.ReplaceMode;
+            return def;
+        }
+    }
+
+    /// <summary>
     /// ScreenFade Timeline 클립을 SkillScreenFadeEventDefinition Payload로 변환합니다.
     /// </summary>
     internal sealed class SkillScreenFadePayloadFactory : SkillPayloadFactoryBase<SkillScreenFadeClip>

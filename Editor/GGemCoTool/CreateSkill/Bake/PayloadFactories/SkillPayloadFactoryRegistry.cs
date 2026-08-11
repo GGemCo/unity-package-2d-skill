@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace GGemCo2DSkillEditor
@@ -44,6 +44,7 @@ namespace GGemCo2DSkillEditor
                 new SkillApplyAffectPayloadFactory(),
                 new SkillApplyTempHpPayloadFactory(),
                 new SkillPlayAudioPayloadFactory(),
+                new SkillCameraZoomPayloadFactory(),
                 new SkillScreenFadePayloadFactory(),
                 new SkillCasterFadePayloadFactory(),
                 new SkillAfterimagePayloadFactory(),

@@ -1,4 +1,4 @@
-﻿using Config;
+using Config;
 using GGemCo2DCore;
 using GGemCo2DCoreEditor;
 using GGemCo2DSkill;
@@ -31,6 +31,11 @@ namespace GGemCo2DSkillEditor
                 {
                     ResetScreenFadeInPlayMode();
                 }
+
+                if (GUILayout.Button("카메라 줌 초기화", EditorConstants.GUILayoutButtonHeight22))
+                {
+                    ResetCameraZoomInPlayMode();
+                }
             }
         }
 
@@ -49,6 +54,22 @@ namespace GGemCo2DSkillEditor
             var service = ScreenFadeRuntimeService.GetOrCreate(SceneGame.Instance);
             service?.ResetPresentation();
             ShowNotification(new GUIContent("화면 페이드 초기화"));
+        }
+
+        /// <summary>
+        /// 플레이 모드 테스트 중 남아 있는 카메라 줌을 게임 기본 Orthographic Size로 즉시 복구합니다.
+        /// </summary>
+        private void ResetCameraZoomInPlayMode()
+        {
+            if (!Application.isPlaying || SceneGame.Instance == null || SceneGame.Instance.cameraManager == null)
+            {
+                EditorUtility.DisplayDialog(Title, "Play Mode에서만 사용할 수 있습니다.", "OK");
+                return;
+            }
+
+            CameraManager cameraManager = SceneGame.Instance.cameraManager;
+            cameraManager.SetOrthographicSizeImmediate(cameraManager.OriginalOrthographicSize);
+            ShowNotification(new GUIContent("카메라 줌 초기화"));
         }
 
         /// <summary>
