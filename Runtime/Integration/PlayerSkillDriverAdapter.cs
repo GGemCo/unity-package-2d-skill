@@ -7,6 +7,71 @@ using UnityEngine;
 namespace GGemCo2DSkill
 {
     /// <summary>
+    /// 플레이어 스킬 실행이 실제로 시작된 후 외부 시스템에 전달하는 이벤트 데이터입니다.
+    /// </summary>
+    public readonly struct PlayerSkillStartedEventData
+    {
+        /// <summary>
+        /// 실행을 시작한 스킬 UID입니다.
+        /// </summary>
+        public readonly int SkillUid;
+
+        /// <summary>
+        /// 여러 스킬을 묶은 실행에 포함되었는지 여부입니다.
+        /// </summary>
+        public readonly bool IsBundle;
+
+        /// <summary>
+        /// 묶음 실행에서 대표 애니메이션을 담당하는 스킬인지 여부입니다.
+        /// 단일 실행은 항상 대표 스킬로 처리합니다.
+        /// </summary>
+        public readonly bool IsPrimary;
+
+        /// <summary>
+        /// 플레이어 스킬 시작 이벤트 데이터를 생성합니다.
+        /// </summary>
+        /// <param name="skillUid">실행을 시작한 스킬 UID입니다.</param>
+        /// <param name="isBundle">묶음 실행 포함 여부입니다.</param>
+        /// <param name="isPrimary">대표 스킬 여부입니다.</param>
+        public PlayerSkillStartedEventData(int skillUid, bool isBundle, bool isPrimary)
+        {
+            SkillUid = skillUid;
+            IsBundle = isBundle;
+            IsPrimary = isPrimary;
+        }
+    }
+
+    /// <summary>
+    /// 플레이어 스킬의 성공한 실행 시작을 UI, Analytics 같은 선택 기능에 전달합니다.
+    /// Skill 패키지는 구독자의 구체적인 구현을 알지 않습니다.
+    /// </summary>
+    public static class PlayerSkillRuntimeEvents
+    {
+        /// <summary>
+        /// 플레이어 스킬 실행기가 요청을 수락하고 실제 실행을 시작한 후 발생합니다.
+        /// </summary>
+        public static event Action<PlayerSkillStartedEventData> SkillStarted;
+
+        /// <summary>
+        /// 성공한 플레이어 스킬 시작을 구독자에게 전달합니다.
+        /// </summary>
+        /// <param name="eventData">플레이어 스킬 시작 데이터입니다.</param>
+        internal static void NotifySkillStarted(in PlayerSkillStartedEventData eventData)
+        {
+            SkillStarted?.Invoke(eventData);
+        }
+
+        /// <summary>
+        /// Domain Reload 비활성 환경에서도 이전 플레이 세션의 구독자가 남지 않도록 정적 이벤트를 초기화합니다.
+        /// </summary>
+        [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
+        private static void Reset()
+        {
+            SkillStarted = null;
+        }
+    }
+
+    /// <summary>
     /// Core의 공용 스킬 드라이버 호출을 <see cref="SkillExecutor"/> 기반 플레이어 스킬 실행 흐름으로 연결하는 어댑터입니다.
     /// 플레이어 스킬 UID를 기준으로 실행 가능 여부와 내부 쿨다운을 관리합니다.
     /// </summary>
@@ -194,6 +259,9 @@ namespace GGemCo2DSkill
             _chainUnlockedByConfirmedDamage = false;
             _chainConsumed = false;
 
+            PlayerSkillRuntimeEvents.NotifySkillStarted(
+                new PlayerSkillStartedEventData(skillUid, isBundle: false, isPrimary: true));
+
             return SkillUseResult.Started;
         }
 
@@ -280,6 +348,21 @@ namespace GGemCo2DSkill
             _currentRunningSkillUid = resolvedPrimarySkillUid;
             _chainUnlockedByConfirmedDamage = false;
             _chainConsumed = false;
+
+            // 묶음에 실제로 포함되어 실행을 시작한 스킬을 각각 기록합니다.
+            // 대표 여부를 함께 전달해 전체 사용량과 대표 입력 사용량을 구분할 수 있게 합니다.
+            for (int i = 0; i < runtimeEntries.Count; i++)
+            {
+                RuntimeSkillDefinition runtimeSkill = runtimeEntries[i].Skill;
+                if (runtimeSkill == null)
+                    continue;
+
+                PlayerSkillRuntimeEvents.NotifySkillStarted(
+                    new PlayerSkillStartedEventData(
+                        runtimeSkill.Uid,
+                        isBundle: true,
+                        isPrimary: runtimeSkill.Uid == resolvedPrimarySkillUid));
+            }
 
             return SkillUseResult.Started;
         }
