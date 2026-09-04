@@ -12,6 +12,7 @@ namespace GGemCo2DSkill
     [DisallowMultipleComponent]
     public sealed class MonsterSkillDriverAdapter : MonoBehaviour,
         IMonsterSkillDriverFeedback,
+        IMonsterSkillUsePhaseProvider,
         ISkillCancelableDriver,
         IIncomingHitActionCanceler,
         IIncomingHitDamageConsumptionResolver,
@@ -45,18 +46,33 @@ namespace GGemCo2DSkill
                 return;
 
             if (_executor != null)
+            {
                 _executor.ExecutionFinished -= OnExecutionFinished;
+                _executor.UsePhaseStarted -= OnUsePhaseStarted;
+            }
 
             _executor = value;
 
             if (_executor != null)
+            {
                 _executor.ExecutionFinished += OnExecutionFinished;
+                _executor.UsePhaseStarted += OnUsePhaseStarted;
+            }
         }
 
         /// <summary>
         /// 스킬 UID별 다음 사용 가능 시각을 저장합니다.
         /// </summary>
         private readonly Dictionary<int, float> _cooldownReadyAt = new();
+
+        /// <summary>차징 완료 후 실제 사용 단계 진입 시 적용할 스킬 UID입니다.</summary>
+        private int _pendingChargedCooldownSkillUid;
+
+        /// <summary>실제 사용 단계 진입 시 시작할 지연 쿨다운 시간입니다.</summary>
+        private float _pendingChargedCooldownSeconds;
+
+        /// <summary>현재 실행에서 실제 캐스팅/사용 단계 진입 신호를 받은 스킬 UID입니다.</summary>
+        private int _usePhaseStartedSkillUid;
 
         /// <summary>
         /// 현재 스킬 실행기가 다른 스킬을 처리 중인지 여부를 반환합니다.
@@ -88,7 +104,10 @@ namespace GGemCo2DSkill
         private void OnDestroy()
         {
             if (_executor != null)
+            {
                 _executor.ExecutionFinished -= OnExecutionFinished;
+                _executor.UsePhaseStarted -= OnUsePhaseStarted;
+            }
         }
 
         /// <summary>
@@ -181,15 +200,85 @@ namespace GGemCo2DSkill
 
             _attackSlotController?.NotifyCombatActionStarted(waitForExplicitCompletion: true);
 
-            float cd = Mathf.Max(0f, skill.CoolTime);
-            if (cd > 0f) _cooldownReadyAt[skillUid] = Time.time + cd;
+            ApplyOrDeferCooldown(skill);
 
             _hasLastSkillResult = false;
             _hasLastCombatReport = false;
             _hasPendingCombatReport = false;
             _pendingCombatReport = default;
             _currentRunningSkillUid = skillUid;
+            _usePhaseStartedSkillUid = 0;
             return SkillUseResult.Started;
+        }
+
+        /// <summary>
+        /// 일반 스킬은 실행 시작 즉시 쿨다운을 적용하고, 차징 스킬은 실제 사용 단계 진입 시점까지 쿨다운 시작을 지연합니다.
+        /// </summary>
+        /// <param name="skill">실행을 시작한 몬스터 스킬 정의입니다.</param>
+        private void ApplyOrDeferCooldown(RuntimeSkillDefinition skill)
+        {
+            if (skill == null)
+                return;
+
+            float cooldownSeconds = Mathf.Max(0f, skill.CoolTime);
+            if (cooldownSeconds <= 0f)
+            {
+                ClearPendingChargedCooldown(skill.Uid);
+                return;
+            }
+
+            if (skill.Charge != null && skill.Charge.IsEnabled)
+            {
+                _pendingChargedCooldownSkillUid = skill.Uid;
+                _pendingChargedCooldownSeconds = cooldownSeconds;
+                return;
+            }
+
+            _cooldownReadyAt[skill.Uid] = Time.time + cooldownSeconds;
+            ClearPendingChargedCooldown(skill.Uid);
+        }
+
+        /// <summary>
+        /// SkillExecutor가 실제 사용 단계 진입을 알리면 보류했던 차징 스킬 쿨다운을 시작합니다.
+        /// </summary>
+        /// <param name="skillUid">사용 단계에 진입한 스킬 UID입니다.</param>
+        private void OnUsePhaseStarted(int skillUid)
+        {
+            if (skillUid <= 0)
+                return;
+
+            _usePhaseStartedSkillUid = skillUid;
+            if (_pendingChargedCooldownSkillUid != skillUid)
+                return;
+
+            float cooldownSeconds = Mathf.Max(0f, _pendingChargedCooldownSeconds);
+            if (cooldownSeconds > 0f)
+                _cooldownReadyAt[skillUid] = Time.time + cooldownSeconds;
+
+            ClearPendingChargedCooldown(skillUid);
+        }
+
+        /// <summary>
+        /// 지정한 스킬의 현재 실행이 실제 캐스팅/사용 단계에 진입했는지 반환합니다.
+        /// </summary>
+        /// <param name="skillUid">확인할 스킬 UID입니다.</param>
+        /// <returns>현재 실행에서 사용 단계 진입 신호를 받았으면 <see langword="true"/>입니다.</returns>
+        public bool HasEnteredUsePhase(int skillUid)
+        {
+            return skillUid > 0 && _usePhaseStartedSkillUid == skillUid;
+        }
+
+        /// <summary>
+        /// 아직 실제 사용 단계에 진입하지 않은 차징 스킬의 보류 쿨다운 정보를 정리합니다.
+        /// </summary>
+        /// <param name="skillUid">정리 대상 스킬 UID입니다. 0 이하면 현재 보류 항목을 무조건 정리합니다.</param>
+        private void ClearPendingChargedCooldown(int skillUid = 0)
+        {
+            if (skillUid > 0 && _pendingChargedCooldownSkillUid != skillUid)
+                return;
+
+            _pendingChargedCooldownSkillUid = 0;
+            _pendingChargedCooldownSeconds = 0f;
         }
 
         /// <summary>
@@ -330,7 +419,9 @@ namespace GGemCo2DSkill
 
             _pendingCombatReport = default;
             _hasPendingCombatReport = false;
+            ClearPendingChargedCooldown(report.SkillUid);
             _currentRunningSkillUid = 0;
+            _usePhaseStartedSkillUid = 0;
             _attackSlotController?.NotifyCombatActionCompleted();
         }
 

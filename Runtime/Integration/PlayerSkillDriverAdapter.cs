@@ -92,6 +92,12 @@ namespace GGemCo2DSkill
         /// </summary>
         private readonly Dictionary<int, float> _cooldownReadyAt = new();
 
+        /// <summary>차징 완료 후 실제 사용 단계 진입 시 적용할 스킬 UID입니다.</summary>
+        private int _pendingChargedCooldownSkillUid;
+
+        /// <summary>실제 사용 단계 진입 시 시작할 지연 쿨다운 시간입니다.</summary>
+        private float _pendingChargedCooldownSeconds;
+
         /// <summary>
         /// 현재 스킬 실행기가 다른 스킬을 처리 중인지 여부를 반환합니다.
         /// </summary>
@@ -130,7 +136,10 @@ namespace GGemCo2DSkill
         private void OnDestroy()
         {
             if (_executor != null)
+            {
                 _executor.ExecutionFinished -= OnExecutionFinished;
+                _executor.UsePhaseStarted -= OnUsePhaseStarted;
+            }
         }
 
         /// <summary>
@@ -143,12 +152,18 @@ namespace GGemCo2DSkill
                 return;
 
             if (_executor != null)
+            {
                 _executor.ExecutionFinished -= OnExecutionFinished;
+                _executor.UsePhaseStarted -= OnUsePhaseStarted;
+            }
 
             _executor = value;
 
             if (_executor != null)
+            {
                 _executor.ExecutionFinished += OnExecutionFinished;
+                _executor.UsePhaseStarted += OnUsePhaseStarted;
+            }
         }
 
         /// <summary>
@@ -251,9 +266,7 @@ namespace GGemCo2DSkill
 
             SpendMp(skill);
 
-            float cd = Mathf.Max(0f, skill.CoolTime);
-            if (cd > 0f)
-                _cooldownReadyAt[skillUid] = Time.time + cd;
+            ApplyOrDeferCooldown(skill);
 
             _currentRunningSkillUid = skillUid;
             _chainUnlockedByConfirmedDamage = false;
@@ -263,6 +276,62 @@ namespace GGemCo2DSkill
                 new PlayerSkillStartedEventData(skillUid, isBundle: false, isPrimary: true));
 
             return SkillUseResult.Started;
+        }
+
+        /// <summary>
+        /// 일반 스킬은 실행 시작 즉시 쿨다운을 적용하고, 차징 스킬은 실제 사용 단계 진입 시점까지 시작을 지연합니다.
+        /// </summary>
+        /// <param name="skill">실행을 시작한 플레이어 스킬 정의입니다.</param>
+        private void ApplyOrDeferCooldown(RuntimeSkillDefinition skill)
+        {
+            if (skill == null)
+                return;
+
+            float cooldownSeconds = Mathf.Max(0f, skill.CoolTime);
+            if (cooldownSeconds <= 0f)
+            {
+                ClearPendingChargedCooldown(skill.Uid);
+                return;
+            }
+
+            if (skill.Charge != null && skill.Charge.IsEnabled)
+            {
+                _pendingChargedCooldownSkillUid = skill.Uid;
+                _pendingChargedCooldownSeconds = cooldownSeconds;
+                return;
+            }
+
+            _cooldownReadyAt[skill.Uid] = Time.time + cooldownSeconds;
+            ClearPendingChargedCooldown(skill.Uid);
+        }
+
+        /// <summary>
+        /// 실제 사용 단계 진입 시 보류 중인 차징 스킬의 쿨다운을 시작합니다.
+        /// </summary>
+        /// <param name="skillUid">사용 단계에 진입한 스킬 UID입니다.</param>
+        private void OnUsePhaseStarted(int skillUid)
+        {
+            if (_pendingChargedCooldownSkillUid != skillUid || skillUid <= 0)
+                return;
+
+            float cooldownSeconds = Mathf.Max(0f, _pendingChargedCooldownSeconds);
+            if (cooldownSeconds > 0f)
+                _cooldownReadyAt[skillUid] = Time.time + cooldownSeconds;
+
+            ClearPendingChargedCooldown(skillUid);
+        }
+
+        /// <summary>
+        /// 실제 사용 단계에 진입하지 못하고 종료된 차징 스킬의 보류 쿨다운을 정리합니다.
+        /// </summary>
+        /// <param name="skillUid">정리 대상 스킬 UID입니다. 0 이하면 현재 보류 항목을 무조건 정리합니다.</param>
+        private void ClearPendingChargedCooldown(int skillUid = 0)
+        {
+            if (skillUid > 0 && _pendingChargedCooldownSkillUid != skillUid)
+                return;
+
+            _pendingChargedCooldownSkillUid = 0;
+            _pendingChargedCooldownSeconds = 0f;
         }
 
         /// <summary>
@@ -343,7 +412,7 @@ namespace GGemCo2DSkill
                 return SkillUseResult.Fail(SkillUseFailReason.ExecutionRejected);
 
             SpendMp(totalNeedMp);
-            ApplyBundleCooldowns(runtimeEntries);
+            ApplyBundleCooldowns(runtimeEntries, resolvedPrimarySkillUid);
 
             _currentRunningSkillUid = resolvedPrimarySkillUid;
             _chainUnlockedByConfirmedDamage = false;
@@ -430,9 +499,13 @@ namespace GGemCo2DSkill
 
         /// <summary>
         /// 묶음 실행에 포함된 모든 스킬에 쿨다운을 적용합니다.
+        /// 대표 스킬이 차징을 사용하면 실제 사용 단계 진입까지 대표 스킬 쿨다운만 지연합니다.
         /// </summary>
         /// <param name="runtimeEntries">실행을 시작한 스킬 목록입니다.</param>
-        private void ApplyBundleCooldowns(IReadOnlyList<SkillBundleRuntimeEntry> runtimeEntries)
+        /// <param name="primarySkillUid">묶음 실행에서 대표 애니메이션과 차징 흐름을 담당하는 스킬 UID입니다.</param>
+        private void ApplyBundleCooldowns(
+            IReadOnlyList<SkillBundleRuntimeEntry> runtimeEntries,
+            int primarySkillUid)
         {
             if (runtimeEntries == null)
                 return;
@@ -443,9 +516,17 @@ namespace GGemCo2DSkill
                 if (skill == null)
                     continue;
 
-                float cd = Mathf.Max(0f, skill.CoolTime);
-                if (cd > 0f)
-                    _cooldownReadyAt[skill.Uid] = Time.time + cd;
+                if (skill.Uid == primarySkillUid &&
+                    skill.Charge != null &&
+                    skill.Charge.IsEnabled)
+                {
+                    ApplyOrDeferCooldown(skill);
+                    continue;
+                }
+
+                float cooldownSeconds = Mathf.Max(0f, skill.CoolTime);
+                if (cooldownSeconds > 0f)
+                    _cooldownReadyAt[skill.Uid] = Time.time + cooldownSeconds;
             }
         }
 
@@ -621,6 +702,7 @@ namespace GGemCo2DSkill
             if (_currentRunningSkillUid > 0 && report.SkillUid != _currentRunningSkillUid)
                 return;
 
+            ClearPendingChargedCooldown(report.SkillUid);
             ResetChainState();
         }
 

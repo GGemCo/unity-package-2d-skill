@@ -109,6 +109,11 @@ namespace GGemCo2DSkill
         public event System.Action<SkillChargeSnapshot> ChargeStateChanged;
 
         /// <summary>
+        /// 현재 스킬이 차징/차징 완료 대기를 끝내고 실제 캐스팅/사용 단계에 진입했을 때 알립니다.
+        /// </summary>
+        public event System.Action<int> UsePhaseStarted;
+
+        /// <summary>
         /// 캐릭터 초기화 이후 기본 단계에서 실행기를 준비합니다.
         /// </summary>
         public int InitializeOrder => 0;
@@ -923,6 +928,18 @@ namespace GGemCo2DSkill
         internal void NotifyChargeStateChanged(SkillChargeSnapshot snapshot)
         {
             ChargeStateChanged?.Invoke(snapshot);
+        }
+
+        /// <summary>
+        /// 현재 활성 런이 차징 흐름을 끝내고 실제 캐스팅/사용 단계에 진입했음을 외부 어댑터에 전달합니다.
+        /// </summary>
+        /// <param name="run">실제 사용 단계에 진입한 스킬 런입니다.</param>
+        internal void NotifyUsePhaseStarted(SkillRun run)
+        {
+            if (run == null || !ReferenceEquals(_current, run) || run.IsDone)
+                return;
+
+            UsePhaseStarted?.Invoke(run.SkillUid);
         }
 
         /// <summary>

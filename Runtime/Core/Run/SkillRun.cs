@@ -34,6 +34,7 @@ namespace GGemCo2DSkill
 
         private bool _isLoading;
         private bool _isEnded;
+        private bool _usePhaseStarted;
         private bool _isPositionHoldActive;
         private bool _keepPositionHoldUntilSkillEnd;
         private bool _isMovementControlLockActive;
@@ -331,8 +332,23 @@ namespace GGemCo2DSkill
                 return;
             }
 
+            NotifyUsePhaseStartedOnce();
             _playbackController.Tick(dt);
             FinishIfPlaybackRequestedRunEnd();
+        }
+
+
+        /// <summary>
+        /// 차징과 차징 완료 대기가 끝난 뒤 실제 캐스팅/사용 흐름이 시작되는 시점을 한 번만 알립니다.
+        /// 일반 스킬도 동일한 실행 단계 진입 이벤트를 사용하지만, 차징 스킬 쿨다운 지연 정책에서 주로 활용합니다.
+        /// </summary>
+        private void NotifyUsePhaseStartedOnce()
+        {
+            if (_usePhaseStarted || IsDone)
+                return;
+
+            _usePhaseStarted = true;
+            _owner?.NotifyUsePhaseStarted(this);
         }
 
         /// <summary>
