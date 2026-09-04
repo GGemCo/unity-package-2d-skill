@@ -294,7 +294,8 @@ namespace GGemCo2DSkill
                 SkillAnimationPhase.Action,
                 loop: false,
                 timeScale: Mathf.Max(0.001f, _skill.UseClipTimeScale),
-                overrideAnimationName: string.IsNullOrEmpty(_skill.UseClip) ? null : _skill.UseClip));
+                overrideAnimationName: string.IsNullOrEmpty(_skill.UseClip) ? null : _skill.UseClip,
+                skipWaitAnimationOnComplete: _ctx.executionOptions.SkipWaitAnimationOnComplete));
         }
 
         /// <summary>
